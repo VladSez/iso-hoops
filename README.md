@@ -1,0 +1,15 @@
+# Neighborhood Hoops
+
+A relaxed basketball practice game built on [Pixel Plays](https://github.com/amirmushichge/pixel-plays)' isometric software renderer. No dependencies or build step.
+
+Run `node serve.mjs`, then open http://127.0.0.1:5300. Run physics checks with `node --test`.
+
+- WASD / arrows: move relative to the screen
+- Mouse: manually aim toward the hoop (aims on the hoop's horizontal plane)
+- Q / E: turn your aim without a mouse
+- Hold Space: build shot power; release: shoot
+- Escape: cancel a charge, or pause/resume
+
+Ballistic shots can hit the rim and backboard. A basket counts only when the ball passes downward through the hoop. The ball returns automatically after every shot. Stats are temporary and reset on reload. Sound is synthesized locally and starts off.
+
+The original `dist/engine.js` is from Pixel Plays, by AmirMushich. Its MIT license is included in `dist/LICENSE.pixel-plays`. No original music is used. All court, interface, game and physics code was created for this project.
