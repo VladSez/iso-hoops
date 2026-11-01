@@ -12,4 +12,6 @@ Run `node serve.mjs`, then open http://127.0.0.1:5300. Run physics checks with `
 
 Ballistic shots can hit the rim and backboard. A basket counts only when the ball passes downward through the hoop. The ball returns automatically after every shot. Stats are temporary and reset on reload. Sound is synthesized locally and starts off.
 
+Made shots pass through a bright, animated net, with a basket callout and a pulse on the made count. Enable sound for a swish and scoring chime. Reduced-motion preferences keep the net and callout still.
+
 The original `dist/engine.js` is from Pixel Plays, by AmirMushich. Its MIT license is included in `dist/LICENSE.pixel-plays`. No original music is used. All court, interface, game and physics code was created for this project.

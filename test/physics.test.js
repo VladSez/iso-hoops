@@ -19,6 +19,23 @@ test('passing upward through the hoop does not score', () => {
 	assert.equal(ball.made, false)
 })
 
+test('the net catches a made shot and guides it below the rim', () => {
+	const ball = ballAt({ x: HOOP.x + 0.05, y: 0.05, z: HOOP.z + 0.05 }, { vx: 1.5, vy: 0.5, vz: -3 })
+	assert.ok(stepBall(ball, 0.2).includes('score'))
+	assert.ok(ball.z < HOOP.z && ball.z > HOOP.z - 1)
+	assert.ok(Math.hypot(ball.x - HOOP.x, ball.y - HOOP.y) < 0.3)
+	assert.ok(Math.hypot(ball.vx, ball.vy) < 0.5)
+	assert.equal(stepBall(ball, 0.3).includes('score'), false)
+	assert.ok(ball.z < HOOP.z - 1, 'The net must release the ball below its opening')
+})
+
+test('a miss keeps its horizontal momentum beside the net', () => {
+	const ball = ballAt({ x: HOOP.x, y: 2, z: HOOP.z + 0.05 }, { vx: 1.5, vy: 0.5, vz: -3 })
+	assert.equal(stepBall(ball, 0.2).includes('score'), false)
+	assert.equal(ball.vx, 1.5)
+	assert.equal(ball.vy, 0.5)
+})
+
 test('a wide shot does not score', () => {
 	const ball = ballAt({ x: HOOP.x, y: 1.8, z: HOOP.z + 0.2 }, { vz: -3 })
 	assert.equal(stepBall(ball, 0.2).includes('score'), false)

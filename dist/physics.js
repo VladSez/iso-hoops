@@ -41,8 +41,19 @@ export function stepBall(ball, delta) {
 			const y = previous.y + (ball.y - previous.y) * t
 			if (Math.hypot(x - HOOP.x, y - HOOP.y) < HOOP.radius - BALL_RADIUS) {
 				ball.made = true
+				// The net catches the ball's forward momentum so it drops visibly below the rim.
+				ball.vx *= 0.18
+				ball.vy *= 0.18
+				ball.vz *= 0.62
 				events.push('score')
 			}
+		}
+
+		if (ball.made && ball.z < HOOP.z && ball.z > HOOP.z - 1) {
+			ball.vx += (HOOP.x - ball.x) * 30 * dt
+			ball.vy += (HOOP.y - ball.y) * 30 * dt
+			ball.vx *= Math.exp(-6 * dt)
+			ball.vy *= Math.exp(-6 * dt)
 		}
 
 		const boardSide = ball.vx < 0 ? 1 : -1
