@@ -2,6 +2,8 @@
 
 A relaxed basketball practice game built on [Pixel Plays](https://github.com/amirmushichge/pixel-plays)' isometric software renderer. No dependencies or build step.
 
+Play: [iso-hoops on GitHub Pages](https://vladsez.github.io/iso-hoops/).
+
 Run `node serve.mjs`, then open http://127.0.0.1:5300. Run physics checks with `node --test`.
 
 - WASD / arrows: move relative to the screen
@@ -15,3 +17,12 @@ Ballistic shots can hit the rim and backboard. A basket counts only when the bal
 Made shots pass through a bright, animated net, with a basket callout and a pulse on the made count. Enable sound for a swish and scoring chime. Reduced-motion preferences keep the net and callout still.
 
 The original `dist/engine.js` is from Pixel Plays, by AmirMushich. Its MIT license is included in `dist/LICENSE.pixel-plays`. No original music is used. All court, interface, game and physics code was created for this project.
+
+## Deploy to GitHub Pages
+
+GitHub Pages publishes the `gh-pages` branch. After committing game changes on `main`, deploy the contents of `dist` with:
+
+```sh
+git push origin main
+git subtree push --prefix dist origin gh-pages
+```
