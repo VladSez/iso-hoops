@@ -10,9 +10,10 @@ const BALL_COLOR = [210, 111, 43]
 const BALL_SEAM = [99, 56, 31]
 const STEEL = [86, 99, 94]
 const LINE = [235, 225, 196]
+const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
-	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'stage',
+	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'stage', 'basket-callout',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -20,7 +21,7 @@ const state = {
 	keys: new Set(), phase: 'ready', chargeSource: undefined, power: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
-	feedbackTime: 0, walking: false,
+	feedbackTime: 0, walking: false, scoredAt: undefined,
 }
 
 function groundColor(x, y, ix, iy, index) {
@@ -60,7 +61,6 @@ function line3D(from, to, radius, color) {
 function drawHoop() {
 	const board = [227, 225, 206]
 	const rim = [192, 73, 36]
-	const net = [224, 219, 190]
 	line3D([-8.9, 0, 0], [-8.9, 0, 4.05], 0.13, STEEL)
 	line3D([-8.9, 0, 4.05], [BACKBOARD_X, 0, 4.05], 0.1, STEEL)
 	box(BACKBOARD_X - 0.06, -1.35, 3, BACKBOARD_X + 0.06, 1.35, 4.9, board)
@@ -74,9 +74,30 @@ function drawHoop() {
 		const b = (i + 1) / 40 * Math.PI * 2
 		line3D([HOOP.x + Math.cos(a) * HOOP.radius, Math.sin(a) * HOOP.radius, HOOP.z], [HOOP.x + Math.cos(b) * HOOP.radius, Math.sin(b) * HOOP.radius, HOOP.z], 0.055, rim)
 	}
-	for (let i = 0; i < 10; i++) {
-		const a = i / 10 * Math.PI * 2
-		for (const twist of [-0.3, 0.3]) line3D([HOOP.x + Math.cos(a) * 0.57, Math.sin(a) * 0.57, HOOP.z - 0.04], [HOOP.x + Math.cos(a + twist) * 0.31, Math.sin(a + twist) * 0.31, HOOP.z - 0.7], 0.021, net)
+}
+
+function drawNet() {
+	const age = state.scoredAt === undefined ? 2 : state.time - state.scoredAt
+	const active = age < 1.3 && !STILL
+	const stretch = active ? Math.sin(Math.min(age / 0.32, 1) * Math.PI) * 0.35 : 0
+	const sway = active ? Math.sin(age * 18) * Math.exp(-age * 4) * 0.22 : 0
+	function point(row, strand) {
+		const t = row / 4
+		const angle = strand / 12 * Math.PI * 2 + (row % 2) * Math.PI / 12
+		const radius = lerp(0.57, 0.33, t) + stretch * t * 0.1
+		return [
+			HOOP.x + Math.cos(angle) * radius + sway * t,
+			HOOP.y + Math.sin(angle) * radius,
+			HOOP.z - 0.05 - t * (0.95 + stretch),
+		]
+	}
+	for (let row = 0; row < 4; row++) {
+		for (let strand = 0; strand < 12; strand++) {
+			const from = point(row, strand)
+			for (const next of [strand, strand + (row % 2 ? 1 : -1)]) {
+				line3D(from, point(row + 1, next), 0.022, NET_COLOR)
+			}
+		}
 	}
 }
 
@@ -238,8 +259,12 @@ function update(delta) {
 			if (event === 'score') {
 				state.makes++
 				state.streak++
-				setFeedback(state.streak > 1 ? `${state.streak} in a row. Finding your rhythm.` : 'Nothing but a little neighborhood magic.', true)
-				state.returnTime = state.time + 1.1
+				state.scoredAt = state.time
+				nodes['basket-callout'].hidden = false
+				nodes['basket-callout'].classList.add('celebrate')
+				nodes.makes.closest('.session-stats').classList.add('scored')
+				setFeedback(state.streak > 1 ? `Basket! ${state.streak} in a row.` : 'Basket! Nice shot.', true)
+				state.returnTime = state.time + 1.5
 				updateStats()
 			}
 		}
@@ -249,6 +274,12 @@ function update(delta) {
 			setFeedback('Another one. The court isn’t going anywhere.')
 		}
 		if (state.returnTime !== undefined && state.time >= state.returnTime) returnBall()
+	}
+	if (state.scoredAt !== undefined && state.time - state.scoredAt >= 1.8) {
+		nodes['basket-callout'].hidden = true
+		nodes['basket-callout'].classList.remove('celebrate')
+		nodes.makes.closest('.session-stats').classList.remove('scored')
+		state.scoredAt = undefined
 	}
 	if (state.phase === 'ready' && state.time - state.feedbackTime > 7) {
 		setFeedback('Find your spot. Take your time.')
@@ -321,6 +352,7 @@ function draw() {
 	flushShadows()
 	applyShadows(bakedZ)
 	shadeEdges()
+	drawNet()
 	drawAimGuide()
 	ctx.putImageData(image, 0, 0)
 }
@@ -332,6 +364,10 @@ function resizeCanvas() {
 	const scale = available < 1 ? available : Math.max(1, Math.floor(available * dpr)) / dpr
 	canvas.style.width = `${W * scale}px`
 	canvas.style.height = `${H * scale}px`
+	const canvasRect = canvas.getBoundingClientRect()
+	const hoop = project(HOOP.x, HOOP.y, HOOP.z)
+	nodes['basket-callout'].style.left = `${canvasRect.left + hoop.sx / W * canvasRect.width}px`
+	nodes['basket-callout'].style.top = `${canvasRect.top + (hoop.sy - 14) / H * canvasRect.height}px`
 }
 
 const MOVEMENT_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'KeyQ', 'KeyE', 'Space']
@@ -398,6 +434,7 @@ function ensureAudio() {
 }
 function playSound(kind) {
 	if (!audio || !soundEnabled) return
+	if (kind === 'score') playSwish()
 	const sounds = {
 		shoot: [280, 170, 0.08, 0.025, 'triangle'],
 		bounce: [150, 55, 0.11, 0.12, 'sine'],
@@ -419,12 +456,34 @@ function playSound(kind) {
 	oscillator.stop(now + duration + 0.01)
 	oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
 }
+
+function playSwish() {
+	const duration = 0.28
+	const buffer = audio.createBuffer(1, Math.ceil(audio.sampleRate * duration), audio.sampleRate)
+	const samples = buffer.getChannelData(0)
+	for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1
+	const source = audio.createBufferSource()
+	const filter = audio.createBiquadFilter()
+	const gain = audio.createGain()
+	const now = audio.currentTime
+	source.buffer = buffer
+	filter.type = 'bandpass'
+	filter.frequency.setValueAtTime(2200, now)
+	filter.frequency.exponentialRampToValueAtTime(800, now + duration)
+	filter.Q.value = 0.7
+	gain.gain.setValueAtTime(0.0001, now)
+	gain.gain.exponentialRampToValueAtTime(0.2, now + 0.035)
+	gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
+	source.connect(filter).connect(gain).connect(audio.destination)
+	source.start(now)
+	source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect() }
+}
 nodes.sound.addEventListener('click', () => {
 	soundEnabled = !soundEnabled
 	nodes.sound.textContent = soundEnabled ? 'Sound on' : 'Sound off'
 	nodes.sound.setAttribute('aria-pressed', String(soundEnabled))
 	ensureAudio()
-	if (soundEnabled) playSound('score')
+	if (soundEnabled) playSound('shoot')
 })
 
 addEventListener('resize', resizeCanvas)
