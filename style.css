@@ -16,15 +16,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .wordmark { display: flex; gap: 11px; align-items: center; font-size: 9px; letter-spacing: 1.5px; line-height: 1.7; }
 .wordmark b { font-size: 17px; letter-spacing: 3.2px; font-weight: 600; }
 .ball-icon { color: var(--orange); font-size: 32px; line-height: 1; }
-.practice-label { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 9px; letter-spacing: 1.6px; white-space: nowrap; }
-.practice-label span { width: 5px; height: 5px; border-radius: 50%; background: #7b8d64; }
 .text-button { border: 0; background: none; padding: 6px 0; color: var(--muted); font-size: 11px; }
 .text-button:hover, .footer a:hover { color: var(--orange); }
 #help-open span { margin-left: 12px; }
-.session-stats { position: absolute; top: 104px; left: 50%; transform: translateX(-50%); display: flex; gap: 27px; align-items: center; z-index: 1; }
+.session-stats { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 27px; align-items: center; padding: 8px 18px; background: #fff; }
 .session-stats > div { display: grid; gap: 7px; min-width: 47px; text-align: center; }
 .session-stats strong { font-size: 23px; font-weight: 400; font-variant-numeric: tabular-nums; }
-.session-stats span { color: var(--muted); font-size: 8px; letter-spacing: 1.7px; }
+.session-stats span { color: #6f6b62; font-size: 8px; letter-spacing: 1.7px; }
 .session-stats .stat-divider { height: 23px; width: 1px; background: #eeeae4; }
 #makes { color: var(--orange); }
 #basket-callout { position: absolute; z-index: 2; transform: translate(-50%, -100%); padding: 10px 15px; border: 1px solid #d5a272; background: #fffdf5; color: var(--orange); text-align: center; pointer-events: none; box-shadow: 3px 3px 0 #ad75442b; }
@@ -80,9 +78,8 @@ dialog .dialog-note { font-size: 10px; }
 .play-button { display: flex; justify-content: space-between; width: 100%; border: 0; padding: 14px 16px; margin-top: 22px; background: #bf5b32; color: white; font-size: 11px; }
 @media (min-height: 850px) { .court-caption { bottom: 218px; } .shoot-panel { bottom: 90px; } }
 @media (max-width: 750px) {
-	.header { top: 22px; left: 22px; right: 22px; }
-	.practice-label { display: none; }
-	.session-stats { top: 95px; gap: 22px; }
+	.header { top: 22px; left: 22px; right: 22px; display: grid; grid-template-columns: 1fr auto; row-gap: 16px; }
+	.session-stats { position: static; grid-column: 1 / -1; justify-self: center; transform: none; gap: 14px; padding: 8px 10px; }
 	#stage { inset: 135px 0 204px; }
 	.court-caption { bottom: 211px; font-size: 7px; letter-spacing: 1.5px; }
 	.shoot-panel { bottom: 91px; width: 270px; }
@@ -95,8 +92,6 @@ dialog .dialog-note { font-size: 10px; }
 @media (max-height: 620px) and (min-width: 751px) {
 	body { min-height: 400px; }
 	.header { top: 20px; }
-	.session-stats { left: 62px; top: 120px; transform: none; flex-direction: column; gap: 16px; }
-	.stat-divider { display: none; }
 	#stage { inset: 45px 0 110px; }
 	.court-caption { display: none; }
 	.shoot-panel { bottom: 55px; }
@@ -105,7 +100,6 @@ dialog .dialog-note { font-size: 10px; }
 }
 @media (max-height: 650px) and (max-width: 750px) {
 	body { min-height: 500px; overflow-y: auto; position: relative; }
-	.session-stats { top: 80px; }
 	.session-stats strong { font-size: 18px; }
 	#stage { inset: 115px 0 190px; }
 	.court-caption { display: none; }
