@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="theme-color" content="#ffffff" />
+		<meta name="description" content="A quiet neighborhood court. Move around, line up a shot, and shoot at your own pace. An isometric pixel-art basketball game." />
+		<title>Neighborhood Hoops — just you and the basket</title>
+		<link rel="stylesheet" href="style.css" />
+	</head>
+	<body>
+		<header class="header">
+			<a class="wordmark" href="./" aria-label="Neighborhood Hoops home"><span class="ball-icon" aria-hidden="true">◉</span><span>NEIGHBORHOOD<br /><b>HOOPS</b></span></a>
+			<div class="practice-label"><span></span> FREE PRACTICE</div>
+			<button id="help-open" class="text-button" type="button">How to play <span aria-hidden="true">↗</span></button>
+		</header>
+		<main>
+			<div class="session-stats" aria-label="Session statistics">
+				<div><strong id="makes">00</strong><span>MADE</span></div>
+				<span class="stat-divider" aria-hidden="true"></span>
+				<div><strong id="attempts">00</strong><span>SHOTS</span></div>
+				<span class="stat-divider" aria-hidden="true"></span>
+				<div><strong id="accuracy">—</strong><span>ACCURACY</span></div>
+			</div>
+			<div id="stage"><canvas id="c" tabindex="0" aria-label="Basketball practice court. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space to charge, release to shoot." aria-describedby="controls"></canvas></div>
+			<div class="court-caption"><span class="caption-line"></span>THE NEIGHBORHOOD COURT<span class="caption-line"></span></div>
+			<div class="shoot-panel">
+				<p id="feedback" role="status" aria-live="polite">A little time. A few good shots.</p>
+				<div class="power-label"><span>SHOT POWER</span><output id="power-value">0%</output></div>
+				<div id="power-meter" role="meter" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="power-fill"></div><span></span><span></span><span></span></div>
+				<button id="shoot" type="button"><kbd>SPACE</kbd><span id="shoot-label">Hold to charge · release to shoot</span></button>
+			</div>
+		</main>
+		<footer class="footer">
+			<div id="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> move</span><span><span class="mouse-icon" aria-hidden="true"></span> mouse aim <span class="alternate">/ Q E turn</span></span></div>
+			<div class="footer-right"><button id="sound" class="text-button" type="button" aria-pressed="false">Sound off</button><a href="https://github.com/amirmushichge/pixel-plays" target="_blank" rel="noreferrer">Built on Pixel Plays ↗</a></div>
+		</footer>
+		<dialog id="help">
+			<div class="dialog-top"><span>THE COURT IS YOURS</span><button id="help-close" class="text-button" type="button" aria-label="Close instructions">Close ×</button></div>
+			<h1>Just you.<br />And the basket.</h1>
+			<p>No clock, no opponent. Find your spot and let it fly.</p>
+			<dl><div><dt>01 / MOVE</dt><dd>WASD or arrow keys move you around the court, in the direction you see on screen.</dd></div><div><dt>02 / AIM</dt><dd>Point the mouse toward the rim. Or hold Q / E to turn your aim. The dotted line shows your direction.</dd></div><div><dt>03 / SHOOT</dt><dd>Hold Space to build power, then release. More power sends the ball farther. You can also hold the shoot button.</dd></div></dl>
+			<p class="dialog-note">The ball returns automatically. Press Esc to cancel a charge or pause. Stats last for this visit.</p>
+			<button id="help-play" class="play-button" type="button">Back to the court <span>↗</span></button>
+		</dialog>
+		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
+		<script src="engine.js"></script>
+		<script type="module" src="game.js"></script>
+	</body>
+</html>
