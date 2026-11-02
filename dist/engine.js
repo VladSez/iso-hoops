@@ -25,7 +25,7 @@ const GRADIENT_Y = COS / (S * SIN), EDGE = .28;
 
 const rgb = (r, g, b) => (255 << 24 | Math.min(255, b | 0) << 16 | Math.min(255, g | 0) << 8 | Math.min(255, r | 0)) >>> 0;
 // hue-shifted ramp: shadows drift to violet, lights drift to warm yellow
-const ramps = new WeakMap();
+let ramps = new WeakMap();
 function rampOf(c) {
   let ramp = ramps.get(c);
   if (ramp) return ramp;
@@ -157,6 +157,14 @@ const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const tufts = [], leaves = [];
 const staticShadow = new Uint8Array(W * H);
 const tuftLit = GRASS.map(c => rgb(...c)), tuftDark = GRASS.map(c => rgb(c[0] * .54, c[1] * .52, c[2] * .72));
+// forget everything a bake grew or cached, so a scene with a different palette can be baked in place
+function resetScene() {
+  ramps = new WeakMap();
+  tufts.length = 0;
+  leaves.length = 0;
+  kinds.fill(KIND_NONE);
+  ground.fill(0);
+}
 function growGrass() {
   for (let iy = 3; iy < H; iy++) for (let ix = 0; ix < W; ix++) {
     const i = iy * W + ix;

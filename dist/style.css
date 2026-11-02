@@ -66,15 +66,16 @@ kbd { font: inherit; font-size: 9px; color: #656158; border: 1px solid #e7e3dc; 
 .footer-right { display: flex; gap: 24px; align-items: center; }
 .author-credit { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; }
 .footer-right button, .footer-right a { font-size: 9px; }
-.sound-menu { position: relative; }
-#sound { white-space: nowrap; }
-#sound[aria-expanded="true"] { color: var(--orange); }
-#sound-options { position: absolute; bottom: calc(100% + 10px); left: -12px; width: 170px; margin: 0; padding: 0 0 6px; border: 1px solid #e7e3dc; background: #fff; box-shadow: 0 12px 40px #28231518; }
-#sound-options[hidden] { display: none; }
-#sound-options legend { float: left; width: 100%; padding: 12px 12px 6px; font-size: 8px; letter-spacing: 1.4px; color: var(--orange); }
-#sound-options label { clear: left; display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 10px; color: #514e45; cursor: pointer; }
-#sound-options label:hover { background: #faf8f4; }
-#sound-options input { margin: 0; accent-color: var(--orange); }
+.footer-menu { position: relative; }
+.menu-button { white-space: nowrap; }
+.menu-button[aria-expanded="true"] { color: var(--orange); }
+.menu-options { position: absolute; bottom: calc(100% + 10px); left: -12px; width: 170px; margin: 0; padding: 0 0 6px; border: 1px solid #e7e3dc; background: #fff; box-shadow: 0 12px 40px #28231518; }
+.menu-options[hidden] { display: none; }
+.menu-options legend { float: left; width: 100%; padding: 12px 12px 6px; font-size: 8px; letter-spacing: 1.4px; color: var(--orange); }
+.menu-options label { clear: left; display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 10px; color: #514e45; cursor: pointer; }
+.menu-options label:hover { background: #faf8f4; }
+.menu-options input { margin: 0; accent-color: var(--orange); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100svh - 40px); padding: 30px; border: 1px solid #e7e3dc; color: #302e2a; background: #fff; box-shadow: 0 25px 100px #28231515; }
 dialog::backdrop { background: #fff9; backdrop-filter: blur(5px); }
 .dialog-top { display: flex; justify-content: space-between; align-items: center; font-size: 9px; letter-spacing: 1px; color: var(--orange); }
@@ -87,33 +88,34 @@ dialog dd { margin: 8px 0 0; font-size: 11px; line-height: 1.8; }
 dialog .dialog-note { font-size: 10px; }
 .play-button { display: flex; justify-content: space-between; width: 100%; border: 0; padding: 14px 16px; margin-top: 22px; background: #bf5b32; color: white; font-size: 11px; }
 @media (min-height: 850px) { .court-caption { bottom: 218px; } .shoot-panel { bottom: 90px; } }
-@media (max-width: 950px) {
+@media (max-width: 1200px) {
 	.author-credit { position: static; transform: none; flex-basis: 100%; text-align: center; }
 }
 @media (max-width: 750px) {
 	.header { top: 22px; left: 22px; right: 22px; display: grid; grid-template-columns: 1fr auto; row-gap: 16px; }
 	.session-stats { position: static; grid-column: 1 / -1; justify-self: center; transform: none; gap: 14px; padding: 8px 10px; }
-	#stage { inset: 135px 0 204px; }
-	.court-caption { bottom: 211px; font-size: 7px; letter-spacing: 1.5px; }
-	.shoot-panel { bottom: 91px; width: 270px; }
+	#stage { inset: 135px 0 228px; }
+	.court-caption { bottom: 235px; font-size: 7px; letter-spacing: 1.5px; }
+	.shoot-panel { bottom: 115px; width: 270px; }
 	.footer { left: 22px; right: 22px; bottom: 19px; font-size: 8px; flex-wrap: wrap; justify-content: center; }
 	#controls { gap: 15px; }
 	#controls kbd { font-size: 8px; padding: 2px 3px; }
 	.alternate { display: none; }
-	.footer-right { gap: 20px; }
+	.footer-right { flex-wrap: wrap; justify-content: center; gap: 10px 18px; }
+	.footer-right a { white-space: nowrap; }
 }
 @media (max-height: 620px) and (min-width: 751px) {
 	body { min-height: 400px; }
 	.header { top: 20px; }
 	#stage { inset: 45px 0 110px; }
 	.court-caption { display: none; }
-	.shoot-panel { bottom: 55px; }
+	.shoot-panel { bottom: 68px; }
 	#feedback { margin-bottom: 12px; }
 	.footer { bottom: 12px; }
 }
 @media (max-height: 650px) and (max-width: 750px) {
 	body { min-height: 500px; overflow-y: auto; position: relative; }
 	.session-stats strong { font-size: 18px; }
-	#stage { inset: 115px 0 190px; }
+	#stage { inset: 115px 0 214px; }
 	.court-caption { display: none; }
 }

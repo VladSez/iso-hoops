@@ -1,5 +1,6 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, stepBall } from './physics.js'
 import { createMusicBuffer } from './music.js'
+import { COURTS } from './courts.js'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -11,11 +12,10 @@ const PALETTE = {
 const BALL_COLOR = [210, 111, 43]
 const BALL_SEAM = [99, 56, 31]
 const STEEL = [86, 99, 94]
-const LINE = [235, 225, 196]
 const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
-	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'stage', 'basket-callout',
+	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -26,30 +26,68 @@ const state = {
 	feedbackTime: 0, walking: false, scoredAt: undefined,
 }
 
+const COURT_KEY = 'iso-hoops:court'
+let courtId = 'neighborhood'
+try {
+	const saved = localStorage.getItem(COURT_KEY)
+	if (saved in COURTS) courtId = saved
+} catch {}
+let court = COURTS[courtId]
+
+// The ground fades out in dithered pixels once `reach` passes 1, like a vignette.
+const fadesOut = (reach, ix, iy) => reach > 1.04 || (reach > 0.91 && hash(ix, iy) < (reach - 0.91) / 0.13)
+
+function seaColor(x, y, ix, iy, index) {
+	const shore = 9.1 + (noise(x * 0.35, 3.1) - 0.5) * 1.1
+	if (y < shore - 0.5) return undefined
+	const reach = Math.pow((Math.abs(x) / 13.4) ** 6 + (Math.max(0, y - shore) / 4.6) ** 6, 1 / 6) + (noise(x * 1.3, y * 1.3) - 0.5) * 0.1
+	if (fadesOut(reach, ix, iy)) return 0
+	kinds[index] = 2
+	const n = (hash(ix, iy) - 0.5) * 6
+	if (y < shore) return rgb(178 + n, 150 + n, 108 + n)
+	const depth = y - shore
+	if (depth < 0.22 + noise(x * 2, 1) * 0.25) return rgb(242 + n, 244 + n, 236 + n)
+	const t = clamp(depth / 4.5, 0, 1)
+	const crest = noise(x * 0.5 + y * 0.9, y * 2.4) > 0.68 && hash(ix * 3, iy) > 0.3 ? 26 : 0
+	return rgb(lerp(104, 40, t) + n + crest, lerp(186, 104, t) + n + crest, lerp(186, 150, t) + n + crest)
+}
+
 function groundColor(x, y, ix, iy, index) {
+	if (court.sea) {
+		const water = seaColor(x, y, ix, iy, index)
+		if (water !== undefined) return water
+	}
 	const edge = Math.pow((Math.abs(x) / 12.9) ** 6 + (Math.abs(y) / 10.9) ** 6, 1 / 6)
 	const rough = edge + (noise(x * 1.3, y * 1.3) - 0.5) * 0.1
-	if (rough > 1.04 || (rough > 0.91 && hash(ix, iy) < (rough - 0.91) / 0.13)) return 0
+	// A rooftop is a slab with hard edges; everywhere else the ground frays into the page.
+	if (court.roof ? Math.max(Math.abs(x) / 12.4, Math.abs(y) / 10.4) > 1 : fadesOut(rough, ix, iy)) return 0
 	const grain = (hash(ix, iy) - 0.5) * 9 + (noise(x * 1.2, y * 1.2) - 0.5) * 6
 	if (Math.abs(x) <= COURT.x && Math.abs(y) <= COURT.y) {
 		kinds[index] = 1
 		const inKey = x < -2.8 && Math.abs(y) < 2.55
-		let color = inKey ? [177, 125, 96] : [126, 153, 141]
+		let color = inKey ? court.key : court.court
 		const nearBoundary = Math.abs(Math.abs(x) - 8.7) < 0.07 && Math.abs(y) < 6.75 || Math.abs(Math.abs(y) - 6.7) < 0.07 && Math.abs(x) < 8.75
 		const keyBoundary = Math.abs(x + 2.8) < 0.07 && Math.abs(y) < 2.6 || Math.abs(Math.abs(y) - 2.55) < 0.07 && x < -2.75 && x > -8.7
 		const freeThrow = Math.abs(Math.hypot(x + 2.8, y) - 2.1) < 0.07 && (x >= -2.8 || hash(Math.floor(x * 3), Math.floor(y * 3)) > 0.4)
 		const threePoint = Math.abs(Math.hypot(x - HOOP.x, y) - 6.7) < 0.07 && x > HOOP.x
 		const corner = x <= HOOP.x && Math.abs(Math.abs(y) - 6.7) < 0.07
 		const center = Math.abs(Math.hypot(x - 8.7, y) - 2.15) < 0.07
-		if (nearBoundary || keyBoundary || freeThrow || threePoint || corner || center) color = LINE
+		if (nearBoundary || keyBoundary || freeThrow || threePoint || corner || center) color = court.line
+		if (court.fallenLeaves && hash(ix * 5, iy * 3) < 0.012 + Math.max(0, Math.abs(y) - 5) * 0.03) color = court.leaf[hash(ix, iy * 7) * 3 | 0]
 		const faded = hash(ix * 7, iy * 9) < 0.018
 		const shade = grain - (faded ? 16 : 0)
 		return rgb(color[0] + shade, color[1] + shade, color[2] + shade)
 	}
 	if (Math.abs(x) < 9.8 && Math.abs(y) < 8.3 || y < -7.4 && y > -9.2 && Math.abs(x) < 11) {
 		kinds[index] = 2
-		const seam = Math.abs((x + 25) % 2.5) < 0.04 || Math.abs((y + 25) % 2.5) < 0.04
-		return rgb(174 + grain - (seam ? 14 : 0), 170 + grain - (seam ? 14 : 0), 150 + grain - (seam ? 14 : 0))
+		const seam = court.boardwalk ? Math.abs((y + 25) % 0.45) < 0.05 : Math.abs((x + 25) % 2.5) < 0.04 || Math.abs((y + 25) % 2.5) < 0.04
+		const shade = grain - (seam ? 14 : 0)
+		return rgb(court.apron[0] + shade, court.apron[1] + shade, court.apron[2] + shade)
+	}
+	if (court.roof) {
+		kinds[index] = 2
+		const shade = grain - (Math.abs((x + 25) % 1.6) < 0.05 || Math.abs((y + 25) % 1.6) < 0.05 ? 12 : 0)
+		return rgb(court.roof[0] + shade, court.roof[1] + shade, court.roof[2] + shade)
 	}
 	kinds[index] = KIND_GRASS
 	const tone = clamp(Math.floor(noise(x * 0.8, y * 0.8) * 3.7 + hash(ix, iy) * 1.1), 0, 4)
@@ -104,6 +142,16 @@ function drawNet() {
 }
 
 function drawFence() {
+	if (court.fence === 'none') return
+	if (court.fence === 'rail') {
+		for (let x = -10; x <= 9.6; x += 1.6) line3D([x, -8.1, 0], [x, -8.1, 1.2], 0.05, STEEL)
+		for (const z of [0.6, 1.2]) line3D([-10, -8.1, z], [9.6, -8.1, z], 0.045, STEEL)
+		// a low parapet along the two far edges of the roof
+		const wall = [132, 120, 132]
+		box(-12.4, -10.4, 0, 12.4, -9.95, 0.7, wall)
+		box(-12.4, -10.4, 0, -11.95, 10.4, 0.7, wall)
+		return
+	}
 	const wire = rgb(110, 123, 105)
 	for (let x = -10; x <= 9.6; x += 3.25) line3D([x, -8.1, 0], [x, -8.1, 2.5], 0.06, STEEL)
 	for (const z of [0.25, 2.5]) line3D([-10, -8.1, z], [9.6, -8.1, z], 0.045, STEEL)
@@ -116,7 +164,100 @@ function drawFence() {
 	}
 }
 
+// The engine reads these palette arrays directly, so each court repaints them in place before a bake.
+function applyPalette() {
+	court.grass.forEach((color, i) => {
+		GRASS[i].splice(0, 3, ...color)
+		tuftLit[i] = rgb(...color)
+		tuftDark[i] = rgb(color[0] * 0.54, color[1] * 0.52, color[2] * 0.72)
+	})
+	const pairs = [[LEAF_DEEP, court.leaf[0]], [LEAF_MID, court.leaf[1]], [LEAF_SILVER, court.leaf[2]], [BARK, court.bark], [COOL, court.cool], [WARM, court.warm]]
+	for (const [target, color] of pairs) target.splice(0, 3, ...color)
+}
+
+const WOOD = [151, 113, 69]
+function drawBench() {
+	box(0, -9.45, 0.68, 4.2, -8.8, 0.83, WOOD)
+	box(0, -9.5, 1, 4.2, -9.35, 1.65, WOOD)
+	for (const x of [0.3, 3.7]) box(x, -9.35, 0, x + 0.13, -8.85, 0.7, STEEL)
+	for (let x = 0; x < 4.2; x += 0.2) castShadow(x, -9.1, 0.9, 0.4)
+}
+
+function drawPalm(px, py, height, lean, seed) {
+	const trunk = [140, 110, 80]
+	const fronds = [[54, 112, 64], [78, 140, 70], [120, 168, 84]]
+	let top = [px, py, 0]
+	for (let k = 1; k <= 10; k++) {
+		const t = k / 10
+		const next = [px + lean * t * t, py - lean * 0.4 * t * t, height * t]
+		capsule(top, next, 0.2 - t * 0.06, 0.2 - t * 0.07, () => trunk, 'rough')
+		top = next
+	}
+	for (let f = 0; f < 9; f++) {
+		const angle = f / 9 * Math.PI * 2 + seed
+		let from = top
+		for (let k = 1; k <= 6; k++) {
+			const droop = (k / 6) ** 2 * 1.6
+			const to = [top[0] + Math.cos(angle) * k * 0.42, top[1] + Math.sin(angle) * k * 0.42, top[2] + 0.35 * Math.sin(k / 6 * Math.PI) - droop]
+			line3D(from, to, 0.11 - k * 0.01, fronds[(f + k) % 3])
+			from = to
+		}
+	}
+	sphere(top[0], top[1], top[2] - 0.1, 0.28, [92, 74, 52], 'rough')
+}
+
+// Props frame each court without covering play.
+const PROPS = {
+	neighborhood: parkProps,
+	autumn: parkProps,
+	winter() {
+		parkProps()
+		const snow = [240, 244, 250]
+		sphere(10.6, -3, 0.65, 0.7, snow, 'solid')
+		sphere(10.6, -3, 1.65, 0.5, snow, 'solid')
+		sphere(10.6, -3, 2.4, 0.36, snow, 'solid')
+		line3D([10.6, -3.36, 2.42], [10.6, -3.75, 2.38], 0.05, [230, 120, 40])
+	},
+	rooftop() {
+		const tank = [128, 92, 66]
+		for (const [x, y] of [[-10.6, -8.6], [-9.2, -8.6], [-10.6, -7.2], [-9.2, -7.2]]) line3D([x, y, 0], [x, y, 3], 0.08, STEEL)
+		capsule([-9.9, -7.9, 3.2], [-9.9, -7.9, 5.6], 1.05, 1.05, () => tank, 'rough')
+		sphere(-9.9, -7.9, 6.1, 0.75, [92, 66, 52], 'rough')
+		box(4.6, -9.8, 0, 6.2, -8.6, 1.1, [176, 178, 182])
+		box(7, -9.8, 0, 8.2, -8.8, 0.8, [176, 178, 182])
+		for (let x = -8; x < 9.4; x += 0.55) plot(x, -8.1, 2.1 + Math.sin((x + 8) / 17.4 * Math.PI * 4) * 0.15, rgb(255, 214, 120))
+		box(9.2, 5, 0, 11.2, 7, 0.6, [150, 120, 96])
+		growTree(10.2, 6, 0.55, 240, 1000)
+		drawBench()
+	},
+	beach() {
+		box(4.9, -9.5, 0, 5.15, -8.7, 2.4, [72, 154, 196])
+		box(5.6, -9.6, 0, 6.6, -8.9, 0.7, [214, 76, 64])
+		box(5.55, -9.65, 0.7, 6.65, -8.85, 0.82, [240, 240, 236])
+		line3D([8.8, -9.4, 0], [8.8, -9.4, 2.9], 0.06, [240, 240, 236])
+		for (let i = 0; i < 14; i++) {
+			const angle = i / 14 * Math.PI * 2
+			sphere(8.8 + Math.cos(angle) * 1.1, -9.4 + Math.sin(angle) * 1.1, 2.75, 0.42, i % 2 ? [240, 236, 226] : [222, 92, 70], 'solid')
+		}
+		drawPalm(-7.7, -9.75, 6.4, 0.8, 0.3)
+		drawPalm(11.6, 7.4, 4.8, 0.6, 0.9)
+		drawBench()
+	},
+}
+
+// A bench, a bottle and a pair of trees.
+function parkProps() {
+	drawBench()
+	line3D([3.45, -9.1, 0.84], [3.45, -9.1, 1.3], 0.12, [80, 121, 135])
+	box(5.1, -9.6, 0, 5.9, -8.8, 0.9, [108, 125, 101])
+	box(5.05, -9.65, 0.9, 5.95, -8.75, 1, STEEL)
+	growTree(-7.7, -9.75, 0.95, 380, 0)
+	growTree(9.8, 5.5, 0.66, 220, 1000)
+}
+
 function bakeCourt() {
+	resetScene()
+	applyPalette()
 	zb.fill(-1e9)
 	pix.fill(rgb(255, 255, 255))
 	for (let iy = 0; iy < H; iy++) for (let ix = 0; ix < W; ix++) {
@@ -132,17 +273,7 @@ function bakeCourt() {
 	growGrass()
 	drawFence()
 	drawHoop()
-	// A bench, a bottle and a pair of trees frame the court without covering play.
-	const wood = [151, 113, 69]
-	box(0, -9.45, 0.68, 4.2, -8.8, 0.83, wood)
-	box(0, -9.5, 1, 4.2, -9.35, 1.65, wood)
-	for (const x of [0.3, 3.7]) box(x, -9.35, 0, x + 0.13, -8.85, 0.7, STEEL)
-	line3D([3.45, -9.1, 0.84], [3.45, -9.1, 1.3], 0.12, [80, 121, 135])
-	box(5.1, -9.6, 0, 5.9, -8.8, 0.9, [108, 125, 101])
-	box(5.05, -9.65, 0.9, 5.95, -8.75, 1, STEEL)
-	growTree(-7.7, -9.75, 0.95, 380, 0)
-	growTree(9.8, 5.5, 0.66, 220, 1000)
-	for (let x = 0; x < 4.2; x += 0.2) castShadow(x, -9.1, 0.9, 0.4)
+	PROPS[courtId]()
 	for (let z = 0.2; z < 4.5; z += 0.15) castShadow(-8.9, 0, z, 0.15)
 	for (let y = -1.35; y < 1.35; y += 0.15) castShadow(BACKBOARD_X, y, 4.4, 0.25)
 	bakeOcclusion()
@@ -464,7 +595,7 @@ function ensureAudio() {
 }
 
 function unlockAudio(event) {
-	if (event.target.closest?.('.sound-menu')) return
+	if (event.target.closest?.('#sound, #sound-options')) return
 	if (event.type === 'keydown' && (event.repeat || event.ctrlKey || event.metaKey || event.altKey)) return
 	ensureAudio()
 }
@@ -518,21 +649,36 @@ function playSwish() {
 	source.start(now)
 	source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect() }
 }
-const soundRadios = nodes['sound-options'].querySelectorAll('input')
+// A footer menu is a button that opens a list of radio options above it.
+function setupMenu(button, options, onPick) {
+	function setOpen(open) {
+		options.hidden = !open
+		button.setAttribute('aria-expanded', String(open))
+	}
+	button.addEventListener('click', () => {
+		setOpen(options.hidden)
+		if (!options.hidden) options.querySelector(':checked').focus()
+	})
+	options.addEventListener('change', event => onPick(event.target.value))
+	options.addEventListener('keydown', event => {
+		if (event.key !== 'Escape' && event.key !== 'Enter') return
+		setOpen(false)
+		button.focus()
+	})
+	addEventListener('pointerdown', event => {
+		if (!button.parentElement.contains(event.target)) setOpen(false)
+	})
+}
+function checkOption(options, value) {
+	for (const radio of options.querySelectorAll('input')) radio.checked = radio.value === value
+}
+
 function showSoundMode() {
 	nodes['sound-label'].textContent = SOUND_MODES[soundMode]
-	for (const radio of soundRadios) radio.checked = radio.value === soundMode
+	checkOption(nodes['sound-options'], soundMode)
 }
-function setSoundMenuOpen(open) {
-	nodes['sound-options'].hidden = !open
-	nodes.sound.setAttribute('aria-expanded', String(open))
-}
-nodes.sound.addEventListener('click', () => {
-	setSoundMenuOpen(nodes['sound-options'].hidden)
-	if (!nodes['sound-options'].hidden) nodes['sound-options'].querySelector(':checked').focus()
-})
-nodes['sound-options'].addEventListener('change', event => {
-	soundMode = event.target.value
+setupMenu(nodes.sound, nodes['sound-options'], mode => {
+	soundMode = mode
 	showSoundMode()
 	try { localStorage.setItem(SOUND_MODE_KEY, soundMode) } catch {}
 	ensureAudio()
@@ -540,15 +686,20 @@ nodes['sound-options'].addEventListener('change', event => {
 	masterGain.gain.setTargetAtTime(soundMode === 'off' ? 0 : 1, audio.currentTime, 0.025)
 	musicGain.gain.setTargetAtTime(soundMode === 'all' ? MUSIC_VOLUME : 0, audio.currentTime, 0.025)
 })
-nodes['sound-options'].addEventListener('keydown', event => {
-	if (event.key !== 'Escape' && event.key !== 'Enter') return
-	setSoundMenuOpen(false)
-	nodes.sound.focus()
-})
-addEventListener('pointerdown', event => {
-	if (!event.target.closest?.('.sound-menu')) setSoundMenuOpen(false)
-})
 showSoundMode()
+
+function showCourt() {
+	nodes['court-label'].textContent = court.name
+	checkOption(nodes['court-options'], courtId)
+}
+setupMenu(nodes.court, nodes['court-options'], id => {
+	courtId = id
+	court = COURTS[id]
+	showCourt()
+	try { localStorage.setItem(COURT_KEY, courtId) } catch {}
+	bakeCourt()
+})
+showCourt()
 
 // Try immediately where autoplay is allowed; the first gesture unlocks other browsers.
 ensureAudio()
