@@ -1,4 +1,5 @@
-// Palettes and ground options for each playground. The props each one adds are drawn in game.js.
+// Palettes, ground options and sound for each playground. The props each one adds are drawn in game.js.
+// `sound` scales effect pitch, how loud the ball hits the floor, and how much the air echoes.
 export const COURTS = {
 	neighborhood: {
 		name: 'Neighborhood', caption: 'The neighborhood court',
@@ -7,6 +8,7 @@ export const COURTS = {
 		leaf: [[58, 84, 62], [100, 126, 78], [146, 162, 112]], bark: [92, 74, 60],
 		cool: [46, 38, 84], warm: [255, 232, 180],
 		fence: 'chain',
+		sound: { pitch: 1, floor: 1, echo: 0 },
 	},
 	rooftop: {
 		name: 'Rooftop at dusk', caption: 'The rooftop court',
@@ -16,6 +18,7 @@ export const COURTS = {
 		leaf: [[52, 82, 70], [84, 120, 88], [132, 160, 110]], bark: [92, 74, 60],
 		cool: [70, 40, 96], warm: [255, 196, 150],
 		fence: 'rail',
+		sound: { pitch: 1, floor: 1.1, echo: 0.3 },
 	},
 	beach: {
 		name: 'Boardwalk beach', caption: 'The beach court',
@@ -25,6 +28,7 @@ export const COURTS = {
 		leaf: [[40, 104, 70], [62, 140, 76], [126, 182, 92]], bark: [150, 116, 78],
 		cool: [40, 70, 110], warm: [255, 238, 196],
 		fence: 'none',
+		sound: { pitch: 0.88, floor: 0.75, echo: 0 },
 	},
 	autumn: {
 		name: 'Autumn park', caption: 'The park court',
@@ -34,6 +38,7 @@ export const COURTS = {
 		leaf: [[150, 52, 34], [208, 104, 40], [236, 172, 64]], bark: [84, 62, 50],
 		cool: [60, 40, 70], warm: [255, 214, 160],
 		fence: 'chain',
+		sound: { pitch: 0.95, floor: 0.9, echo: 0.1 },
 	},
 	winter: {
 		name: 'First snow', caption: 'The winter court',
@@ -42,5 +47,6 @@ export const COURTS = {
 		leaf: [[30, 60, 56], [44, 82, 70], [236, 242, 248]], bark: [74, 62, 56],
 		cool: [60, 70, 120], warm: [240, 244, 255],
 		fence: 'chain',
+		sound: { pitch: 1.12, floor: 0.6, echo: 0.18 },
 	},
 }

@@ -1,6 +1,6 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, stepBall } from './physics.js'
-import { createMusicBuffer } from './music.js'
-import { COURTS } from './courts.js?v=2'
+import { createMusicBuffer } from './music.js?v=2'
+import { COURTS } from './courts.js?v=3'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -615,6 +615,10 @@ try {
 let audio
 let masterGain
 let musicGain
+let effectsBus
+let echoGain
+let music
+const musicBuffers = {}
 function ensureAudio() {
 	if (soundMode === 'off') return
 	const AudioContext = window.AudioContext || window.webkitAudioContext
@@ -626,13 +630,41 @@ function ensureAudio() {
 		musicGain = audio.createGain()
 		musicGain.gain.value = soundMode === 'all' ? MUSIC_VOLUME : 0
 		musicGain.connect(masterGain)
-		const music = audio.createBufferSource()
-		music.buffer = createMusicBuffer(audio)
-		music.loop = true
-		music.connect(musicGain)
-		music.start()
+		// Effects reach the speakers directly and through a short feedback echo that each court tunes.
+		effectsBus = audio.createGain()
+		effectsBus.connect(masterGain)
+		const delay = audio.createDelay(1)
+		delay.delayTime.value = 0.16
+		const feedback = audio.createGain()
+		feedback.gain.value = 0.35
+		echoGain = audio.createGain()
+		effectsBus.connect(delay).connect(feedback).connect(delay)
+		delay.connect(echoGain).connect(masterGain)
+		playCourtSound()
 	}
 	if (audio.state === 'suspended' || audio.state === 'interrupted') audio.resume()
+}
+
+// Crossfades to the current court's loop and echo; loops are rendered once and reused.
+function playCourtSound() {
+	echoGain.gain.setTargetAtTime(court.sound.echo, audio.currentTime, 0.05)
+	if (music?.courtId === courtId) return
+	const now = audio.currentTime
+	if (music) {
+		const { source, gain } = music
+		gain.gain.setTargetAtTime(0, now, 0.25)
+		source.stop(now + 1.5)
+		source.onended = () => { source.disconnect(); gain.disconnect() }
+	}
+	const source = audio.createBufferSource()
+	source.buffer = musicBuffers[courtId] ??= createMusicBuffer(audio, courtId)
+	source.loop = true
+	const gain = audio.createGain()
+	gain.gain.setValueAtTime(music ? 0 : 1, now)
+	gain.gain.setTargetAtTime(1, now, 0.25)
+	source.connect(gain).connect(musicGain)
+	source.start(now)
+	music = { courtId, source, gain }
 }
 
 function unlockAudio(event) {
@@ -655,15 +687,17 @@ function playSound(kind) {
 		score: [540, 810, 0.2, 0.045, 'sine'],
 	}
 	const [from, to, duration, volume, type] = sounds[kind]
+	const { pitch, floor } = court.sound
+	const onFloor = kind === 'bounce' || kind === 'dribble'
 	const oscillator = audio.createOscillator()
 	const gain = audio.createGain()
 	const now = audio.currentTime
 	oscillator.type = type
-	oscillator.frequency.setValueAtTime(from, now)
-	oscillator.frequency.exponentialRampToValueAtTime(to, now + duration)
-	gain.gain.setValueAtTime(volume, now)
+	oscillator.frequency.setValueAtTime(from * pitch, now)
+	oscillator.frequency.exponentialRampToValueAtTime(to * pitch, now + duration)
+	gain.gain.setValueAtTime(onFloor ? volume * floor : volume, now)
 	gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
-	oscillator.connect(gain).connect(masterGain)
+	oscillator.connect(gain).connect(effectsBus)
 	oscillator.start(now)
 	oscillator.stop(now + duration + 0.01)
 	oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
@@ -680,13 +714,13 @@ function playSwish() {
 	const now = audio.currentTime
 	source.buffer = buffer
 	filter.type = 'bandpass'
-	filter.frequency.setValueAtTime(2200, now)
-	filter.frequency.exponentialRampToValueAtTime(800, now + duration)
+	filter.frequency.setValueAtTime(2200 * court.sound.pitch, now)
+	filter.frequency.exponentialRampToValueAtTime(800 * court.sound.pitch, now + duration)
 	filter.Q.value = 0.7
 	gain.gain.setValueAtTime(0.0001, now)
 	gain.gain.exponentialRampToValueAtTime(0.2, now + 0.035)
 	gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
-	source.connect(filter).connect(gain).connect(masterGain)
+	source.connect(filter).connect(gain).connect(effectsBus)
 	source.start(now)
 	source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect() }
 }
@@ -740,6 +774,7 @@ setupMenu(nodes.court, nodes['court-options'], id => {
 	showCourt()
 	try { localStorage.setItem(COURT_KEY, courtId) } catch {}
 	bakeCourt()
+	if (audio) playCourtSound()
 })
 showCourt()
 
