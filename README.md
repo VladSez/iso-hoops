@@ -20,7 +20,7 @@ The original `dist/engine.js` is from Pixel Plays, by AmirMushich. Its MIT licen
 
 ## Deploy to GitHub Pages
 
-GitHub Pages publishes the `gh-pages` branch. After committing game changes on `main`, deploy the contents of `dist` with:
+GitHub Pages publishes the `gh-pages` branch. When editing `dist/style.css`, update its `?v=` version in `dist/index.html` so browsers fetch the latest styles. After committing game changes on `main`, deploy the contents of `dist` with:
 
 ```sh
 git push origin main
