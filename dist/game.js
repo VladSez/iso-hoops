@@ -11,6 +11,7 @@ const PALETTE = {
 }
 const BALL_COLOR = [210, 111, 43]
 const BALL_SEAM = [99, 56, 31]
+const ARC_COLOR = [246, 150, 72]
 const STEEL = [86, 99, 94]
 const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
@@ -491,7 +492,15 @@ function drawAimGuide() {
 		const p = project(shot.x + shot.vx * t, shot.y + shot.vy * t, z)
 		arc.push([p.sx, p.sy])
 	}
-	drawDots(arc, rgb(174, 115, 72))
+	// Bright orange dots over a dark shadow pixel, so the arc reads on any court.
+	const lit = rgb(...ARC_COLOR), dark = rgb(52, 38, 48)
+	for (const [sx, sy] of arc) putPixel(sx, sy + 1, dark)
+	for (const [sx, sy] of arc) putPixel(sx, sy, lit)
+}
+
+function putPixel(sx, sy, color) {
+	const ix = sx | 0, iy = sy | 0
+	if (ix >= 0 && iy >= 0 && ix < W && iy < H) pix[iy * W + ix] = color
 }
 
 function draw() {
