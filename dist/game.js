@@ -1,4 +1,5 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, stepBall } from './physics.js'
+import { createMusicBuffer } from './music.js'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -425,13 +426,36 @@ nodes['help-close'].addEventListener('click', closeHelp)
 nodes['help-play'].addEventListener('click', closeHelp)
 
 let audio
-let soundEnabled = false
+let masterGain
+let soundEnabled = true
 function ensureAudio() {
 	if (!soundEnabled) return
 	const AudioContext = window.AudioContext || window.webkitAudioContext
-	if (!audio && AudioContext) audio = new AudioContext()
-	if (audio?.state === 'suspended') audio.resume()
+	if (!AudioContext) return
+	if (!audio) {
+		audio = new AudioContext()
+		masterGain = audio.createGain()
+		masterGain.connect(audio.destination)
+		const musicGain = audio.createGain()
+		musicGain.gain.value = 0.18
+		musicGain.connect(masterGain)
+		const music = audio.createBufferSource()
+		music.buffer = createMusicBuffer(audio)
+		music.loop = true
+		music.connect(musicGain)
+		music.start()
+	}
+	if (audio.state === 'suspended' || audio.state === 'interrupted') audio.resume()
 }
+
+function unlockAudio(event) {
+	if (event.target.closest?.('#sound')) return
+	if (event.type === 'keydown' && (event.repeat || event.ctrlKey || event.metaKey || event.altKey)) return
+	ensureAudio()
+}
+addEventListener('pointerdown', unlockAudio, { passive: true })
+addEventListener('keydown', unlockAudio)
+
 function playSound(kind) {
 	if (!audio || !soundEnabled) return
 	if (kind === 'score') playSwish()
@@ -451,7 +475,7 @@ function playSound(kind) {
 	oscillator.frequency.exponentialRampToValueAtTime(to, now + duration)
 	gain.gain.setValueAtTime(volume, now)
 	gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
-	oscillator.connect(gain).connect(audio.destination)
+	oscillator.connect(gain).connect(masterGain)
 	oscillator.start(now)
 	oscillator.stop(now + duration + 0.01)
 	oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
@@ -474,7 +498,7 @@ function playSwish() {
 	gain.gain.setValueAtTime(0.0001, now)
 	gain.gain.exponentialRampToValueAtTime(0.2, now + 0.035)
 	gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
-	source.connect(filter).connect(gain).connect(audio.destination)
+	source.connect(filter).connect(gain).connect(masterGain)
 	source.start(now)
 	source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect() }
 }
@@ -483,8 +507,11 @@ nodes.sound.addEventListener('click', () => {
 	nodes.sound.textContent = soundEnabled ? 'Sound on' : 'Sound off'
 	nodes.sound.setAttribute('aria-pressed', String(soundEnabled))
 	ensureAudio()
-	if (soundEnabled) playSound('shoot')
+	if (audio) masterGain.gain.setTargetAtTime(soundEnabled ? 1 : 0, audio.currentTime, 0.025)
 })
+
+// Try immediately where autoplay is allowed; the first gesture unlocks other browsers.
+ensureAudio()
 
 addEventListener('resize', resizeCanvas)
 resizeCanvas()
