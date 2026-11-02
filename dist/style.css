@@ -63,7 +63,8 @@ kbd { font: inherit; font-size: 9px; color: #656158; border: 1px solid #e7e3dc; 
 #controls > span { display: flex; align-items: center; gap: 6px; }
 .alternate { color: #a4a097; }
 .mouse-icon { display: inline-block; width: 9px; height: 13px; border: 1px solid #ada79b; border-radius: 5px; margin-right: 1px; }
-.footer-right { display: flex; gap: 24px; align-items: center; }
+.footer-right { display: grid; grid-template-columns: auto auto auto; gap: 8px 24px; align-items: center; }
+.author-credit { grid-column: 1 / -1; justify-self: end; }
 .footer-right button, .footer-right a { font-size: 9px; }
 dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100svh - 40px); padding: 30px; border: 1px solid #e7e3dc; color: #302e2a; background: #fff; box-shadow: 0 25px 100px #28231515; }
 dialog::backdrop { background: #fff9; backdrop-filter: blur(5px); }
@@ -87,7 +88,8 @@ dialog .dialog-note { font-size: 10px; }
 	#controls { gap: 15px; }
 	#controls kbd { font-size: 8px; padding: 2px 3px; }
 	.alternate { display: none; }
-	.footer-right { gap: 20px; }
+	.footer-right { gap: 8px 20px; }
+	.author-credit { justify-self: center; }
 }
 @media (max-height: 620px) and (min-width: 751px) {
 	body { min-height: 400px; }
