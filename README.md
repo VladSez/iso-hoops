@@ -1,28 +1,65 @@
 # Neighborhood Hoops
 
-A relaxed basketball practice game built on [Pixel Plays](https://github.com/amirmushichge/pixel-plays)' isometric software renderer. No dependencies or build step.
+A relaxed 3D pixel-art basketball game that runs in your browser. Move around the court, line up your shot and drain it through the net.
 
-Play: [iso-hoops on GitHub Pages](https://vladsez.github.io/iso-hoops/).
+**[Play it here](https://vladsez.github.io/iso-hoops/)**
 
-Run `node serve.mjs`, then open http://127.0.0.1:5300. Run physics checks with `node --test`.
+![Neighborhood Hoops](dist/og-image.png)
 
-- WASD / arrows: move relative to the screen
-- Mouse: manually aim toward the hoop (aims on the hoop's horizontal plane)
-- Q / E: turn your aim without a mouse
-- Hold Space: build shot power; release: shoot
-- Escape: cancel a charge, or pause/resume
+Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pixel-plays)' isometric software renderer. There are no dependencies and no build step.
 
-Ballistic shots can hit the rim and backboard. A basket counts only when the ball passes downward through the hoop. The ball returns automatically after every shot. Stats are temporary and reset on reload. Sound is on by default, with a quiet original instrumental loop. Browsers that block autoplay start audio on the first click or keypress. The sound button mutes both music and effects.
+## Features
 
-Made shots pass through a bright, animated net, with a basket callout and a pulse on the made count. Made shots also play a swish and scoring chime when sound is on. Reduced-motion preferences keep the net and callout still.
+- **5 courts:** neighborhood, rooftop at dusk, boardwalk beach, autumn park and first snow. Switch between them from the Court menu in the footer.
+- **Real shot physics:** the ball can bounce off the rim and the backboard. A basket counts only when the ball drops down through the hoop.
+- **Music written in code:** a quiet, original 76 BPM loop built sample by sample, with no audio files.
+- **Sound effects made on the fly:** dribbles, swishes and the scoring chime are all generated with the Web Audio API.
+- **Made-shot feedback:** the net animates, a basket callout appears and the made count pulses.
+- **Remembers your settings:** your court and sound choices are kept between visits.
+- **Accessible motion:** with reduced motion turned on, the net and callout stay still.
 
-The original `dist/engine.js` is from Pixel Plays, by AmirMushich. Its MIT license is included in `dist/LICENSE.pixel-plays`. No Pixel Plays music is used. All court, interface, game and physics code was created for this project.
+## Controls
+
+| Action | Input |
+| --- | --- |
+| Move | WASD or arrow keys (relative to the screen) |
+| Aim | Mouse, or Q / E to turn |
+| Shoot | Hold Space to build power, release to shoot |
+| Cancel a shot or pause | Escape |
+
+On touch screens, tap the court to aim and hold the shoot button to charge.
+
+The ball comes back to you after every shot. Stats reset when you reload the page.
+
+## Sound
+
+Sound is on by default. Browsers that block autoplay start the audio on your first click or keypress. Use the sound menu in the footer to turn off just the music or all sound.
+
+## Run locally
+
+```sh
+node serve.mjs
+```
+
+Then open http://127.0.0.1:5300.
+
+Run the physics tests with:
+
+```sh
+node --test
+```
 
 ## Deploy to GitHub Pages
 
-GitHub Pages publishes the `gh-pages` branch. When editing `dist/style.css`, `dist/engine.js` or `dist/game.js` (or a module it imports), update that file's `?v=` version in `dist/index.html` so browsers fetch the latest code. After committing game changes on `main`, deploy the contents of `dist` with:
+GitHub Pages publishes the `gh-pages` branch. When you edit `dist/style.css`, `dist/engine.js` or `dist/game.js` (or a module it imports), bump that file's `?v=` version in `dist/index.html` so browsers fetch the new code. After committing game changes on `main`, deploy the contents of `dist` with:
 
 ```sh
 git push origin main
 git subtree push --prefix dist origin gh-pages
 ```
+
+## Credits
+
+- `dist/engine.js` comes from [Pixel Plays](https://github.com/amirmushichge/pixel-plays) by AmirMushich, under the MIT license in `dist/LICENSE.pixel-plays`. No Pixel Plays music is used.
+- All court, interface, game, physics and audio code was written for this project.
+- Made by [@vladsazonau](https://x.com/vladsazonau).
