@@ -443,7 +443,7 @@ function ensureAudio() {
 		masterGain = audio.createGain()
 		masterGain.connect(audio.destination)
 		const musicGain = audio.createGain()
-		musicGain.gain.value = 0.18
+		musicGain.gain.value = 0.135
 		musicGain.connect(masterGain)
 		const music = audio.createBufferSource()
 		music.buffer = createMusicBuffer(audio)
