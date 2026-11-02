@@ -1,6 +1,6 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, stepBall } from './physics.js'
 import { createMusicBuffer } from './music.js'
-import { COURTS } from './courts.js'
+import { COURTS } from './courts.js?v=2'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -15,7 +15,7 @@ const STEEL = [86, 99, 94]
 const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
-	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
+	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'court-caption', 'stage', 'basket-callout',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -37,24 +37,48 @@ let court = COURTS[courtId]
 // The ground fades out in dithered pixels once `reach` passes 1, like a vignette.
 const fadesOut = (reach, ix, iy) => reach > 1.04 || (reach > 0.91 && hash(ix, iy) < (reach - 0.91) / 0.13)
 
-function seaColor(x, y, ix, iy, index) {
+// Sea pixels are recolored every wind step, so the swash and the wave crests move.
+const seaPixels = []
+let seaTime
+
+function seaColor(x, y, ix, iy, time) {
+	const shore = 9.1 + (noise(x * 0.35, 3.1) - 0.5) * 1.1
+	const n = (hash(ix, iy) - 0.5) * 6
+	const swash = shore + 0.2 * Math.sin(time * 1.1 + x * 0.3)
+	if (y < swash) return rgb(178 + n, 150 + n, 108 + n)
+	const depth = y - swash
+	if (depth < 0.22 + noise(x * 2, 1 + time * 0.4) * 0.25) return rgb(242 + n, 244 + n, 236 + n)
+	const t = clamp((y - shore) / 4.5, 0, 1)
+	const crest = noise(x * 0.5 + y * 0.9 + time * 0.3, y * 2.4 - time * 0.45) > 0.68 && hash(ix * 3, iy) > 0.3 ? 26 : 0
+	return rgb(lerp(104, 40, t) + n + crest, lerp(186, 104, t) + n + crest, lerp(186, 150, t) + n + crest)
+}
+
+function bakeSea(x, y, ix, iy, index) {
 	const shore = 9.1 + (noise(x * 0.35, 3.1) - 0.5) * 1.1
 	if (y < shore - 0.5) return undefined
 	const reach = Math.pow((Math.abs(x) / 13.4) ** 6 + (Math.max(0, y - shore) / 4.6) ** 6, 1 / 6) + (noise(x * 1.3, y * 1.3) - 0.5) * 0.1
 	if (fadesOut(reach, ix, iy)) return 0
 	kinds[index] = 2
-	const n = (hash(ix, iy) - 0.5) * 6
-	if (y < shore) return rgb(178 + n, 150 + n, 108 + n)
-	const depth = y - shore
-	if (depth < 0.22 + noise(x * 2, 1) * 0.25) return rgb(242 + n, 244 + n, 236 + n)
-	const t = clamp(depth / 4.5, 0, 1)
-	const crest = noise(x * 0.5 + y * 0.9, y * 2.4) > 0.68 && hash(ix * 3, iy) > 0.3 ? 26 : 0
-	return rgb(lerp(104, 40, t) + n + crest, lerp(186, 104, t) + n + crest, lerp(186, 150, t) + n + crest)
+	seaPixels.push({ x, y, ix, iy, index, color: 0 })
+	return seaColor(x, y, ix, iy, 0)
+}
+
+function drawSea(time) {
+	if (time !== seaTime) {
+		seaTime = time
+		for (const p of seaPixels) {
+			const color = seaColor(p.x, p.y, p.ix, p.iy, time)
+			const shadow = staticShadow[p.index]
+			const [r, g, b] = shadow === 1 ? [0.54, 0.52, 0.72] : shadow ? [0.36, 0.34, 0.56] : [1, 1, 1]
+			p.color = rgb((color & 255) * r, (color >> 8 & 255) * g, (color >> 16 & 255) * b)
+		}
+	}
+	for (const p of seaPixels) if (bakedZ[p.index] === groundZ[p.index]) pix[p.index] = p.color
 }
 
 function groundColor(x, y, ix, iy, index) {
 	if (court.sea) {
-		const water = seaColor(x, y, ix, iy, index)
+		const water = bakeSea(x, y, ix, iy, index)
 		if (water !== undefined) return water
 	}
 	const edge = Math.pow((Math.abs(x) / 12.9) ** 6 + (Math.abs(y) / 10.9) ** 6, 1 / 6)
@@ -193,15 +217,20 @@ function drawPalm(px, py, height, lean, seed) {
 		capsule(top, next, 0.2 - t * 0.06, 0.2 - t * 0.07, () => trunk, 'rough')
 		top = next
 	}
+	// Each frond is captured as one leaf, so drawLeaves sways it in the wind with the trees' leaves.
 	for (let f = 0; f < 9; f++) {
 		const angle = f / 9 * Math.PI * 2 + seed
 		let from = top
+		capture = []
 		for (let k = 1; k <= 6; k++) {
 			const droop = (k / 6) ** 2 * 1.6
 			const to = [top[0] + Math.cos(angle) * k * 0.42, top[1] + Math.sin(angle) * k * 0.42, top[2] + 0.35 * Math.sin(k / 6 * Math.PI) - droop]
 			line3D(from, to, 0.11 - k * 0.01, fronds[(f + k) % 3])
 			from = to
 		}
+		const mid = [top[0] + Math.cos(angle) * 1.2, top[1] + Math.sin(angle) * 1.2]
+		leaves.push({ x: mid[0], y: mid[1], z: top[2], k: f * 2, r: 0.4, pixels: capture })
+		capture = null
 	}
 	sphere(top[0], top[1], top[2] - 0.1, 0.28, [92, 74, 52], 'rough')
 }
@@ -257,6 +286,8 @@ function parkProps() {
 
 function bakeCourt() {
 	resetScene()
+	seaPixels.length = 0
+	seaTime = undefined
 	applyPalette()
 	zb.fill(-1e9)
 	pix.fill(rgb(255, 255, 255))
@@ -467,6 +498,8 @@ function draw() {
 	pix.set(bakedPix)
 	zb.set(bakedZ)
 	pendingShadows.length = 0
+	const windTime = STILL ? 0 : Math.floor(state.time * WIND_FPS) / WIND_FPS
+	drawSea(windTime)
 	const charging = state.phase === 'charging'
 	const shotPose = charging || state.followThrough > 0
 	const armAngle = charging ? 2.25 + state.power * 0.25 : state.followThrough > 0 ? 2.85 : 0.7
@@ -484,7 +517,6 @@ function draw() {
 		const dribble = charging ? 2.5 : BALL_RADIUS + Math.abs(Math.sin(state.time * DRIBBLE_SPEED)) * 0.99
 		drawBasketball(state.player.x + Math.cos(state.yaw) * 0.55, state.player.y + Math.sin(state.yaw) * 0.55, dribble, state.time)
 	}
-	const windTime = STILL ? 0 : Math.floor(state.time * WIND_FPS) / WIND_FPS
 	drawLeaves(windTime)
 	drawTufts(windTime)
 	flushShadows()
@@ -690,6 +722,7 @@ showSoundMode()
 
 function showCourt() {
 	nodes['court-label'].textContent = court.name
+	nodes['court-caption'].textContent = court.caption.toUpperCase()
 	checkOption(nodes['court-options'], courtId)
 }
 setupMenu(nodes.court, nodes['court-options'], id => {
