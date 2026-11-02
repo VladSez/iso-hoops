@@ -58,13 +58,13 @@ canvas { display: block; image-rendering: pixelated; cursor: crosshair; touch-ac
 #shoot { border: 0; background: transparent; display: flex; align-items: center; justify-content: center; gap: 9px; padding: 13px 0 0; width: 100%; color: var(--muted); font-size: 9px; touch-action: none; user-select: none; }
 kbd { font: inherit; font-size: 9px; color: #656158; border: 1px solid #e7e3dc; padding: 3px 5px; border-radius: 3px; background: #fff; white-space: nowrap; }
 #shoot:active kbd, body.charging #shoot kbd { border-color: var(--orange); color: var(--orange); }
-.footer { position: absolute; left: 40px; right: 40px; bottom: 25px; display: flex; justify-content: space-between; gap: 14px; color: var(--muted); font-size: 9px; align-items: center; z-index: 2; }
+.footer { position: absolute; left: 40px; right: 40px; bottom: 25px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 14px; color: var(--muted); font-size: 9px; align-items: center; z-index: 2; }
 #controls { display: flex; align-items: center; gap: 22px; }
 #controls > span { display: flex; align-items: center; gap: 6px; }
 .alternate { color: #a4a097; }
 .mouse-icon { display: inline-block; width: 9px; height: 13px; border: 1px solid #ada79b; border-radius: 5px; margin-right: 1px; }
-.footer-right { display: grid; grid-template-columns: auto auto auto; gap: 8px 24px; align-items: center; }
-.author-credit { grid-column: 1 / -1; justify-self: end; }
+.footer-right { display: flex; gap: 24px; align-items: center; }
+.author-credit { flex-basis: 100%; text-align: center; }
 .footer-right button, .footer-right a { font-size: 9px; }
 dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100svh - 40px); padding: 30px; border: 1px solid #e7e3dc; color: #302e2a; background: #fff; box-shadow: 0 25px 100px #28231515; }
 dialog::backdrop { background: #fff9; backdrop-filter: blur(5px); }
@@ -88,8 +88,7 @@ dialog .dialog-note { font-size: 10px; }
 	#controls { gap: 15px; }
 	#controls kbd { font-size: 8px; padding: 2px 3px; }
 	.alternate { display: none; }
-	.footer-right { gap: 8px 20px; }
-	.author-credit { justify-self: center; }
+	.footer-right { gap: 20px; }
 }
 @media (max-height: 620px) and (min-width: 751px) {
 	body { min-height: 400px; }
