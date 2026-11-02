@@ -66,6 +66,15 @@ kbd { font: inherit; font-size: 9px; color: #656158; border: 1px solid #e7e3dc; 
 .footer-right { display: flex; gap: 24px; align-items: center; }
 .author-credit { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; }
 .footer-right button, .footer-right a { font-size: 9px; }
+.sound-menu { position: relative; }
+#sound { white-space: nowrap; }
+#sound[aria-expanded="true"] { color: var(--orange); }
+#sound-options { position: absolute; bottom: calc(100% + 10px); left: -12px; width: 170px; margin: 0; padding: 0 0 6px; border: 1px solid #e7e3dc; background: #fff; box-shadow: 0 12px 40px #28231518; }
+#sound-options[hidden] { display: none; }
+#sound-options legend { float: left; width: 100%; padding: 12px 12px 6px; font-size: 8px; letter-spacing: 1.4px; color: var(--orange); }
+#sound-options label { clear: left; display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 10px; color: #514e45; cursor: pointer; }
+#sound-options label:hover { background: #faf8f4; }
+#sound-options input { margin: 0; accent-color: var(--orange); }
 dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100svh - 40px); padding: 30px; border: 1px solid #e7e3dc; color: #302e2a; background: #fff; box-shadow: 0 25px 100px #28231515; }
 dialog::backdrop { background: #fff9; backdrop-filter: blur(5px); }
 .dialog-top { display: flex; justify-content: space-between; align-items: center; font-size: 9px; letter-spacing: 1px; color: var(--orange); }
