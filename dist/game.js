@@ -15,7 +15,7 @@ const LINE = [235, 225, 196]
 const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
-	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'stage', 'basket-callout',
+	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'stage', 'basket-callout',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -431,19 +431,28 @@ nodes['help-open'].addEventListener('click', openHelp)
 nodes['help-close'].addEventListener('click', closeHelp)
 nodes['help-play'].addEventListener('click', closeHelp)
 
+const MUSIC_VOLUME = 0.135
+const SOUND_MODES = { all: 'Sound on', effects: 'Music off', off: 'Sound off' }
+const SOUND_MODE_KEY = 'iso-hoops:sound-mode'
+let soundMode = 'all'
+try {
+	const saved = localStorage.getItem(SOUND_MODE_KEY)
+	if (saved in SOUND_MODES) soundMode = saved
+} catch {}
+
 let audio
 let masterGain
-let soundEnabled = true
+let musicGain
 function ensureAudio() {
-	if (!soundEnabled) return
+	if (soundMode === 'off') return
 	const AudioContext = window.AudioContext || window.webkitAudioContext
 	if (!AudioContext) return
 	if (!audio) {
 		audio = new AudioContext()
 		masterGain = audio.createGain()
 		masterGain.connect(audio.destination)
-		const musicGain = audio.createGain()
-		musicGain.gain.value = 0.135
+		musicGain = audio.createGain()
+		musicGain.gain.value = soundMode === 'all' ? MUSIC_VOLUME : 0
 		musicGain.connect(masterGain)
 		const music = audio.createBufferSource()
 		music.buffer = createMusicBuffer(audio)
@@ -455,7 +464,7 @@ function ensureAudio() {
 }
 
 function unlockAudio(event) {
-	if (event.target.closest?.('#sound')) return
+	if (event.target.closest?.('.sound-menu')) return
 	if (event.type === 'keydown' && (event.repeat || event.ctrlKey || event.metaKey || event.altKey)) return
 	ensureAudio()
 }
@@ -463,7 +472,7 @@ addEventListener('pointerdown', unlockAudio, { passive: true })
 addEventListener('keydown', unlockAudio)
 
 function playSound(kind) {
-	if (!audio || !soundEnabled || audio.state !== 'running') return
+	if (!audio || soundMode === 'off' || audio.state !== 'running') return
 	if (kind === 'score') playSwish()
 	const sounds = {
 		shoot: [280, 170, 0.08, 0.025, 'triangle'],
@@ -509,13 +518,37 @@ function playSwish() {
 	source.start(now)
 	source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect() }
 }
+const soundRadios = nodes['sound-options'].querySelectorAll('input')
+function showSoundMode() {
+	nodes['sound-label'].textContent = SOUND_MODES[soundMode]
+	for (const radio of soundRadios) radio.checked = radio.value === soundMode
+}
+function setSoundMenuOpen(open) {
+	nodes['sound-options'].hidden = !open
+	nodes.sound.setAttribute('aria-expanded', String(open))
+}
 nodes.sound.addEventListener('click', () => {
-	soundEnabled = !soundEnabled
-	nodes.sound.textContent = soundEnabled ? 'Sound on' : 'Sound off'
-	nodes.sound.setAttribute('aria-pressed', String(soundEnabled))
-	ensureAudio()
-	if (audio) masterGain.gain.setTargetAtTime(soundEnabled ? 1 : 0, audio.currentTime, 0.025)
+	setSoundMenuOpen(nodes['sound-options'].hidden)
+	if (!nodes['sound-options'].hidden) nodes['sound-options'].querySelector(':checked').focus()
 })
+nodes['sound-options'].addEventListener('change', event => {
+	soundMode = event.target.value
+	showSoundMode()
+	try { localStorage.setItem(SOUND_MODE_KEY, soundMode) } catch {}
+	ensureAudio()
+	if (!audio) return
+	masterGain.gain.setTargetAtTime(soundMode === 'off' ? 0 : 1, audio.currentTime, 0.025)
+	musicGain.gain.setTargetAtTime(soundMode === 'all' ? MUSIC_VOLUME : 0, audio.currentTime, 0.025)
+})
+nodes['sound-options'].addEventListener('keydown', event => {
+	if (event.key !== 'Escape' && event.key !== 'Enter') return
+	setSoundMenuOpen(false)
+	nodes.sound.focus()
+})
+addEventListener('pointerdown', event => {
+	if (!event.target.closest?.('.sound-menu')) setSoundMenuOpen(false)
+})
+showSoundMode()
 
 // Try immediately where autoplay is allowed; the first gesture unlocks other browsers.
 ensureAudio()
