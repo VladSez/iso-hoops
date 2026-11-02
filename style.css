@@ -64,7 +64,7 @@ kbd { font: inherit; font-size: 9px; color: #656158; border: 1px solid #e7e3dc; 
 .alternate { color: #a4a097; }
 .mouse-icon { display: inline-block; width: 9px; height: 13px; border: 1px solid #ada79b; border-radius: 5px; margin-right: 1px; }
 .footer-right { display: flex; gap: 24px; align-items: center; }
-.author-credit { flex-basis: 100%; text-align: center; }
+.author-credit { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; }
 .footer-right button, .footer-right a { font-size: 9px; }
 dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100svh - 40px); padding: 30px; border: 1px solid #e7e3dc; color: #302e2a; background: #fff; box-shadow: 0 25px 100px #28231515; }
 dialog::backdrop { background: #fff9; backdrop-filter: blur(5px); }
@@ -78,6 +78,9 @@ dialog dd { margin: 8px 0 0; font-size: 11px; line-height: 1.8; }
 dialog .dialog-note { font-size: 10px; }
 .play-button { display: flex; justify-content: space-between; width: 100%; border: 0; padding: 14px 16px; margin-top: 22px; background: #bf5b32; color: white; font-size: 11px; }
 @media (min-height: 850px) { .court-caption { bottom: 218px; } .shoot-panel { bottom: 90px; } }
+@media (max-width: 950px) {
+	.author-credit { position: static; transform: none; flex-basis: 100%; text-align: center; }
+}
 @media (max-width: 750px) {
 	.header { top: 22px; left: 22px; right: 22px; display: grid; grid-template-columns: 1fr auto; row-gap: 16px; }
 	.session-stats { position: static; grid-column: 1 / -1; justify-self: center; transform: none; gap: 14px; padding: 8px 10px; }
