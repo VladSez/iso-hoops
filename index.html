@@ -18,7 +18,7 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=4c1e7a20d5f3" />
+		<link rel="stylesheet" href="style.css?v=a61f09e3c2d8" />
 	</head>
 	<body>
 		<header class="header">
@@ -46,14 +46,25 @@
 		<footer class="footer">
 			<div id="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> move</span><span><span class="mouse-icon" aria-hidden="true"></span> mouse aim <span class="alternate">/ Q E turn</span></span></div>
 			<div class="footer-right">
-				<div class="sound-menu">
-					<fieldset id="sound-options" hidden>
+				<div class="footer-menu">
+					<fieldset id="court-options" class="menu-options" hidden>
+						<legend>COURT</legend>
+						<label><input type="radio" name="court" value="neighborhood" /> Neighborhood</label>
+						<label><input type="radio" name="court" value="rooftop" /> Rooftop at dusk</label>
+						<label><input type="radio" name="court" value="beach" /> Boardwalk beach</label>
+						<label><input type="radio" name="court" value="autumn" /> Autumn park</label>
+						<label><input type="radio" name="court" value="winter" /> First snow</label>
+					</fieldset>
+					<button id="court" class="text-button menu-button" type="button" aria-expanded="false" aria-controls="court-options"><span class="visually-hidden">Court: </span><span id="court-label">Neighborhood</span> <span aria-hidden="true">▾</span></button>
+				</div>
+				<div class="footer-menu">
+					<fieldset id="sound-options" class="menu-options" hidden>
 						<legend>SOUND</legend>
 						<label><input type="radio" name="sound-mode" value="all" /> Music and effects</label>
 						<label><input type="radio" name="sound-mode" value="effects" /> Effects only</label>
 						<label><input type="radio" name="sound-mode" value="off" /> Off</label>
 					</fieldset>
-					<button id="sound" class="text-button" type="button" aria-expanded="false" aria-controls="sound-options"><span id="sound-label">Sound on</span> <span aria-hidden="true">▾</span></button>
+					<button id="sound" class="text-button menu-button" type="button" aria-expanded="false" aria-controls="sound-options"><span id="sound-label">Sound on</span> <span aria-hidden="true">▾</span></button>
 				</div>
 				<a href="https://github.com/VladSez/iso-hoops" target="_blank" rel="noreferrer" aria-label="View iso-hoops source on GitHub">GitHub ↗</a>
 				<a href="https://vladsez.github.io/iso-football/" target="_blank" rel="noreferrer" aria-label="Play iso-football">iso-football ↗</a>
@@ -70,7 +81,7 @@
 			<button id="help-play" class="play-button" type="button">Back to the court <span>↗</span></button>
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
-		<script src="engine.js?v=1f0b6d3c"></script>
-		<script type="module" src="game.js?v=678287b0"></script>
+		<script src="engine.js?v=5b7e2a91"></script>
+		<script type="module" src="game.js?v=c3f81d06"></script>
 	</body>
 </html>
