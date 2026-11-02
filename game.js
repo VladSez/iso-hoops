@@ -3,6 +3,7 @@ import { createMusicBuffer } from './music.js'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
+const DRIBBLE_SPEED = 4.5
 const PALETTE = {
 	shirt: [194, 80, 46], stripe: [194, 80, 46], legs: [46, 56, 65],
 	skin: [192, 133, 91], hair: [43, 33, 29],
@@ -233,7 +234,12 @@ function updateAim() {
 
 function update(delta) {
 	if (state.paused || nodes.help.open) return
+	const previousDribble = Math.floor(state.time * DRIBBLE_SPEED / Math.PI)
 	state.time += delta
+	// Each zero crossing of the absolute sine is a floor contact.
+	if (state.phase === 'ready' && Math.floor(state.time * DRIBBLE_SPEED / Math.PI) > previousDribble) {
+		playSound('dribble')
+	}
 	state.followThrough = Math.max(0, state.followThrough - delta)
 	const keys = state.keys
 	let screenX = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'))
@@ -344,7 +350,7 @@ function draw() {
 		drawBasketball(state.ball.x, state.ball.y, state.ball.z, state.time)
 		castShadow(state.ball.x, state.ball.y, state.ball.z, BALL_RADIUS, 1, 0)
 	} else {
-		const dribble = charging ? 2.5 : 0.38 + Math.abs(Math.sin(state.time * 4.5)) * 0.85
+		const dribble = charging ? 2.5 : BALL_RADIUS + Math.abs(Math.sin(state.time * DRIBBLE_SPEED)) * 0.99
 		drawBasketball(state.player.x + Math.cos(state.yaw) * 0.55, state.player.y + Math.sin(state.yaw) * 0.55, dribble, state.time)
 	}
 	const windTime = STILL ? 0 : Math.floor(state.time * WIND_FPS) / WIND_FPS
@@ -457,11 +463,12 @@ addEventListener('pointerdown', unlockAudio, { passive: true })
 addEventListener('keydown', unlockAudio)
 
 function playSound(kind) {
-	if (!audio || !soundEnabled) return
+	if (!audio || !soundEnabled || audio.state !== 'running') return
 	if (kind === 'score') playSwish()
 	const sounds = {
 		shoot: [280, 170, 0.08, 0.025, 'triangle'],
 		bounce: [150, 55, 0.11, 0.12, 'sine'],
+		dribble: [145, 52, 0.1, 0.065, 'sine'],
 		rim: [1050, 420, 0.13, 0.045, 'triangle'],
 		board: [240, 110, 0.09, 0.08, 'triangle'],
 		score: [540, 810, 0.2, 0.045, 'sine'],
