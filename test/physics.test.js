@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BALL_RADIUS, HOOP, createShot, stepBall } from '../dist/physics.js'
+import { BALL_RADIUS, HOOP, createShot, isDead, stepBall } from '../dist/physics.js'
 
 function ballAt(position, velocity = {}) {
 	return { ...createShot({ x: 0, y: 0 }, 0, 0), vx: 0, vy: 0, vz: 0, ...position, ...velocity }
@@ -96,4 +96,31 @@ test('physics is stable at different frame rates', () => {
 	for (let i = 0; i < 120; i++) stepBall(b, 1 / 120)
 	assert.ok(Math.abs(a.x - b.x) < 0.001)
 	assert.ok(Math.abs(a.z - b.z) < 0.001)
+})
+
+test('a shot called dead never scores afterwards, and every shot resolves', () => {
+	const spots = []
+	for (let x = -6; x <= 8; x += 1) for (let y = -6; y <= 6; y += 1.5) spots.push({ x, y })
+	let lateScores = 0
+	let unresolved = 0
+	let shots = 0
+	for (const player of spots) {
+		const toHoop = Math.atan2(HOOP.y - player.y, HOOP.x - player.x)
+		for (const offset of [-0.08, -0.03, 0, 0.03, 0.08]) {
+			for (let power = 0; power <= 1; power += 0.02) {
+				const ball = createShot(player, toHoop + offset, power)
+				let deadAt
+				for (let t = 0; t < 8; t += 1 / 60) {
+					stepBall(ball, 1 / 60)
+					if (deadAt === undefined && isDead(ball)) deadAt = t
+					if (ball.made || (deadAt !== undefined && t - deadAt > 2)) break
+				}
+				shots++
+				if (ball.made && deadAt !== undefined) lateScores++
+				if (!ball.made && deadAt === undefined) unresolved++
+			}
+		}
+	}
+	assert.equal(lateScores, 0, `${lateScores} of ${shots} shots scored after being called dead`)
+	assert.equal(unresolved, 0, `${unresolved} of ${shots} shots never resolved within 8s`)
 })
