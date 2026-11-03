@@ -114,3 +114,8 @@ export function stepBall(ball, delta) {
 	}
 	return events
 }
+
+/** True once a shot can no longer score: it has hit the floor, or is falling with its top below the rim's tube. */
+export function isDead(ball) {
+	return !ball.made && (ball.bounces > 0 || (ball.vz < 0 && ball.z < HOOP.z - BALL_RADIUS - 0.055))
+}
