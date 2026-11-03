@@ -119,3 +119,8 @@ export function stepBall(ball, delta) {
 export function isDead(ball) {
 	return !ball.made && (ball.bounces > 0 || (ball.vz < 0 && ball.z < HOOP.z - BALL_RADIUS - 0.055))
 }
+
+/** Floor distance from where a shot is taken to the hoop, in metres to one decimal (the three-point line is 6.7). */
+export function shotDistance(player) {
+	return Math.round(Math.hypot(player.x - HOOP.x, player.y - HOOP.y) * 10) / 10
+}

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BALL_RADIUS, HOOP, createShot, isDead, stepBall } from '../dist/physics.js'
+import { BALL_RADIUS, HOOP, createShot, isDead, shotDistance, stepBall } from '../dist/physics.js'
 
 function ballAt(position, velocity = {}) {
 	return { ...createShot({ x: 0, y: 0 }, 0, 0), vx: 0, vy: 0, vz: 0, ...position, ...velocity }
@@ -123,4 +123,11 @@ test('a shot called dead never scores afterwards, and every shot resolves', () =
 	}
 	assert.equal(lateScores, 0, `${lateScores} of ${shots} shots scored after being called dead`)
 	assert.equal(unresolved, 0, `${unresolved} of ${shots} shots never resolved within 8s`)
+})
+
+test('shot distance is measured along the floor to the hoop, in tenths of a metre', () => {
+	assert.equal(shotDistance({ x: HOOP.x + 4.5, y: 0 }), 4.5)
+	assert.equal(shotDistance({ x: HOOP.x + 3, y: 4 }), 5)
+	assert.equal(shotDistance({ x: 3.5, y: 0 }), 10.5)
+	assert.equal(shotDistance({ x: HOOP.x + 6.66, y: 0 }), 6.7)
 })

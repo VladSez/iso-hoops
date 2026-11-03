@@ -1,4 +1,4 @@
-import { createShot, stepBall } from './physics.js?v=2'
+import { createShot, stepBall } from './physics.js?v=3'
 
 export const FREE_THROW_SPOT = { x: -2.5, y: 0 }
 export const ROUND_SHOTS = 10

@@ -11,6 +11,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 ## Features
 
 - **5 courts:** neighborhood, rooftop at dusk, boardwalk beach, autumn park and first snow. Switch between them from the Court menu in the footer.
+- **Longest basket:** in free shooting, the header tracks your longest make in metres, measured from where you shot to the hoop. Beat it for a NEW LONGEST callout. It is saved in your browser.
 - **10 free throws:** a mode with a goal. Shoot ten from the free throw spot and see how many you make. Your best round is remembered. Pick it from the Mode menu in the footer.
 - **Real shot physics:** the ball can bounce off the rim and the backboard. A basket counts only when the ball drops down through the hoop.
 - **Music written in code:** a quiet, original 76 BPM loop built sample by sample, with no audio files.
@@ -32,7 +33,7 @@ In 10 free throws mode you stay at the free throw spot, and your aim is locked o
 
 On touch screens, tap the court to aim and hold the shoot button to charge.
 
-The ball comes back to you after every shot. Free shooting stats reset when you reload the page. Your best free throw round is saved in your browser.
+The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round is saved in your browser too.
 
 ## Sound
 

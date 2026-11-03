@@ -1,4 +1,4 @@
-import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, stepBall } from './physics.js?v=2'
+import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
 import { FREE_THROW_SPOT, MAKE_WINDOW, ROUND_SHOTS, isDone, recordShot, startRound, wobble } from './free-throws.js?v=2'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=4'
@@ -19,6 +19,7 @@ const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
+	'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -27,7 +28,7 @@ const state = {
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	feedbackTime: 0, walking: false, scoredAt: undefined,
-	mode: 'free', round: startRound(0),
+	mode: 'free', round: startRound(0), longest: 0,
 }
 
 const COURT_KEY = 'iso-hoops:court'
@@ -41,6 +42,7 @@ let court = COURTS[courtId]
 const MODES = { free: 'Free shooting', 'free-throws': '10 free throws' }
 const MODE_KEY = 'iso-hoops:mode'
 const FREE_THROW_BEST_KEY = 'iso-hoops:free-throw-best'
+const LONGEST_KEY = 'iso-hoops:longest-basket'
 const CANVAS_LABELS = {
 	free: canvas.getAttribute('aria-label'),
 	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space to charge, release inside the band on the meter to shoot.',
@@ -49,6 +51,7 @@ try {
 	const saved = localStorage.getItem(MODE_KEY)
 	if (saved in MODES) state.mode = saved
 	state.round = startRound(Math.max(0, Number.parseInt(localStorage.getItem(FREE_THROW_BEST_KEY), 10) || 0))
+	state.longest = Math.max(0, Number.parseFloat(localStorage.getItem(LONGEST_KEY)) || 0)
 } catch {}
 
 // The ground fades out in dithered pixels once `reach` passes 1, like a vignette.
@@ -348,6 +351,8 @@ function updateStats() {
 	nodes.makes.textContent = String(state.makes).padStart(2, '0')
 	nodes.attempts.textContent = String(state.attempts).padStart(2, '0')
 	nodes.accuracy.textContent = state.attempts ? `${Math.round(state.makes / state.attempts * 100)}%` : '—'
+	if (state.longest) nodes.longest.innerHTML = `${state.longest.toFixed(1)}<span class="unit">m</span>`
+	else nodes.longest.textContent = '—'
 }
 
 let lastMeterPercent = -1
@@ -382,6 +387,7 @@ function releaseShot(source) {
 	if (state.phase !== 'charging' || source !== state.chargeSource) return
 	state.lastPower = state.power
 	state.ball = createShot(state.player, state.yaw, state.power)
+	state.ball.distance = shotDistance(state.player)
 	state.returnTime = undefined
 	state.phase = 'flight'
 	state.chargeSource = undefined
@@ -479,6 +485,8 @@ function update(delta) {
 			playSound(event)
 			if (event === 'score') {
 				state.scoredAt = state.time
+				nodes['callout-title'].textContent = 'BASKET!'
+				nodes['callout-detail'].textContent = freeThrows ? '+1 MADE' : `+1 MADE · ${state.ball.distance.toFixed(1)} M`
 				nodes['basket-callout'].hidden = false
 				nodes['basket-callout'].classList.add('celebrate')
 				nodes.makes.closest('.session-stats').classList.add('scored')
@@ -487,7 +495,16 @@ function update(delta) {
 				} else {
 					state.makes++
 					state.streak++
-					setFeedback(state.streak > 1 ? `Basket! ${state.streak} in a row.` : 'Basket! Nice shot.', true)
+					if (state.ball.distance > state.longest) {
+						const previous = state.longest
+						state.longest = state.ball.distance
+						try { localStorage.setItem(LONGEST_KEY, String(state.longest)) } catch {}
+						nodes['callout-title'].textContent = 'NEW LONGEST!'
+						nodes['callout-detail'].textContent = previous ? `${state.longest.toFixed(1)} M · WAS ${previous.toFixed(1)} M` : `${state.longest.toFixed(1)} M`
+						setFeedback(previous ? `New longest: ${state.longest.toFixed(1)} m, beating ${previous.toFixed(1)} m.` : `First basket on the board: ${state.longest.toFixed(1)} m.`, true)
+					} else {
+						setFeedback(state.streak > 1 ? `Basket! ${state.streak} in a row.` : 'Basket! Nice shot.', true)
+					}
 				}
 				state.returnTime = state.time + 1.5
 				updateStats()
@@ -847,6 +864,8 @@ function applyMode() {
 	nodes['power-target'].style.width = `${(MAKE_WINDOW.max - MAKE_WINDOW.min) * 100}%`
 	nodes['label-attempts'].textContent = freeThrows ? 'SHOTS LEFT' : 'SHOTS'
 	nodes['label-accuracy'].textContent = freeThrows ? 'BEST' : 'ACCURACY'
+	nodes['longest-stat'].hidden = freeThrows
+	nodes['longest-divider'].hidden = freeThrows
 	if (freeThrows) {
 		state.player.x = FREE_THROW_SPOT.x
 		state.player.y = FREE_THROW_SPOT.y
