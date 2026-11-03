@@ -18,7 +18,7 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=f26b84d3ae52" />
+		<link rel="stylesheet" href="style.css?v=0a7c3e91b4d6" />
 	</head>
 	<body>
 		<header class="header">
@@ -30,11 +30,13 @@
 				<div><strong id="attempts">00</strong><span id="label-attempts">SHOTS</span></div>
 				<span class="stat-divider" aria-hidden="true"></span>
 				<div><strong id="accuracy">—</strong><span id="label-accuracy">ACCURACY</span></div>
+				<span id="longest-divider" class="stat-divider" aria-hidden="true"></span>
+				<div id="longest-stat"><strong id="longest">—</strong><span>LONGEST</span></div>
 			</div>
 		</header>
 		<main>
 			<div id="stage"><canvas id="c" tabindex="0" aria-label="Basketball practice court. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space to charge, release to shoot." aria-describedby="controls"></canvas></div>
-			<div id="basket-callout" hidden aria-hidden="true"><strong>BASKET!</strong><span>+1 MADE</span></div>
+			<div id="basket-callout" hidden aria-hidden="true"><strong id="callout-title">BASKET!</strong><span id="callout-detail">+1 MADE</span></div>
 			<div class="shoot-panel">
 				<p id="feedback" role="status" aria-live="polite">A little time. A few good shots.</p>
 				<div class="power-label"><span>SHOT POWER</span><output id="power-value">0%</output></div>
@@ -92,6 +94,6 @@
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=5b7e2a91"></script>
-		<script type="module" src="game.js?v=7b1f5dae"></script>
+		<script type="module" src="game.js?v=8c2e6f1a"></script>
 	</body>
 </html>

@@ -24,6 +24,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .session-stats strong { font-size: 23px; font-weight: 400; font-variant-numeric: tabular-nums; }
 .session-stats span { color: #6f6b62; font-size: 8px; letter-spacing: 1.7px; }
 .session-stats .stat-divider { height: 23px; width: 1px; background: #eeeae4; }
+.session-stats .unit { margin-left: 2px; color: inherit; font-size: 12px; letter-spacing: 0; }
+.session-stats [hidden] { display: none; }
 #makes { color: var(--orange); }
 #basket-callout { position: absolute; z-index: 2; transform: translate(-50%, -100%); padding: 10px 15px; border: 1px solid #d5a272; background: #fffdf5; color: var(--orange); text-align: center; pointer-events: none; box-shadow: 3px 3px 0 #ad75442b; }
 #basket-callout[hidden] { display: none; }
