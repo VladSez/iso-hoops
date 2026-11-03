@@ -1,6 +1,7 @@
-import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, stepBall } from './physics.js'
+import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, stepBall } from './physics.js?v=2'
+import { FREE_THROW_SPOT, MAKE_WINDOW, ROUND_SHOTS, isDone, recordShot, startRound, wobble } from './free-throws.js?v=2'
 import { createMusicBuffer } from './music.js?v=2'
-import { COURTS } from './courts.js?v=3'
+import { COURTS } from './courts.js?v=4'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -16,15 +17,17 @@ const STEEL = [86, 99, 94]
 const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
-	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'court-caption', 'stage', 'basket-callout',
+	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
+	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
 	player: { x: 3.5, y: 0 }, yaw: Math.PI, pointer: undefined,
-	keys: new Set(), phase: 'ready', chargeSource: undefined, power: 0,
+	keys: new Set(), phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	feedbackTime: 0, walking: false, scoredAt: undefined,
+	mode: 'free', round: startRound(0),
 }
 
 const COURT_KEY = 'iso-hoops:court'
@@ -34,6 +37,19 @@ try {
 	if (saved in COURTS) courtId = saved
 } catch {}
 let court = COURTS[courtId]
+
+const MODES = { free: 'Free shooting', 'free-throws': '10 free throws' }
+const MODE_KEY = 'iso-hoops:mode'
+const FREE_THROW_BEST_KEY = 'iso-hoops:free-throw-best'
+const CANVAS_LABELS = {
+	free: canvas.getAttribute('aria-label'),
+	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space to charge, release inside the band on the meter to shoot.',
+}
+try {
+	const saved = localStorage.getItem(MODE_KEY)
+	if (saved in MODES) state.mode = saved
+	state.round = startRound(Math.max(0, Number.parseInt(localStorage.getItem(FREE_THROW_BEST_KEY), 10) || 0))
+} catch {}
 
 // The ground fades out in dithered pixels once `reach` passes 1, like a vignette.
 const fadesOut = (reach, ix, iy) => reach > 1.04 || (reach > 0.91 && hash(ix, iy) < (reach - 0.91) / 0.13)
@@ -322,6 +338,13 @@ function setFeedback(message, made = false) {
 }
 
 function updateStats() {
+	if (state.mode === 'free-throws') {
+		const pad = value => String(value).padStart(2, '0')
+		nodes.makes.textContent = pad(state.round.made)
+		nodes.attempts.textContent = pad(ROUND_SHOTS - state.round.taken)
+		nodes.accuracy.textContent = pad(state.round.best)
+		return
+	}
 	nodes.makes.textContent = String(state.makes).padStart(2, '0')
 	nodes.attempts.textContent = String(state.attempts).padStart(2, '0')
 	nodes.accuracy.textContent = state.attempts ? `${Math.round(state.makes / state.attempts * 100)}%` : '—'
@@ -345,7 +368,13 @@ function beginCharge(source) {
 	if (state.phase !== 'ready' || state.paused || nodes.help.open) return
 	state.phase = 'charging'
 	state.chargeSource = source
+	state.charge = 0
 	state.power = 0
+	if (state.mode === 'free-throws' && isDone(state.round)) {
+		state.round = startRound(state.round.best)
+		setFeedback('New round. Ten shots.')
+		updateStats()
+	}
 	ensureAudio()
 }
 
@@ -357,7 +386,7 @@ function releaseShot(source) {
 	state.phase = 'flight'
 	state.chargeSource = undefined
 	state.followThrough = 0.65
-	state.attempts++
+	if (state.mode === 'free') state.attempts++
 	setFeedback('Let it fly.')
 	updateStats()
 	playSound('shoot')
@@ -367,6 +396,7 @@ function cancelInput() {
 	state.keys.clear()
 	if (state.phase === 'charging') state.phase = 'ready'
 	state.chargeSource = undefined
+	state.charge = 0
 	state.power = 0
 	updateMeter()
 }
@@ -374,6 +404,7 @@ function cancelInput() {
 function returnBall() {
 	state.ball = undefined
 	state.phase = 'ready'
+	state.charge = 0
 	state.power = 0
 	state.returnTime = undefined
 	updateMeter()
@@ -389,10 +420,26 @@ function aimAtPointer(event) {
 }
 
 function updateAim() {
-	if (!state.pointer) return
+	if (!state.pointer || state.mode === 'free-throws') return
 	const dx = state.pointer.x - state.player.x
 	const dy = state.pointer.y - state.player.y
 	if (Math.hypot(dx, dy) > 0.3) state.yaw = Math.atan2(dy, dx)
+}
+
+function takeFreeThrow(made) {
+	const bestBefore = state.round.best
+	state.round = recordShot(state.round, made)
+	const { taken, best } = state.round
+	if (best > bestBefore) {
+		try { localStorage.setItem(FREE_THROW_BEST_KEY, String(best)) } catch {}
+	}
+	const score = `${state.round.made}/${taken}`
+	if (isDone(state.round)) {
+		const verdict = best > bestBefore ? 'New best!' : `Best ${best}/${ROUND_SHOTS}.`
+		setFeedback(`${score}. ${verdict} Press Space to shoot another round.`, made)
+	} else {
+		setFeedback(made ? `Good. ${score}.` : `Off the mark. ${score}.`, made)
+	}
 }
 
 function update(delta) {
@@ -408,40 +455,53 @@ function update(delta) {
 	let screenX = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'))
 	let screenY = Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'))
 	const length = Math.hypot(screenX, screenY)
-	state.walking = length > 0
-	if (length) {
+	const freeThrows = state.mode === 'free-throws'
+	state.walking = length > 0 && !freeThrows
+	if (state.walking) {
 		screenX /= length
 		screenY /= length
 		state.player.x = clamp(state.player.x + (screenX + screenY) / R2 * 4.4 * delta, -8.25, 8.3)
 		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.3, 6.3)
 		updateAim()
 	}
-	const turn = Number(keys.has('KeyE')) - Number(keys.has('KeyQ'))
+	const turn = freeThrows ? 0 : Number(keys.has('KeyE')) - Number(keys.has('KeyQ'))
 	if (turn) {
 		state.pointer = undefined
 		state.yaw += turn * 1.4 * delta
 	}
-	if (state.phase === 'charging') state.power = Math.min(1, state.power + delta / 1.6)
+	if (state.phase === 'charging') {
+		state.charge = Math.min(1, state.charge + delta / 1.6)
+		state.power = freeThrows ? clamp(state.charge + wobble(state.time), 0, 1) : state.charge
+	}
 	if (state.ball) {
 		const events = stepBall(state.ball, delta)
 		for (const event of events) {
 			playSound(event)
 			if (event === 'score') {
-				state.makes++
-				state.streak++
 				state.scoredAt = state.time
 				nodes['basket-callout'].hidden = false
 				nodes['basket-callout'].classList.add('celebrate')
 				nodes.makes.closest('.session-stats').classList.add('scored')
-				setFeedback(state.streak > 1 ? `Basket! ${state.streak} in a row.` : 'Basket! Nice shot.', true)
+				if (freeThrows) {
+					takeFreeThrow(true)
+				} else {
+					state.makes++
+					state.streak++
+					setFeedback(state.streak > 1 ? `Basket! ${state.streak} in a row.` : 'Basket! Nice shot.', true)
+				}
 				state.returnTime = state.time + 1.5
 				updateStats()
 			}
 		}
-		if (!state.ball.made && (state.ball.bounces > 0 || state.ball.age > 3.6) && state.returnTime === undefined) {
+		if (isDead(state.ball) && state.returnTime === undefined) {
 			state.streak = 0
 			state.returnTime = state.time + 1.1
-			setFeedback('Another one. The court isn’t going anywhere.')
+			if (freeThrows) {
+				takeFreeThrow(false)
+				updateStats()
+			} else {
+				setFeedback('Another one. The court isn’t going anywhere.')
+			}
 		}
 		if (state.returnTime !== undefined && state.time >= state.returnTime) returnBall()
 	}
@@ -451,7 +511,7 @@ function update(delta) {
 		nodes.makes.closest('.session-stats').classList.remove('scored')
 		state.scoredAt = undefined
 	}
-	if (state.phase === 'ready' && state.time - state.feedbackTime > 7) {
+	if (state.phase === 'ready' && state.time - state.feedbackTime > 7 && !freeThrows) {
 		setFeedback('Find your spot. Take your time.')
 	}
 	updateMeter()
@@ -475,7 +535,7 @@ function drawBasketball(x, y, z, time) {
 }
 
 function drawAimGuide() {
-	if (state.phase === 'flight') return
+	if (state.phase === 'flight' || state.mode === 'free-throws') return
 	const direction = { x: Math.cos(state.yaw), y: Math.sin(state.yaw) }
 	const dots = []
 	for (let d = 0.8; d < 4.2; d += 0.3) {
@@ -604,7 +664,7 @@ nodes['help-close'].addEventListener('click', closeHelp)
 nodes['help-play'].addEventListener('click', closeHelp)
 
 const MUSIC_VOLUME = 0.135
-const SOUND_MODES = { all: 'Sound on', effects: 'Music off', off: 'Sound off' }
+const SOUND_MODES = { all: 'On', effects: 'Music off', off: 'Off' }
 const SOUND_MODE_KEY = 'iso-hoops:sound-mode'
 let soundMode = 'all'
 try {
@@ -765,7 +825,6 @@ showSoundMode()
 
 function showCourt() {
 	nodes['court-label'].textContent = court.name
-	nodes['court-caption'].textContent = court.caption.toUpperCase()
 	checkOption(nodes['court-options'], courtId)
 }
 setupMenu(nodes.court, nodes['court-options'], id => {
@@ -777,6 +836,37 @@ setupMenu(nodes.court, nodes['court-options'], id => {
 	if (audio) playCourtSound()
 })
 showCourt()
+
+function applyMode() {
+	const freeThrows = state.mode === 'free-throws'
+	nodes['mode-label'].textContent = MODES[state.mode]
+	canvas.setAttribute('aria-label', CANVAS_LABELS[state.mode])
+	checkOption(nodes['mode-options'], state.mode)
+	nodes['power-target'].hidden = !freeThrows
+	nodes['power-target'].style.left = `${MAKE_WINDOW.min * 100}%`
+	nodes['power-target'].style.width = `${(MAKE_WINDOW.max - MAKE_WINDOW.min) * 100}%`
+	nodes['label-attempts'].textContent = freeThrows ? 'SHOTS LEFT' : 'SHOTS'
+	nodes['label-accuracy'].textContent = freeThrows ? 'BEST' : 'ACCURACY'
+	if (freeThrows) {
+		state.player.x = FREE_THROW_SPOT.x
+		state.player.y = FREE_THROW_SPOT.y
+		state.yaw = Math.PI
+		state.pointer = undefined
+		state.round = startRound(state.round.best)
+	}
+	updateStats()
+}
+setupMenu(nodes.mode, nodes['mode-options'], mode => {
+	state.mode = mode
+	try { localStorage.setItem(MODE_KEY, mode) } catch {}
+	cancelInput()
+	returnBall()
+	applyMode()
+	setFeedback(mode === 'free-throws' ? 'Ten free throws. Release inside the band.' : 'Find your spot. Take your time.')
+})
+applyMode()
+// Keep the skeleton up for at least 300ms after navigation, so a fast load doesn't flash it.
+setTimeout(() => document.querySelector('.settings').classList.add('ready'), Math.max(0, 300 - performance.now()))
 
 // Try immediately where autoplay is allowed; the first gesture unlocks other browsers.
 ensureAudio()

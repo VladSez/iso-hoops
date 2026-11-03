@@ -2,7 +2,7 @@
 // `sound` scales effect pitch, how loud the ball hits the floor, and how much the air echoes.
 export const COURTS = {
 	neighborhood: {
-		name: 'Neighborhood', caption: 'The neighborhood court',
+		name: 'Neighborhood',
 		court: [126, 153, 141], key: [177, 125, 96], line: [235, 225, 196], apron: [174, 170, 150],
 		grass: [[34, 62, 50], [52, 88, 52], [82, 118, 54], [124, 146, 62], [168, 172, 76]],
 		leaf: [[58, 84, 62], [100, 126, 78], [146, 162, 112]], bark: [92, 74, 60],
@@ -11,7 +11,7 @@ export const COURTS = {
 		sound: { pitch: 1, floor: 1, echo: 0 },
 	},
 	rooftop: {
-		name: 'Rooftop at dusk', caption: 'The rooftop court',
+		name: 'Rooftop at dusk',
 		court: [92, 106, 142], key: [196, 112, 74], line: [238, 226, 200], apron: [150, 140, 150],
 		roof: [118, 112, 126],
 		grass: [[60, 58, 74], [84, 80, 96], [104, 98, 112], [124, 118, 130], [146, 138, 148]],
@@ -21,7 +21,7 @@ export const COURTS = {
 		sound: { pitch: 1, floor: 1.1, echo: 0.3 },
 	},
 	beach: {
-		name: 'Boardwalk beach', caption: 'The beach court',
+		name: 'Boardwalk beach',
 		court: [104, 160, 168], key: [222, 132, 108], line: [250, 244, 226], apron: [196, 160, 118],
 		boardwalk: true, sea: true,
 		grass: [[196, 172, 128], [214, 190, 142], [226, 204, 156], [236, 218, 172], [246, 232, 192]],
@@ -31,7 +31,7 @@ export const COURTS = {
 		sound: { pitch: 0.88, floor: 0.75, echo: 0 },
 	},
 	autumn: {
-		name: 'Autumn park', caption: 'The park court',
+		name: 'Autumn park',
 		court: [154, 86, 66], key: [208, 168, 120], line: [240, 230, 204], apron: [168, 160, 142],
 		fallenLeaves: true,
 		grass: [[70, 66, 40], [104, 92, 46], [146, 118, 52], [184, 140, 62], [214, 168, 80]],
@@ -41,7 +41,7 @@ export const COURTS = {
 		sound: { pitch: 0.95, floor: 0.9, echo: 0.1 },
 	},
 	winter: {
-		name: 'First snow', caption: 'The winter court',
+		name: 'First snow',
 		court: [112, 128, 146], key: [150, 104, 104], line: [244, 248, 252], apron: [204, 210, 220],
 		grass: [[150, 164, 186], [186, 198, 216], [214, 222, 234], [232, 238, 246], [248, 250, 254]],
 		leaf: [[30, 60, 56], [44, 82, 70], [236, 242, 248]], bark: [74, 62, 56],
