@@ -61,10 +61,20 @@ A title says what a player now gets, not what the diff did. Use plain sentence c
 
 ## What every body carries
 
+The body has two layers. **Above the fold** is what everyone reads: the summary, a few change sections, the screenshots and the diagram. **Collapsed below** is what only the reviewer needs: risks and the technical overview. A long description isn't more thorough, it's harder to review. So keep the visible part within the budget below, and move detail into the collapsed block instead of deleting it.
+
+**Size the body to the PR.** Count the words outside `<details>`:
+- **A small fix or polish:** about 150 words. Often there are no change sections at all, just the summary, a screenshot and the reviewer block.
+- **One feature:** about 300 words.
+- **Several features in one PR:** about 500 words at most.
+
+If you're over, cut in this order: a fact that appears twice, then sub-bullets, then whole sections.
+
 **A summary first, before anything else.** It's the whole PR for someone who reads nothing further: a reviewer triaging their queue, or someone scanning merged PRs months later.
 - Use a bold **Summary** label and two to four bullets. Give one bullet per headline change, the fixes and tooling included, so nothing in the PR is a surprise further down.
-- Each bullet is one plain sentence about what a player or maintainer now gets. Put no file paths, numbers of tests or mechanism here.
+- Each bullet is one plain sentence about what a player or maintainer now gets. Put no file paths, test counts or mechanism here.
 - If the PR needs one thing from the reviewer, such as "check the phone layout" or "decide on the default", make it the last bullet.
+- Put the GIF, if there is one, straight under the bullets with no heading of its own. It autoplays, so a skimmer sees the change without clicking anything.
 
 ```markdown
 **Summary**
@@ -72,83 +82,80 @@ A title says what a player now gets, not what the diff did. Use plain sentence c
 - A new night court, with floodlights, long shadows and a low buzzing hum.
 - Pausing mid-flight no longer drops the ball through the floor.
 - Please check the floodlight glare on a phone; it's the part I'm least sure of.
+
+![The night court: floodlights flicker on as the ball drops in](./night-court.gif)
 ```
 
-**A table of contents next**, with one link per `##` section, so the reader can click straight to the part they want.
-- GitHub gives headings in a PR body no anchors you can rely on.
-- So end every linked heading with `<a id="slug"></a>`, and link to `#user-content-slug`. GitHub prefixes user ids with `user-content-`.
-- A dead TOC is worse than none, so give every section an id.
-- Write it as a bulleted list under a bold **Contents** label, one link per line, in the same order as the sections. A list scans down the page faster than a run of links wrapping across one line, and a reviewer can see at a glance how many sections there are. Leave a blank line after the list, before the first heading.
+**A contents list, only when there are five or more `##` sections.** A short body doesn't need one.
+- GitHub gives headings in a PR body no anchors you can rely on. So end every linked heading with `<a id="slug"></a>`, and link to `#user-content-slug`. GitHub prefixes user ids with `user-content-`.
+- A dead link is worse than none, so give every listed section an id.
+- Write it as a bulleted list under a bold **Contents** label, one link per line, in section order. The last item points at the reviewer block, through the anchor placed just above `<details>`.
 
 ```markdown
 **Contents**
 
-- [At a glance](#user-content-glance)
-- [What changes](#user-content-changes)
+- [Night court](#user-content-court)
 - [Screenshots](#user-content-shots)
 - [How it works](#user-content-diagram)
-- [Risks](#user-content-risks)
-- [Technical overview](#user-content-tech)
-
-## At a glance <a id="glance"></a>
+- [Details for reviewers](#user-content-reviewers)
 ```
 
-**At a glance.**
-- Show the GIF, if there is one. It autoplays, so a skimmer sees the change without clicking anything.
-- Add one sentence on what the clip shows. Don't repeat the summary: that already said what changed, and this section shows it.
-
-**Categories a reader can scan.**
-- Group by player benefit, such as `## 🎯 A goal to chase` or `## 🧭 Settings you can find`. For housekeeping PRs, group by change class: ✨ Feature · 🐛 Fix · 💄 Polish · ♿ Accessibility · ⚡ Performance · 📝 Docs · 🧪 Tests · ♻️ Refactor.
-- Use one emoji per heading, and none on bullets.
-- A fix to the feature this PR adds goes under that feature's section. Changes unrelated to the headline go in change-class sections after the benefit sections.
-- Inside a section, each bullet is a bold hook and a dash, then two to four indented sub-bullets of one fact each.
-  - Put the key or control in backticks (`Space`).
-  - Give a menu path as Footer › Mode › 10 free throws.
-  - Or state a behaviour.
-- Never write a paragraph inside a section. If a bullet needs more than four facts, split it.
+**Change sections: at most one per summary bullet, and at most four.**
+- A summary bullet that is complete on its own gets no section. Write a section only when a reader needs more than the one sentence, such as how to reach the feature or what it saves.
+- Give each section one emoji and a benefit heading, such as `## 🌙 Play under the lights`. For housekeeping PRs, use a change class instead: ✨ Feature · 🐛 Fix · 💄 Polish · ♿ Accessibility · ⚡ Performance · 📝 Docs · 🧪 Tests · ♻️ Refactor.
+- Don't open by repeating the summary sentence. Start with what the summary left out.
+- Each bullet is one line: a bold hook, a dash, the fact. Add an indented sub-bullet only for something a reader will use, such as a key (`Space`), a menu path (Footer › Mode › 10 free throws) or a number. Use two at most.
+- Fold small related changes into one bullet instead of giving each its own.
 - When the change touches something players like, add one bullet saying what stayed the same. Check that claim against the diff: "untouched" is the line reviewers catch.
 - Credit contributors inline: "Thanks @handle (#NN)".
-- Above Risks, use no file paths, function names or line numbers. Risks and the technical overview are for the reviewer, so they may name tests and files.
+- Use no file paths, function names or line numbers outside the reviewer block.
 
-**Screenshots of the change.**
+**Screenshots, in one section.**
 - Include at least one PNG of the screen after the change.
 - Add a before/after pair when the change replaces something, laid out as a two-column table so they sit side by side.
 - Crop to the part that changed. A footer change shows the footer, not the whole court.
 - Keep crops under about 4:1. For a full-width bar, crop an inner element (`.settings`, not `.footer`) or take that shot at a narrower viewport. A 5000×200 strip renders as a sliver on GitHub.
-- Video is covered under [Capturing media](#capturing-media).
+- Keep alt text to about ten words that say what the picture shows.
+- The MP4, if there is one, goes here too. Video is covered under [Capturing media](#capturing-media).
 - A change with nothing to see, such as a test-only or tooling PR, shows terminal output in a fenced block instead and says why there is no screenshot.
 
 ```markdown
 | Before | After |
 | --- | --- |
-| ![Footer before: three loose menus](./before-footer.png) | ![Footer after: one labelled settings group](./after-footer.png) |
+| ![Three loose footer menus](./before-footer.png) | ![One labelled settings group](./after-footer.png) |
 ```
 
-**A mermaid diagram of the change**, in a ` ```mermaid ` fence, which GitHub renders inline.
-- Draw the change, not the whole game: the new flow, the state that moved, the modules touched.
+**A mermaid diagram of the change**, in a ` ```mermaid ` fence under `## How it works`, which GitHub renders inline. It stays above the fold, because a picture of the flow is quicker to read than the paragraph it replaces.
+- Draw the change, not the whole game: the new flow, the state that moved, the modules touched. Aim for a dozen nodes or fewer.
 - Shapes that fit most PRs here:
   - `stateDiagram-v2` for game flow, such as a round's lifecycle or a shot's outcome.
   - `flowchart` for UI and data flow, or which module now owns what.
   - `sequenceDiagram` for timing, such as load order, a skeleton clearing or audio unlocking.
 
-**Risks.** Write them in the order a reviewer worries:
-1. Can this break the game for players: a crash, a stuck state, a wrong score?
-2. Can it break the deploy: stale `?v=`, missing files in `dist/`?
-3. Layout on phone and tablet widths.
-4. Accessibility: focus, labels, reduced motion.
-5. Saved state: localStorage keys added, renamed or reinterpreted.
+**Details for reviewers, collapsed.** Risks and the technical overview go last, inside `<details>`, so they cost nothing for a reader who doesn't open them.
+- Put `<a id="reviewers"></a>` on its own line just above `<details>`, so the contents list can link to it.
+- Leave a blank line after `<summary>…</summary>`, or GitHub won't render the Markdown inside.
+- Use `###` headings inside. They don't go in the contents list.
+- Screenshots beyond the main before/after pair, such as phone layouts or close-ups, can go here under `### More screenshots`. That keeps the visible section to the pictures everyone needs.
 
-For each risk, give the check that covers it ("measured at 375, 820, 1000 and 1440px wide"). If nothing checks it, say so plainly.
+**Risks**, inside the block.
+- Lead with what is **not** checked, or what needs the reviewer's eye. Those are the bullets that matter.
+- Then give one line per area that was checked, with the check: "Layout: measured at 375, 820, 1000 and 1440px wide."
+- Cover the areas in the order a reviewer worries:
+  1. Can this break the game for players: a crash, a stuck state, a wrong score?
+  2. Can it break the deploy: stale `?v=`, missing files in `dist/`?
+  3. Layout on phone and tablet widths.
+  4. Accessibility: focus, labels, reduced motion.
+  5. Saved state: localStorage keys added, renamed or reinterpreted.
+- Six bullets at most. Skip an area the PR can't touch.
 
-**Technical overview**, last before any notes. It's for the reviewer:
-- the mechanism in a few sentences;
-- the files that matter, with a clause each;
-- the approach you rejected that they would ask about;
-- the gate, for example "`node --test`: 22 pass, 0 fail".
+**Technical overview**, inside the block, last.
+- Explain the mechanism in three sentences at most.
+- List only the files a reviewer should read closely, with a clause each. The diff already lists every file.
+- Name the approach you rejected that they would ask about.
+- Give the gate, for example "`node --test`: 22 pass, 0 fail".
 
-Everything above this section stays high level.
-
-**Attribution.** End with any attribution line your environment asks for.
+**Attribution.** End with any attribution line your environment asks for, after `</details>`.
 
 ## Capturing media
 
@@ -221,11 +228,13 @@ A before scenario runs against the old code, so it can't wait for selectors or s
 **Look at every image before using it.** Open the PNGs, and pull a few frames from each MP4 into `$MEDIA/checks/`, for example `ffmpeg -ss 1 -i "$MEDIA/clip.mp4" -frames:v 1 "$MEDIA/checks/clip-1s.png"`. A screenshot of the wrong state is worse than none. Anything odd you spot is a finding for the user (step 5).
 
 **Where video goes:**
-- The GIF goes in **At a glance**, because it autoplays.
-- The MP4 goes in **Screenshots**, under its own small heading, as `![](./clip.mp4)` alone on its own line, with a blank line above and below. That's what makes GitHub render a player rather than a link. Video takes no alt text.
+- The GIF goes straight under the summary bullets, because it autoplays.
+- The MP4 goes in **Screenshots**, under its own small bold label, as `![](./clip.mp4)` alone on its own line, with a blank line above and below. That's what makes GitHub render a player rather than a link. Video takes no alt text.
 - Images take alt text in the Markdown. Describe what the picture shows, not that it is a screenshot.
 
 ## Body skeleton
+
+This is the largest shape: a multi-feature PR. Drop what the PR doesn't need, and check the visible word count against the budget.
 
 ~~~markdown
 **Summary**
@@ -233,32 +242,20 @@ A before scenario runs against the old code, so it can't wait for selectors or s
 - <Headline change, as what a player now gets.>
 - <Next change, or the one thing you need from the reviewer.>
 
+![<what the clip shows>](./<clip>.gif)
+
 **Contents**
 
-- [At a glance](#user-content-glance)
 - [<Benefit 1>](#user-content-b1)
-- [<Benefit 2>](#user-content-b2)
 - [Screenshots](#user-content-shots)
 - [How it works](#user-content-diagram)
-- [Risks](#user-content-risks)
-- [Technical overview](#user-content-tech)
-
-## At a glance <a id="glance"></a>
-
-<One sentence on what the clip shows.>
-
-![<what the clip shows>](./<clip>.gif)
+- [Details for reviewers](#user-content-reviewers)
 
 ## 🎯 <Benefit 1> <a id="b1"></a>
 
-- **<Hook>** – <one line>
-  - <fact>
-  - <fact>
-
-## 🧭 <Benefit 2> <a id="b2"></a>
-
-- **<Hook>** – <one line>
-  - <fact>
+- **<Hook>** – <the fact the summary left out>
+- **<Hook>** – <fact>
+  - <key, menu path or number, only if the reader will use it>
 
 ## Screenshots <a id="shots"></a>
 
@@ -277,17 +274,24 @@ stateDiagram-v2
   ...
 ```
 
-## Risks <a id="risks"></a>
+<a id="reviewers"></a>
+<details>
+<summary><b>Details for reviewers</b>: risks and technical overview</summary>
 
-- **<Risk>** – <how it was checked, or "not checked">
+### Risks
 
-## Technical overview <a id="tech"></a>
+- **Not checked:** <what wasn't verified, or needs the reviewer's eye>
+- **<Area>** – <the check that covers it>
 
-<Mechanism in a few sentences.>
+### Technical overview
 
-- `dist/<file>` – <what changed there>
+<Mechanism in three sentences at most.>
+
+- `dist/<file>` – <why a reviewer should read it closely>
 - **Rejected:** <the approach a reviewer would ask about, and why not>
 - **Gate:** `node --test` – <N> pass, 0 fail
+
+</details>
 ~~~
 
-Keep sections that have content and drop the rest, but always keep the summary, At a glance, Screenshots (or its terminal-output stand-in), the diagram, Risks and the Technical overview. Update the TOC to match.
+Always keep the summary, the screenshots (or their terminal-output stand-in), the diagram and the reviewer block. Everything else is earned by the PR's size.

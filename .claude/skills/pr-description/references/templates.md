@@ -1,8 +1,8 @@
 # PR templates
 
-Pick the one template that matches the PR's main change, and read only that one. A PR that mixes kinds uses the template of its headline change, and files the rest under change-class sections (🐛 Fix, 💄 Polish…) near the end.
+Pick the one template that matches the PR's main change, and read only that one. A PR that mixes kinds uses the template of its headline change. Each other change gets its own summary bullet, and a section only if one sentence isn't enough for it.
 
-Every template keeps the sections SKILL.md requires: Summary, Contents, At a glance, Screenshots (or terminal output), a diagram, Risks and the Technical overview. The templates only decide the middle sections, the diagram shape, the media and where risk tends to hide.
+Every template keeps what SKILL.md requires: the summary, the screenshots (or terminal output), the diagram and the collapsed reviewer details. The templates decide the one change section, its budget, the diagram shape, the media and where risk tends to hide. "Budget" is the visible word count, outside `<details>`.
 
 ## Contents
 
@@ -21,11 +21,13 @@ Every template keeps the sections SKILL.md requires: Summary, Contents, At a gla
 
 **Title:** "Around the world: score from five spots in a row"
 
-**Middle sections**, grouped by what the player gains:
-- `## 🎯 A goal to chase`: the rules in sub-bullets (how a round starts, how it scores, how it ends).
-- `## 🕹️ How to play it`: the menu path and the controls, plus what is locked or changed compared with free play.
-- `## 💾 What's remembered`: any new saved state, such as a best score, a last-used mode or a setting.
-- A bullet on what stayed the same, for example "Free shooting and its stats are untouched".
+**Budget:** about 300 words.
+
+**One section**, named for what the player gains, such as `## 🎯 A goal to chase`. Cover:
+- the rules in one bullet: how a round starts, scores and ends;
+- how to reach it, as a menu path, plus anything locked compared with free play;
+- what's saved, if anything;
+- one bullet on what stayed the same.
 
 **Diagram:** `stateDiagram-v2` of the mode's lifecycle, covering entering it, one turn, the end state and restarting.
 
@@ -33,7 +35,6 @@ Every template keeps the sections SKILL.md requires: Summary, Contents, At a gla
 - A GIF of one complete turn, for example a made shot with the score updating.
 - An MP4 of the full loop through to the end state.
 - An after PNG of the mode's UI.
-- A before/after crop of the menu or footer if it gained an entry.
 
 **Risks to check:**
 - Switching modes mid-action: during a charge, mid-flight, or with a round finished.
@@ -44,11 +45,9 @@ Every template keeps the sections SKILL.md requires: Summary, Contents, At a gla
 
 **Title:** "Bigger touch controls that stay clear of the court on phones"
 
-**Middle sections**, grouped by what is easier now:
-- `## 🧭 Settings you can find`
-- `## 📐 Fits every screen`
+**Budget:** about 150 words.
 
-Name each breakpoint's behaviour in sub-bullets, for example "751–1180px: settings centred, links below".
+**Often no section.** The summary bullet plus the before/after table usually say it all. Add `## 📐 Fits every screen` only when the layout differs by width, with one bullet per breakpoint, for example "751–1180px: settings centred, links below".
 
 **Diagram:** a `flowchart` of the layout per width range. When the change is about load order or flicker, use a `sequenceDiagram` of what paints when.
 
@@ -63,10 +62,9 @@ Name each breakpoint's behaviour in sub-bullets, for example "751–1180px: sett
 
 **Title:** say what the player no longer suffers, for example "Pausing mid-flight no longer drops the ball through the floor".
 
-**Middle sections:**
-- `## 🐛 What was wrong`: the symptom as a player saw it, and how to reproduce it.
-- `## ✅ What happens now`
-- If it was a regression, one bullet naming the PR or commit that introduced it.
+**Budget:** about 150 words.
+
+**One section**, `## 🐛 What was wrong`, in two or three bullets: the symptom as a player saw it, how to reproduce it, and what happens now. If it was a regression, add a bullet naming the PR or commit that introduced it.
 
 **Diagram:** a `stateDiagram-v2` or `flowchart` showing the corrected path, with the old wrong edge drawn dashed and labelled "before".
 
@@ -80,15 +78,15 @@ Name each breakpoint's behaviour in sub-bullets, for example "751–1180px: sett
 
 **Title:** "Bank shots come off the board softer, so more of them drop"
 
-**Middle sections:**
-- `## 🎚️ What feels different`: before → after numbers in sub-bullets (wobble ±0.05 → ±0.035, window 34–44%).
-- `## 🧪 How it was tuned`: what was swept or measured.
+**Budget:** about 200 words.
+
+**One section**, `## 🎚️ What feels different`, with the before → after numbers (wobble ±0.05 → ±0.035, window 34–44%). Say how they were tuned in one bullet, and put the full sweep output in the reviewer details.
 
 **Diagram:** a `flowchart` of the inputs to the changed value, showing which constants feed it.
 
 **Media:**
 - An MP4 of the same staged shot before and after.
-- If the change is numeric, a fenced block of the sweep or measurement output, so a reviewer can rerun it.
+- If the change is numeric, a fenced block of the sweep or measurement output, so a reviewer can rerun it. It goes inside the reviewer details.
 
 **Risks to check:** every mode that uses the constant, and whether tests pin the old value and need a deliberate update rather than a blind one.
 
@@ -96,16 +94,15 @@ Name each breakpoint's behaviour in sub-bullets, for example "751–1180px: sett
 
 **Title:** "Night court: floodlights, long shadows and a buzzing hum"
 
-**Middle sections:**
-- `## 🏞️ The new court`: palette, props, ambient motion and sound, one fact per sub-bullet.
-- `## 🧭 Where to find it`: the menu path.
+**Budget:** about 150 words.
+
+**Often no section.** The summary bullet plus the GIF show the court. If one is needed, `## 🏞️ The new court` gets one bullet each for the look, the motion and the sound, plus the menu path.
 
 **Diagram:** a `flowchart` from the court's data entry to what it drives (colours, props, audio).
 
 **Media:**
 - An after PNG of the court at desktop size.
 - A GIF of its ambient motion, such as wind, sea or snow.
-- A crop of the menu with the new entry.
 
 **Risks to check:** the label width test (a long court name needs a wider `#court-label`), reduced motion, file size, and the `?v=` bump on `courts.js`.
 
@@ -113,15 +110,15 @@ Name each breakpoint's behaviour in sub-bullets, for example "751–1180px: sett
 
 **Title:** "The shot meter announces its power to screen readers"
 
-**Middle sections:**
-- `## ♿ Who this helps`, naming the assistive technology or setting.
-- `## 🔍 What changed for them`: what is announced, focused or reachable now.
+**Budget:** about 200 words.
+
+**One section**, `## ♿ Who this helps`. Name the assistive technology or setting, then say what is announced, focused or reachable now.
 
 **Diagram:** a `sequenceDiagram` of the interaction as a screen-reader or keyboard user experiences it.
 
 **Media:**
 - Screenshots with the focus ring visible.
-- A fenced block of the accessible names or roles before and after.
+- A fenced block of the accessible names or roles before and after, inside the reviewer details.
 - An MP4 of the keyboard flow, if it moves.
 
 **Risks to check:** sighted-user regressions, focus traps, and reduced motion.
@@ -130,9 +127,9 @@ Name each breakpoint's behaviour in sub-bullets, for example "751–1180px: sett
 
 **Title:** say what the player or the next engineer gets, for example "Switching courts is instant: each court bakes once, not every time".
 
-**Middle sections:**
-- `## ⚡ Faster` or `## ♻️ Simpler`, with measured numbers (before → after, how they were measured).
-- `## 🟰 What stays the same`, which is the point of a refactor.
+**Budget:** about 150 words.
+
+**One section**, `## ⚡ Faster` or `## ♻️ Simpler`. Give the measured numbers (before → after, and how they were measured), and one bullet on what stays the same, which is the point of a refactor.
 
 **Diagram:** a `flowchart` of module ownership before and after, side by side as two subgraphs.
 
@@ -144,9 +141,9 @@ Name each breakpoint's behaviour in sub-bullets, for example "751–1180px: sett
 
 **Title:** "Physics tests now sweep shots from every spot on the court"
 
-**Middle sections:**
-- `## 📝 What's documented` or `## 🧪 What's covered now`
-- `## 🛠️ How to use it`, with the command in a fenced block.
+**Budget:** about 150 words.
+
+**One section**, `## 🛠️ How to use it`, with the command in a fenced block, and one bullet on what is now documented or covered.
 
 **Diagram:** a `flowchart` of the workflow or the test's reach.
 
