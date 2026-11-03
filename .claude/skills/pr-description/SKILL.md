@@ -1,6 +1,6 @@
 ---
 name: pr-description
-description: Open or update a pull request for iso-hoops with a title and description in the house style. That means a clickable table of contents, benefit-grouped sections a reader can scan, before/after screenshots and an MP4 + GIF of the change captured from headless Chrome, a mermaid diagram, a risk read and a technical overview. Media is uploaded with gh --attach and then deleted locally. Use this whenever the user says "open a PR", "create a PR", "make a pull request", "write the PR description", "draft the PR", "describe this PR", "PR title", "pr body", "update the PR description", "ship this as a PR", or asks what a PR for this branch should look like, even if they don't mention screenshots.
+description: Open or update a pull request for iso-hoops with a title and description in the house style. That means a TL;DR up top, a clickable table of contents, benefit-grouped sections a reader can scan, before/after screenshots and an MP4 + GIF of the change captured from headless Chrome, a mermaid diagram, a risk read and a technical overview. Media is uploaded with gh --attach and then deleted locally. Use this whenever the user says "open a PR", "create a PR", "make a pull request", "write the PR description", "draft the PR", "describe this PR", "PR title", "pr body", "update the PR description", "ship this as a PR", or asks what a PR for this branch should look like, even if they don't mention screenshots.
 user-invocable: true
 ---
 
@@ -61,7 +61,20 @@ A title says what a player now gets, not what the diff did. Use plain sentence c
 
 ## What every body carries
 
-**A table of contents at the top**, with one link per `##` section, so the reader can click straight to the part they want.
+**A TL;DR first, before anything else.** It's the whole PR for someone who reads nothing further: a reviewer triaging their queue, or someone scanning merged PRs months later.
+- Use a bold **TL;DR** label and two to four bullets. Give one bullet per headline change, the fixes and tooling included, so nothing in the PR is a surprise further down.
+- Each bullet is one plain sentence about what a player or maintainer now gets. Put no file paths, numbers of tests or mechanism here.
+- If the PR needs one thing from the reviewer, such as "check the phone layout" or "decide on the default", make it the last bullet.
+
+```markdown
+**TL;DR**
+
+- A new night court, with floodlights, long shadows and a low buzzing hum.
+- Pausing mid-flight no longer drops the ball through the floor.
+- Please check the floodlight glare on a phone; it's the part I'm least sure of.
+```
+
+**A table of contents next**, with one link per `##` section, so the reader can click straight to the part they want.
 - GitHub gives headings in a PR body no anchors you can rely on.
 - So end every linked heading with `<a id="slug"></a>`, and link to `#user-content-slug`. GitHub prefixes user ids with `user-content-`.
 - A dead TOC is worse than none, so give every section an id.
@@ -81,8 +94,8 @@ A title says what a player now gets, not what the diff did. Use plain sentence c
 ```
 
 **At a glance.**
-- Write one or two sentences on what a player notices.
-- Then show the GIF, if there is one. It autoplays, so a skimmer sees the change without clicking anything.
+- Show the GIF, if there is one. It autoplays, so a skimmer sees the change without clicking anything.
+- Add one sentence on what the clip shows. Don't repeat the TL;DR: that already said what changed, and this section shows it.
 
 **Categories a reader can scan.**
 - Group by player benefit, such as `## 🎯 A goal to chase` or `## 🧭 Settings you can find`. For housekeeping PRs, group by change class: ✨ Feature · 🐛 Fix · 💄 Polish · ♿ Accessibility · ⚡ Performance · 📝 Docs · 🧪 Tests · ♻️ Refactor.
@@ -215,6 +228,11 @@ A before scenario runs against the old code, so it can't wait for selectors or s
 ## Body skeleton
 
 ~~~markdown
+**TL;DR**
+
+- <Headline change, as what a player now gets.>
+- <Next change, or the one thing you need from the reviewer.>
+
 **Contents**
 
 - [At a glance](#user-content-glance)
@@ -227,7 +245,7 @@ A before scenario runs against the old code, so it can't wait for selectors or s
 
 ## At a glance <a id="glance"></a>
 
-<One or two sentences: what a player notices.>
+<One sentence on what the clip shows.>
 
 ![<what the clip shows>](./<clip>.gif)
 
@@ -272,4 +290,4 @@ stateDiagram-v2
 - **Gate:** `node --test` – <N> pass, 0 fail
 ~~~
 
-Keep sections that have content and drop the rest, but always keep At a glance, Screenshots (or its terminal-output stand-in), the diagram, Risks and the Technical overview. Update the TOC to match.
+Keep sections that have content and drop the rest, but always keep the TL;DR, At a glance, Screenshots (or its terminal-output stand-in), the diagram, Risks and the Technical overview. Update the TOC to match.
