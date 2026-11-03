@@ -2,7 +2,7 @@
 
 Pick the one template that matches the PR's main change, and read only that one. A PR that mixes kinds uses the template of its headline change, and files the rest under change-class sections (🐛 Fix, 💄 Polish…) near the end.
 
-Every template keeps the sections SKILL.md requires: TL;DR, Contents, At a glance, Screenshots (or terminal output), a diagram, Risks and the Technical overview. The templates only decide the middle sections, the diagram shape, the media and where risk tends to hide.
+Every template keeps the sections SKILL.md requires: Summary, Contents, At a glance, Screenshots (or terminal output), a diagram, Risks and the Technical overview. The templates only decide the middle sections, the diagram shape, the media and where risk tends to hide.
 
 ## Contents
 
