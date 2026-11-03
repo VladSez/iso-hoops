@@ -499,9 +499,14 @@ function update(delta) {
 						const previous = state.longest
 						state.longest = state.ball.distance
 						try { localStorage.setItem(LONGEST_KEY, String(state.longest)) } catch {}
-						nodes['callout-title'].textContent = 'NEW LONGEST!'
-						nodes['callout-detail'].textContent = previous ? `${state.longest.toFixed(1)} M · WAS ${previous.toFixed(1)} M` : `${state.longest.toFixed(1)} M`
-						setFeedback(previous ? `New longest: ${state.longest.toFixed(1)} m, beating ${previous.toFixed(1)} m.` : `First basket on the board: ${state.longest.toFixed(1)} m.`, true)
+						// The first basket only sets the bar; the callout is kept for beating a record.
+						if (previous) {
+							nodes['callout-title'].textContent = 'NEW LONGEST!'
+							nodes['callout-detail'].textContent = `${state.longest.toFixed(1)} M · WAS ${previous.toFixed(1)} M`
+							setFeedback(`New longest: ${state.longest.toFixed(1)} m, beating ${previous.toFixed(1)} m.`, true)
+						} else {
+							setFeedback(`Basket! Longest so far: ${state.longest.toFixed(1)} m.`, true)
+						}
 					} else {
 						setFeedback(state.streak > 1 ? `Basket! ${state.streak} in a row.` : 'Basket! Nice shot.', true)
 					}
