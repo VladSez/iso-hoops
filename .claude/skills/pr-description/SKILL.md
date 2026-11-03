@@ -65,9 +65,17 @@ A title says what a player now gets, not what the diff did. Use plain sentence c
 - GitHub gives headings in a PR body no anchors you can rely on.
 - So end every linked heading with `<a id="slug"></a>`, and link to `#user-content-slug`. GitHub prefixes user ids with `user-content-`.
 - A dead TOC is worse than none, so give every section an id.
+- Write it as a bulleted list under a bold **Contents** label, one link per line, in the same order as the sections. A list scans down the page faster than a run of links wrapping across one line, and a reviewer can see at a glance how many sections there are. Leave a blank line after the list, before the first heading.
 
 ```markdown
-**Contents:** [At a glance](#user-content-glance) · [What changes](#user-content-changes) · [Screenshots](#user-content-shots) · [How it works](#user-content-diagram) · [Risks](#user-content-risks) · [Technical overview](#user-content-tech)
+**Contents**
+
+- [At a glance](#user-content-glance)
+- [What changes](#user-content-changes)
+- [Screenshots](#user-content-shots)
+- [How it works](#user-content-diagram)
+- [Risks](#user-content-risks)
+- [Technical overview](#user-content-tech)
 
 ## At a glance <a id="glance"></a>
 ```
@@ -207,7 +215,15 @@ A before scenario runs against the old code, so it can't wait for selectors or s
 ## Body skeleton
 
 ~~~markdown
-**Contents:** [At a glance](#user-content-glance) · [<Benefit 1>](#user-content-b1) · [<Benefit 2>](#user-content-b2) · [Screenshots](#user-content-shots) · [How it works](#user-content-diagram) · [Risks](#user-content-risks) · [Technical overview](#user-content-tech)
+**Contents**
+
+- [At a glance](#user-content-glance)
+- [<Benefit 1>](#user-content-b1)
+- [<Benefit 2>](#user-content-b2)
+- [Screenshots](#user-content-shots)
+- [How it works](#user-content-diagram)
+- [Risks](#user-content-risks)
+- [Technical overview](#user-content-tech)
 
 ## At a glance <a id="glance"></a>
 
