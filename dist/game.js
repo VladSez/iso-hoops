@@ -1,5 +1,5 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
-import { FREE_THROW_SPOT, MAKE_WINDOW, ROUND_SHOTS, isDone, recordShot, startRound, wobble } from './free-throws.js?v=2'
+import { FREE_THROW_SPOT, MAKE_WINDOW, ROUND_SHOTS, isDone, recordShot, startRound, wobble } from './free-throws.js?v=3'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=4'
 
@@ -441,7 +441,7 @@ function takeFreeThrow(made) {
 	}
 	const score = `${state.round.made}/${taken}`
 	if (isDone(state.round)) {
-		const verdict = best > bestBefore ? 'New best!' : `Best ${best}/${ROUND_SHOTS}.`
+		const verdict = bestBefore === 0 ? 'That’s the one to beat.' : best > bestBefore ? 'New best!' : `Best ${best}/${ROUND_SHOTS}.`
 		setFeedback(`${score}. ${verdict} Press Space to shoot another round.`, made)
 	} else {
 		setFeedback(made ? `Good. ${score}.` : `Off the mark. ${score}.`, made)
@@ -816,9 +816,20 @@ function setupMenu(button, options, onPick) {
 		setOpen(options.hidden)
 		if (!options.hidden) options.querySelector(':checked').focus()
 	})
-	options.addEventListener('change', event => onPick(event.target.value))
+	// A click or tap picks in one go, so the menu closes and Space shoots again; arrow keys keep browsing until Enter.
+	let pickedByPointer = false
+	options.addEventListener('pointerdown', () => { pickedByPointer = true })
+	options.addEventListener('change', event => {
+		onPick(event.target.value)
+		if (!pickedByPointer) return
+		setOpen(false)
+		canvas.focus({ preventScroll: true })
+	})
 	options.addEventListener('keydown', event => {
+		pickedByPointer = false
 		if (event.key !== 'Escape' && event.key !== 'Enter') return
+		// Without this, the same Enter press clicks the button once it has focus and reopens the menu.
+		event.preventDefault()
 		setOpen(false)
 		button.focus()
 	})
