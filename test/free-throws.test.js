@@ -46,3 +46,10 @@ test('shots after the round is done change nothing', () => {
 	const done = shoot(startRound(0), Array(ROUND_SHOTS).fill(true))
 	assert.deepEqual(recordShot(done, false), done)
 })
+
+test('best holds still during a round and only moves when it ends', () => {
+	const almost = shoot(startRound(3), Array(ROUND_SHOTS - 1).fill(true))
+	assert.equal(almost.made, 9)
+	assert.equal(almost.best, 3)
+	assert.equal(recordShot(almost, false).best, 9)
+})

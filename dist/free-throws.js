@@ -39,5 +39,8 @@ export const isDone = round => round.taken >= ROUND_SHOTS
 export function recordShot(round, made) {
 	if (isDone(round)) return round
 	const total = round.made + Number(made)
-	return { taken: round.taken + 1, made: total, best: Math.max(round.best, total) }
+	const taken = round.taken + 1
+	// Best only moves when a round ends, so it stays the score to beat while you shoot.
+	const best = taken >= ROUND_SHOTS ? Math.max(round.best, total) : round.best
+	return { taken, made: total, best }
 }
