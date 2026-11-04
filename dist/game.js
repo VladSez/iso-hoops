@@ -927,6 +927,13 @@ for (const button of nodes.turn.children) {
 		})
 	}
 }
+// iOS Safari can still start a pinch-zoom when a second finger lands outside the controls, such as on the footer,
+// while a thumb holds the stick, Shoot or a turn button. Only block it while a control is held, so the page can
+// still be zoomed the rest of the time.
+document.addEventListener('gesturestart', event => {
+	const isHoldingControl = stickPointerId !== undefined || state.chargeSource === 'pointer' || nodes.turn.querySelector('.active') !== null
+	if (isHoldingControl) event.preventDefault()
+})
 addEventListener('blur', cancelInput)
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelInput() })
 
