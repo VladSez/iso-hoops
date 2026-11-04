@@ -19,12 +19,12 @@ const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
-	'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail',
+	'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail', 'stick', 'stick-knob',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
 	player: { x: 3.5, y: 0 }, yaw: Math.PI, pointer: undefined,
-	keys: new Set(), phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
+	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	feedbackTime: 0, walking: false, scoredAt: undefined,
@@ -43,6 +43,8 @@ const MODES = { free: 'Free shooting', 'free-throws': '10 free throws' }
 const MODE_KEY = 'iso-hoops:mode'
 const FREE_THROW_BEST_KEY = 'iso-hoops:free-throw-best'
 const LONGEST_KEY = 'iso-hoops:longest-basket'
+// Phones and tablets get the on-screen stick and Shoot button instead of the keyboard hints.
+const IS_TOUCH = matchMedia('(pointer: coarse)').matches
 const CANVAS_LABELS = {
 	free: canvas.getAttribute('aria-label'),
 	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space or the mouse button to charge, release inside the band on the meter to shoot.',
@@ -414,6 +416,7 @@ function releaseShot(source) {
 
 function cancelInput() {
 	state.keys.clear()
+	releaseStick()
 	if (state.phase === 'charging') state.phase = 'ready'
 	state.chargeSource = undefined
 	state.charge = 0
@@ -458,7 +461,7 @@ function takeFreeThrow(made) {
 		const verdict = bestBefore === 0 ? 'That’s the one to beat.' : best > bestBefore ? 'New best!' : `Best ${best}/${ROUND_SHOTS}.`
 		const next = { ...state.round, level: state.round.level + 1 }
 		const farther = levelOf(next).distance > levelOf(state.round).distance ? `, from ${levelOf(next).distance} m` : ''
-		setFeedback(`${score}. ${verdict} Press Space for round ${next.level}${farther}.`, made)
+		setFeedback(`${score}. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} for round ${next.level}${farther}.`, made)
 	} else {
 		setFeedback(made ? `Good. ${score}.` : `Off the mark. ${score}.`, made)
 	}
@@ -474,14 +477,17 @@ function update(delta) {
 	}
 	state.followThrough = Math.max(0, state.followThrough - delta)
 	const keys = state.keys
-	let screenX = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'))
-	let screenY = Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'))
+	let screenX = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft')) + state.stick.x
+	let screenY = Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp')) + state.stick.y
 	const length = Math.hypot(screenX, screenY)
 	const freeThrows = state.mode === 'free-throws'
 	state.walking = length > 0 && !freeThrows
 	if (state.walking) {
-		screenX /= length
-		screenY /= length
+		// Keys always walk at full speed; a partly pushed stick walks slower, for small adjustments.
+		if (length > 1) {
+			screenX /= length
+			screenY /= length
+		}
 		state.player.x = clamp(state.player.x + (screenX + screenY) / R2 * 4.4 * delta, -8.25, 8.3)
 		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.3, 6.3)
 		updateAim()
@@ -698,7 +704,47 @@ nodes.shoot.addEventListener('pointerdown', event => {
 	beginCharge('pointer')
 })
 nodes.shoot.addEventListener('pointerup', () => releaseShot('pointer'))
+// iOS opens its text-selection loupe on a long press unless the default is prevented.
+nodes.shoot.addEventListener('contextmenu', event => event.preventDefault())
 nodes.shoot.addEventListener('pointercancel', cancelInput)
+
+// The stick's offset from its centre is a screen-space direction, like WASD, scaled to 0..1.
+const STICK_DEAD_ZONE = 0.15
+let stickPointerId
+function moveStick(event) {
+	const rect = nodes.stick.getBoundingClientRect()
+	const radius = rect.width / 2
+	let dx = (event.clientX - rect.left - radius) / radius
+	let dy = (event.clientY - rect.top - radius) / radius
+	const length = Math.hypot(dx, dy)
+	if (length > 1) {
+		dx /= length
+		dy /= length
+	}
+	const isPushed = length > STICK_DEAD_ZONE
+	state.stick.x = isPushed ? dx : 0
+	state.stick.y = isPushed ? dy : 0
+	// The knob travels half the base's radius, so it stays inside the ring.
+	nodes['stick-knob'].style.transform = `translate(${dx * radius / 2}px, ${dy * radius / 2}px)`
+}
+function releaseStick() {
+	stickPointerId = undefined
+	state.stick.x = 0
+	state.stick.y = 0
+	nodes['stick-knob'].style.transform = ''
+	nodes.stick.classList.remove('active')
+}
+nodes.stick.addEventListener('pointerdown', event => {
+	if (stickPointerId !== undefined) return
+	event.preventDefault()
+	stickPointerId = event.pointerId
+	nodes.stick.setPointerCapture(event.pointerId)
+	nodes.stick.classList.add('active')
+	moveStick(event)
+})
+nodes.stick.addEventListener('pointermove', event => { if (event.pointerId === stickPointerId) moveStick(event) })
+nodes.stick.addEventListener('pointerup', event => { if (event.pointerId === stickPointerId) releaseStick() })
+nodes.stick.addEventListener('pointercancel', event => { if (event.pointerId === stickPointerId) releaseStick() })
 addEventListener('blur', cancelInput)
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelInput() })
 
@@ -905,6 +951,7 @@ function applyMode() {
 	canvas.setAttribute('aria-label', CANVAS_LABELS[state.mode])
 	checkOption(nodes['mode-options'], state.mode)
 	nodes['power-target'].hidden = !freeThrows
+	nodes.stick.classList.toggle('locked', freeThrows)
 	nodes['label-attempts'].textContent = freeThrows ? 'SHOTS LEFT' : 'SHOTS'
 	nodes['label-accuracy'].textContent = freeThrows ? 'BEST' : 'ACCURACY'
 	nodes['longest-stat'].hidden = freeThrows

@@ -143,3 +143,67 @@ dialog .dialog-note { font-size: 10px; }
 	.session-stats strong { font-size: 18px; }
 	#stage { inset: 115px 0 232px; }
 }
+/* Touch screens: an on-screen stick replaces WASD and a round Shoot button replaces Space. */
+#stick, .touch-only { display: none; }
+@media (pointer: coarse) {
+	body { touch-action: manipulation; }
+	.pointer-only, #controls, #shoot kbd, #shoot-label { display: none; }
+	.touch-only { display: inline; }
+	.shoot-panel { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "feedback feedback feedback" "label label label" "meter meter meter" "stick . shoot"; align-items: center; width: calc(100% - 44px); max-width: 420px; }
+	#feedback { grid-area: feedback; margin-bottom: 14px; }
+	.power-label { grid-area: label; }
+	#power-meter { grid-area: meter; }
+	#stick, #shoot { width: 96px; height: 96px; margin-top: 16px; border: 1px solid #e7e3dc; border-radius: 50%; background: #fff; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+	#stick { grid-area: stick; display: grid; place-items: center; transition: opacity 0.2s; }
+	#stick-knob { width: 40px; height: 40px; border-radius: 50%; background: #f4f1eb; border: 1px solid #d9d4ca; pointer-events: none; }
+	#stick.active { border-color: var(--orange); }
+	#stick.active #stick-knob { background: var(--orange); border-color: var(--orange); }
+	/* Free throws fix your spot, so the stick stays visible but greyed out. */
+	#stick.locked { opacity: 0.35; pointer-events: none; }
+	#shoot { grid-area: shoot; padding: 0; color: #302e2a; font-size: 11px; letter-spacing: 2px; transition: background 0.15s, color 0.15s; }
+	body.charging #shoot { background: var(--orange); border-color: var(--orange); color: #fff; }
+	#stage { bottom: 300px; }
+	.shoot-panel { bottom: 112px; }
+}
+@media (pointer: coarse) and (max-width: 750px) {
+	#stage { inset: 125px 0 282px; }
+	.shoot-panel { bottom: 96px; }
+	.header { top: 18px; row-gap: 12px; }
+}
+@media (pointer: coarse) and (max-height: 700px) and (orientation: portrait) {
+	body { min-height: 0; overflow: hidden; }
+	.session-stats strong { font-size: 18px; }
+	.session-stats > div { gap: 4px; }
+	#stage { inset: 108px 0 254px; }
+	#stick, #shoot { width: 84px; height: 84px; margin-top: 10px; }
+	#feedback { margin-bottom: 10px; }
+}
+/* Phone landscape: the court takes the middle, settings sit on the left, the stick and Shoot in the bottom corners. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+	body { min-height: 0; overflow: hidden; }
+	.header { top: 10px; left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right)); display: flex; }
+	.wordmark { font-size: 7px; gap: 8px; }
+	.wordmark b { font-size: 13px; }
+	.ball-icon { font-size: 24px; }
+	.session-stats { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); gap: 14px; padding: 4px 10px; }
+	.session-stats strong { font-size: 17px; }
+	.session-stats > div { gap: 4px; }
+	#stage { inset: 50px 0 58px; }
+	.shoot-panel { left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right)); bottom: 12px; width: auto; max-width: none; transform: none; grid-template-columns: auto minmax(0, 280px) auto; grid-template-rows: 1fr auto auto auto; grid-template-areas: "stick . shoot" "stick feedback shoot" "stick label shoot" "stick meter shoot"; justify-content: space-between; column-gap: 16px; pointer-events: none; }
+	#stick, #shoot { width: 88px; height: 88px; margin: 0; align-self: end; pointer-events: auto; }
+	#feedback { margin-bottom: 8px; height: auto; min-height: 14px; }
+	.footer { top: 60px; bottom: auto; left: max(16px, env(safe-area-inset-left)); right: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+	.settings { flex-direction: column; }
+	.settings .footer-menu + .footer-menu { border-left: 0; border-top: 1px solid #ece9e3; }
+	.footer-menu:first-child .menu-button, .footer-menu:last-child .menu-button { border-radius: 5px; }
+	.menu-button { min-height: 0; padding: 5px 10px; }
+	.menu-options, .footer-menu:last-child .menu-options { top: 0; bottom: auto; left: calc(100% + 8px); right: auto; }
+	.credits { flex-direction: column; align-items: flex-start; gap: 4px; font-size: 9px; }
+	.credits > span { display: none; }
+}
+@media (pointer: coarse) and (max-width: 360px) {
+	.menu-button { padding: 6px 8px; }
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 360px) {
+	.credits { display: none; }
+}

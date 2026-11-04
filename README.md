@@ -18,6 +18,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 - **Sound effects made on the fly:** dribbles, swishes and the scoring chime are all generated with the Web Audio API.
 - **Made-shot feedback:** the net animates, a basket callout appears and the made count pulses.
 - **Remembers your settings:** your court and sound choices are kept between visits.
+- **Plays on phones:** an on-screen stick and Shoot button replace the keyboard, with layouts for portrait and landscape.
 - **Accessible motion:** with reduced motion turned on, the net and callout stay still.
 
 ## Controls
@@ -31,7 +32,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 
 In 10 free throws mode your spot and aim are locked, starting at the free throw line. Release inside the dark band on the meter, which wobbles slightly, so time your release. After your tenth shot, Space starts the next round a step farther back, from 5.5 m, then 6 m, then the three-point line.
 
-On touch screens, tap the court to aim and hold the shoot button to charge.
+On phones and tablets, drag the stick in the bottom left to move, tap or drag on the court to aim, and hold the Shoot button to charge. Both portrait and landscape work.
 
 The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round is saved in your browser too.
 
