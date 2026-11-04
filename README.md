@@ -26,7 +26,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 | --- | --- |
 | Move | WASD or arrow keys (relative to the screen) |
 | Aim | Mouse, or Q / E to turn |
-| Shoot | Hold Space to build power, release to shoot |
+| Shoot | Hold Space or the left mouse button to build power, release to shoot |
 | Cancel a shot or pause | Escape |
 
 In 10 free throws mode your spot and aim are locked, starting at the free throw line. Release inside the dark band on the meter, which wobbles slightly, so time your release. After your tenth shot, Space starts the next round a step farther back, from 5.5 m, then 6 m, then the three-point line.
