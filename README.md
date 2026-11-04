@@ -13,6 +13,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 - **5 courts:** neighborhood, rooftop at dusk, boardwalk beach, autumn park and first snow. Switch between them from the Court menu in the footer.
 - **Longest basket:** in free shooting, the header tracks your longest make in metres, measured from where you shot to the hoop. Beat it for a NEW LONGEST callout. It is saved in your browser.
 - **10 free throws:** a mode with a goal. Shoot ten from the free throw spot and see how many you make, then step back a little each round, out to the three-point line. Your best round is remembered. Pick it from the Mode menu in the footer.
+- **Beat the clock:** free shooting against a 60-second clock. A basket is worth 2 points, or 3 from beyond the arc. The clock starts with your first shot, the ball comes back quickly, and the last ten seconds turn red. Your best score is saved.
 - **Real shot physics:** the ball can bounce off the rim and the backboard. A basket counts only when the ball drops down through the hoop.
 - **Music written in code:** a quiet, original 76 BPM loop built sample by sample, with no audio files.
 - **Sound effects made on the fly:** dribbles, swishes and the scoring chime are all generated with the Web Audio API.
@@ -32,9 +33,11 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 
 In 10 free throws mode your spot and aim are locked, starting at the free throw line. Release inside the dark band on the meter, which wobbles slightly, so time your release. After your tenth shot, Space starts the next round a step farther back, from 5.5 m, then 6 m, then the three-point line.
 
+Beat the clock plays like free shooting: move and aim anywhere. Points go by where you release the shot, 3 from beyond the arc (more than 6.7 m from the hoop) and 2 anywhere else, the line included. A shot still in the air at the buzzer counts if it goes in. When time is up, Space (or Shoot) resets the score and the next shot starts a new 60 seconds. Pausing with Escape or opening How to play stops the clock.
+
 On phones and tablets, drag the stick in the bottom left to move. You keep facing the rim as you walk; tap or drag on the court to aim elsewhere, or hold the ↺ / ↻ buttons to turn a little. Tap near the rim to aim back at it. Hold the Shoot button to charge. Both portrait and landscape work.
 
-The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round is saved in your browser too.
+The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round and your best against the clock are saved in your browser too.
 
 ## Sound
 
@@ -48,11 +51,13 @@ node serve.mjs
 
 Then open http://127.0.0.1:5300.
 
-Run the physics tests with:
+Run the tests with:
 
 ```sh
 node --test
 ```
+
+The same tests run on every pull request and every push to `main` (`.github/workflows/test.yml`).
 
 ## Deploy to GitHub Pages
 
