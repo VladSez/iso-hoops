@@ -27,6 +27,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .session-stats .unit { margin-left: 2px; color: inherit; font-size: 12px; letter-spacing: 0; }
 .session-stats [hidden] { display: none; }
 #makes { color: var(--orange); }
+/* Reserves room for a longest basket up to 99.9m, so a saved one loading in doesn't shift the row. */
+#longest { min-width: 5ch; }
+/* Like the footer menus: a placeholder until game.js marks the stats ready, and the value underneath after 2s if it never does. */
+.session-stats:not(.ready) #longest { position: relative; color: transparent; animation: reveal-stat 0s 2s forwards; }
+.session-stats:not(.ready) #longest::before { content: ""; position: absolute; left: 4px; right: 4px; top: calc(50% - 8px); height: 16px; border-radius: 2px; background: #efece6; animation: skeleton 0.9s ease-in-out infinite alternate, hide-skeleton 0s 2s forwards; }
+@keyframes reveal-stat { to { color: #302e2a; } }
+@media (prefers-reduced-motion: reduce) { .session-stats:not(.ready) #longest::before { animation: hide-skeleton 0s 2s forwards; } }
 #basket-callout { position: absolute; z-index: 2; transform: translate(-50%, -100%); padding: 10px 15px; border: 1px solid #d5a272; background: #fffdf5; color: var(--orange); text-align: center; pointer-events: none; box-shadow: 3px 3px 0 #ad75442b; }
 #basket-callout[hidden] { display: none; }
 #basket-callout strong { display: block; font-size: 16px; letter-spacing: 2px; }
