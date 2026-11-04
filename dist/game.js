@@ -1,6 +1,7 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
 import { RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=2'
+import { LETTERS, SPOT_RADIUS, isOnSpot, recordGoatShot, startGoat, tierOf } from './goat.js?v=1'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=4'
 
@@ -29,7 +30,7 @@ const state = {
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	feedbackTime: 0, walking: false, scoredAt: undefined,
-	mode: 'free', round: startRound(0), clock: startClockRound(0), longest: 0,
+	mode: 'free', round: startRound(0), clock: startClockRound(0), goat: startGoat(0), longest: 0,
 }
 
 const COURT_KEY = 'iso-hoops:court'
@@ -40,10 +41,11 @@ try {
 } catch {}
 let court = COURTS[courtId]
 
-const MODES = { free: 'Free shooting', 'free-throws': '10 free throws', clock: 'Beat the clock' }
+const MODES = { free: 'Free shooting', 'free-throws': '10 free throws', clock: 'Beat the clock', goat: 'GOAT' }
 const MODE_KEY = 'iso-hoops:mode'
 const FREE_THROW_BEST_KEY = 'iso-hoops:free-throw-best'
 const CLOCK_BEST_KEY = 'iso-hoops:clock-best-points'
+const GOAT_BEST_KEY = 'iso-hoops:goat-best'
 const LONGEST_KEY = 'iso-hoops:longest-basket'
 // Phones and tablets get the on-screen stick and Shoot button instead of the keyboard hints.
 const IS_TOUCH = matchMedia('(pointer: coarse)').matches
@@ -51,6 +53,7 @@ const HOOP_SNAP_PX = 28
 const CANVAS_LABELS = {
 	free: canvas.getAttribute('aria-label'),
 	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space or the mouse button to charge, release inside the band on the meter to shoot.',
+	goat: 'Basketball court with a marked spot. Walk into the ring and make the shot; each miss earns a letter of GOAT, and four letters end the game. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot.',
 	clock: 'Basketball practice court, 60 seconds on the clock. Score 2 for a make, 3 from beyond the arc. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot.',
 }
 try {
@@ -58,6 +61,7 @@ try {
 	if (saved in MODES) state.mode = saved
 	state.round = startRound(Math.max(0, Number.parseInt(localStorage.getItem(FREE_THROW_BEST_KEY), 10) || 0))
 	state.clock = startClockRound(Math.max(0, Number.parseInt(localStorage.getItem(CLOCK_BEST_KEY), 10) || 0))
+	state.goat = startGoat(Math.max(0, Number.parseInt(localStorage.getItem(GOAT_BEST_KEY), 10) || 0))
 	state.longest = Math.max(0, Number.parseFloat(localStorage.getItem(LONGEST_KEY)) || 0)
 } catch {}
 
@@ -359,6 +363,13 @@ function updateStats() {
 		nodes.attempts.classList.toggle('hurry', isHurrying)
 		return
 	}
+	if (state.mode === 'goat') {
+		nodes.makes.textContent = pad(state.goat.made)
+		// All four letters show, with the earned ones lit, so you can see how many misses are left.
+		nodes.attempts.innerHTML = LETTERS.map((letter, i) => `<span class="letter${i < state.goat.letters ? ' earned' : ''}">${letter}</span>`).join('')
+		nodes.accuracy.textContent = pad(state.goat.best)
+		return
+	}
 	if (state.mode === 'free-throws') {
 		nodes.makes.textContent = pad(state.round.made)
 		nodes.attempts.textContent = pad(ROUND_SHOTS - state.round.taken)
@@ -407,6 +418,19 @@ function beginCharge(source) {
 		setFeedback(`Round ${state.round.level}, from ${levelOf(state.round).distance} m. Ten shots.`)
 		updateStats()
 		return
+	}
+	if (state.mode === 'goat') {
+		// Like a new free throw round, this press only starts a new game, so the player sees the first spot first.
+		if (state.goat.isOver) {
+			state.goat = startGoat(state.goat.best)
+			setFeedback('New game. Walk into the ring.')
+			updateStats()
+			return
+		}
+		if (!isOnSpot(state.player, state.goat.spot)) {
+			setFeedback('Step into the ring to shoot.')
+			return
+		}
 	}
 	if (state.mode === 'clock') {
 		// Like a new free throw round, this press only resets the score, so the 60 seconds start with the next shot.
@@ -515,6 +539,29 @@ function finishClock() {
 	updateStats()
 }
 
+function takeGoatShot(made) {
+	const before = state.goat
+	state.goat = recordGoatShot(state.goat, made)
+	const { made: makes, letters, best, isOver } = state.goat
+	if (isOver) {
+		if (best > before.best) {
+			try { localStorage.setItem(GOAT_BEST_KEY, String(best)) } catch {}
+		}
+		// Kept short so the message fits on one line on a phone.
+		let verdict = `Best ${best}.`
+		if (before.best === 0) verdict = 'One to beat.'
+		else if (best > before.best) verdict = 'New best!'
+		setFeedback(`G-O-A-T. ${makes} made. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to restart.`, best > before.best)
+		return
+	}
+	if (!made) {
+		setFeedback(`Missed. That’s ${LETTERS.slice(0, letters).join('-')}. Next spot.`)
+		return
+	}
+	const movedBack = tierOf(makes) !== tierOf(before.made)
+	setFeedback(movedBack ? `${makes} made. The spots move back.` : `${makes} made. Next spot.`, true)
+}
+
 function update(delta) {
 	if (state.paused || nodes.help.open) return
 	const previousDribble = Math.floor(state.time * DRIBBLE_SPEED / Math.PI)
@@ -530,7 +577,10 @@ function update(delta) {
 	const length = Math.hypot(screenX, screenY)
 	const freeThrows = state.mode === 'free-throws'
 	const clock = state.mode === 'clock'
-	state.walking = length > 0 && !freeThrows
+	const goat = state.mode === 'goat'
+	// In GOAT you plant your feet once you start charging, so a shot is always released from inside the ring.
+	const isPlanted = goat && state.phase === 'charging'
+	state.walking = length > 0 && !freeThrows && !isPlanted
 	if (state.walking) {
 		// Keys always walk at full speed; a partly pushed stick walks slower, for small adjustments.
 		if (length > 1) {
@@ -567,6 +617,8 @@ function update(delta) {
 				nodes.makes.closest('.session-stats').classList.add('scored')
 				if (freeThrows) {
 					takeFreeThrow(true)
+				} else if (goat) {
+					takeGoatShot(true)
 				} else if (clock) {
 					state.clock = recordMake(state.clock, state.ball.points)
 					const shot = state.ball.points === 3 ? 'Three!' : 'Basket!'
@@ -599,6 +651,9 @@ function update(delta) {
 			state.returnTime = state.time + (clock ? RETURN_AFTER_MISS : 1.1)
 			if (freeThrows) {
 				takeFreeThrow(false)
+				updateStats()
+			} else if (goat) {
+				takeGoatShot(false)
 				updateStats()
 			} else if (clock) {
 				setFeedback('Next one, quick.')
@@ -668,6 +723,21 @@ function drawAimGuide() {
 	for (const [sx, sy] of arc) putPixel(sx, sy, lit)
 }
 
+// A ring on the ground round the called spot: bright over a dark outline, like the aim arc, so it reads on any court.
+// It's drawn before the player, so the depth test lets the player stand in front of it.
+// It turns white once the player is inside and can shoot.
+function drawSpotMarker() {
+	const { spot } = state.goat
+	const bright = isOnSpot(state.player, spot) ? rgb(...NET_COLOR) : rgb(...ARC_COLOR)
+	const rings = [[SPOT_RADIUS + 0.06, rgb(52, 38, 48)], [SPOT_RADIUS, bright], [SPOT_RADIUS - 0.05, bright]]
+	for (const [radius, color] of rings) {
+		for (let i = 0; i < 64; i++) {
+			const angle = i / 64 * Math.PI * 2
+			plot(spot.x + Math.cos(angle) * radius, spot.y + Math.sin(angle) * radius, 0.02, color)
+		}
+	}
+}
+
 function putPixel(sx, sy, color) {
 	const ix = sx | 0, iy = sy | 0
 	if (ix >= 0 && iy >= 0 && ix < W && iy < H) pix[iy * W + ix] = color
@@ -683,6 +753,7 @@ function draw() {
 	const shotPose = charging || state.followThrough > 0
 	const armAngle = charging ? 2.25 + state.power * 0.25 : state.followThrough > 0 ? 2.85 : 0.7
 	const walkCycle = state.walking ? Math.sin(state.time * 13) : 0
+	if (state.mode === 'goat' && !state.goat.isOver) drawSpotMarker()
 	figure(state.player.x, state.player.y, state.yaw, {
 		crouch: charging ? state.power * 0.45 : 0,
 		stance: 0.12 + walkCycle * 0.18,
@@ -1056,11 +1127,12 @@ setupMenu(nodes.court, nodes['court-options'], id => {
 })
 showCourt()
 
-const ATTEMPT_LABELS = { free: 'SHOTS', 'free-throws': 'SHOTS LEFT', clock: 'SECONDS' }
+const ATTEMPT_LABELS = { free: 'SHOTS', 'free-throws': 'SHOTS LEFT', clock: 'SECONDS', goat: 'LETTERS' }
 const MODE_INTROS = {
 	free: 'Find your spot. Take your time.',
 	'free-throws': 'Ten free throws. Release inside the band.',
 	clock: '60 seconds. 2 a basket, 3 beyond the arc.',
+	goat: 'Make the shot from the ring.',
 }
 
 function applyMode() {
@@ -1085,6 +1157,7 @@ function applyMode() {
 		placeForRound()
 	}
 	if (clock) state.clock = startClockRound(state.clock.best)
+	if (state.mode === 'goat') state.goat = startGoat(state.goat.best)
 	updateStats()
 }
 setupMenu(nodes.mode, nodes['mode-options'], mode => {
@@ -1096,6 +1169,8 @@ setupMenu(nodes.mode, nodes['mode-options'], mode => {
 	setFeedback(MODE_INTROS[mode])
 })
 applyMode()
+// The page's default line is free shooting's, so a saved goal mode explains itself on load.
+if (state.mode !== 'free') setFeedback(MODE_INTROS[state.mode])
 // Keep the skeletons (footer menus and longest basket) up for at least 300ms after navigation, so a fast load doesn't flash them.
 setTimeout(() => {
 	for (const node of document.querySelectorAll('.settings, .session-stats')) node.classList.add('ready')

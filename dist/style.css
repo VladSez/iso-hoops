@@ -41,6 +41,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 #basket-callout.celebrate { animation: basket-pop 1.8s both; }
 .session-stats.scored #makes { animation: score-pop 0.5s ease-out; }
 .session-stats #attempts.hurry { color: #c0492b; }
+/* GOAT letters: all four show, and the earned ones light up. */
+.session-stats .letter { color: #d9d4ca; font-size: inherit; letter-spacing: 0; }
+.session-stats .letter.earned { color: #c0492b; }
 @keyframes basket-pop {
 	0% { opacity: 0; transform: translate(-50%, calc(-100% + 8px)) scale(0.85); }
 	12%, 80% { opacity: 1; transform: translate(-50%, -100%) scale(1); }
