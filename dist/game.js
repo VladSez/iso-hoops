@@ -19,7 +19,7 @@ const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
-	'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail', 'stick', 'stick-knob',
+	'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -752,6 +752,22 @@ nodes.stick.addEventListener('pointerdown', event => {
 nodes.stick.addEventListener('pointermove', event => { if (event.pointerId === stickPointerId) moveStick(event) })
 nodes.stick.addEventListener('pointerup', event => { if (event.pointerId === stickPointerId) releaseStick() })
 nodes.stick.addEventListener('pointercancel', event => { if (event.pointerId === stickPointerId) releaseStick() })
+// The ↺ / ↻ buttons hold Q / E, so they turn the aim exactly like the keys do.
+for (const button of nodes.turn.children) {
+	const key = button.dataset.key
+	button.addEventListener('pointerdown', event => {
+		event.preventDefault()
+		button.setPointerCapture(event.pointerId)
+		button.classList.add('active')
+		state.keys.add(key)
+	})
+	for (const type of ['pointerup', 'pointercancel']) {
+		button.addEventListener(type, () => {
+			button.classList.remove('active')
+			state.keys.delete(key)
+		})
+	}
+}
 addEventListener('blur', cancelInput)
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelInput() })
 
@@ -959,6 +975,7 @@ function applyMode() {
 	checkOption(nodes['mode-options'], state.mode)
 	nodes['power-target'].hidden = !freeThrows
 	nodes.stick.classList.toggle('locked', freeThrows)
+	nodes.turn.classList.toggle('locked', freeThrows)
 	nodes['label-attempts'].textContent = freeThrows ? 'SHOTS LEFT' : 'SHOTS'
 	nodes['label-accuracy'].textContent = freeThrows ? 'BEST' : 'ACCURACY'
 	nodes['longest-stat'].hidden = freeThrows

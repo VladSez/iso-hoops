@@ -32,7 +32,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 
 In 10 free throws mode your spot and aim are locked, starting at the free throw line. Release inside the dark band on the meter, which wobbles slightly, so time your release. After your tenth shot, Space starts the next round a step farther back, from 5.5 m, then 6 m, then the three-point line.
 
-On phones and tablets, drag the stick in the bottom left to move. You keep facing the rim as you walk; tap or drag on the court to aim elsewhere, or tap near the rim to aim back at it. Hold the Shoot button to charge. Both portrait and landscape work.
+On phones and tablets, drag the stick in the bottom left to move. You keep facing the rim as you walk; tap or drag on the court to aim elsewhere, or hold the ↺ / ↻ buttons to turn a little. Tap near the rim to aim back at it. Hold the Shoot button to charge. Both portrait and landscape work.
 
 The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round is saved in your browser too.
 
