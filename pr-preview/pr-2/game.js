@@ -647,13 +647,42 @@ function draw() {
 	ctx.putImageData(image, 0, 0)
 }
 
+// The court's pavement (with room for the player's height) and the backboard, in canvas pixels.
+// Touch screens fit this box instead of the whole scene, cropping the grass and trees around it,
+// which makes the court about 1.6× bigger in a phone held upright and 2× bigger sideways.
+const COURT_BOX = (() => {
+	const corners = [[-COURT.x, -COURT.y], [COURT.x, -COURT.y], [-COURT.x, COURT.y], [COURT.x, COURT.y]]
+	const points = [
+		...corners.flatMap(([x, y]) => [project(x, y, 0), project(x, y, 2.2)]),
+		project(BACKBOARD_X, -1.35, 4.9), project(BACKBOARD_X, 1.35, 4.9),
+	]
+	const xs = points.map(point => point.sx)
+	const ys = points.map(point => point.sy)
+	return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) }
+})()
+const TOUCH_GUTTER_PX = 8
+
 function resizeCanvas() {
 	const rect = nodes.stage.getBoundingClientRect()
 	const dpr = window.devicePixelRatio || 1
-	const available = Math.min(rect.width / W, rect.height / H)
-	const scale = available < 1 ? available : Math.max(1, Math.floor(available * dpr)) / dpr
-	canvas.style.width = `${W * scale}px`
-	canvas.style.height = `${H * scale}px`
+	if (IS_TOUCH) {
+		const boxWidth = COURT_BOX.right - COURT_BOX.left
+		const boxHeight = COURT_BOX.bottom - COURT_BOX.top
+		const fit = Math.min((rect.width - TOUCH_GUTTER_PX * 2) / boxWidth, rect.height / boxHeight)
+		// Whole device pixels per game pixel keep the pixel art even.
+		const scale = Math.max(1, Math.floor(fit * dpr)) / dpr
+		canvas.style.width = `${W * scale}px`
+		canvas.style.height = `${H * scale}px`
+		// The canvas is centred in the stage by CSS; this shifts it so the court box is centred instead.
+		const shiftX = (W / 2 - (COURT_BOX.left + COURT_BOX.right) / 2) * scale
+		const shiftY = (H / 2 - (COURT_BOX.top + COURT_BOX.bottom) / 2) * scale
+		canvas.style.translate = `calc(-50% + ${shiftX}px) calc(-50% + ${shiftY}px)`
+	} else {
+		const available = Math.min(rect.width / W, rect.height / H)
+		const scale = available < 1 ? available : Math.max(1, Math.floor(available * dpr)) / dpr
+		canvas.style.width = `${W * scale}px`
+		canvas.style.height = `${H * scale}px`
+	}
 	const canvasRect = canvas.getBoundingClientRect()
 	const hoop = project(HOOP.x, HOOP.y, HOOP.z)
 	nodes['basket-callout'].style.left = `${canvasRect.left + hoop.sx / W * canvasRect.width}px`

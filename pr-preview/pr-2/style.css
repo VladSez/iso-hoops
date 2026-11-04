@@ -147,6 +147,11 @@ dialog .dialog-note { font-size: 10px; }
 #stick, #turn, .touch-only { display: none; }
 @media (pointer: coarse) {
 	body { touch-action: manipulation; }
+	/* game.js sizes the canvas to the court, so the grass and trees around it overflow and are cropped here. */
+	#stage { display: block; overflow: hidden; }
+	/* Where scenery is cropped at the top or bottom, fade it out instead of cutting it in a straight line. */
+	#stage { -webkit-mask-image: linear-gradient(transparent, #000 24px, #000 calc(100% - 12px), transparent); mask-image: linear-gradient(transparent, #000 24px, #000 calc(100% - 12px), transparent); }
+	#stage canvas { position: absolute; left: 50%; top: 50%; }
 	.pointer-only, #controls, #shoot kbd, #shoot-label { display: none; }
 	.touch-only { display: inline; }
 	.shoot-panel { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "feedback feedback feedback" "label label label" "meter meter meter" "stick turn shoot"; align-items: center; width: calc(100% - 44px); max-width: 420px; }
