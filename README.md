@@ -51,11 +51,13 @@ node serve.mjs
 
 Then open http://127.0.0.1:5300.
 
-Run the physics tests with:
+Run the tests with:
 
 ```sh
 node --test
 ```
+
+The same tests run on every pull request and every push to `main` (`.github/workflows/test.yml`).
 
 ## Deploy to GitHub Pages
 
