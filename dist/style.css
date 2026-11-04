@@ -41,6 +41,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 #basket-callout.celebrate { animation: basket-pop 1.8s both; }
 .session-stats.scored #makes { animation: score-pop 0.5s ease-out; }
 .session-stats #attempts.hurry { color: #c0492b; }
+/* HORSE letters: all five show, and the earned ones light up. */
+.session-stats .letter { color: #d9d4ca; font-size: inherit; letter-spacing: 0; }
+.session-stats .letter.earned { color: #c0492b; }
 @keyframes basket-pop {
 	0% { opacity: 0; transform: translate(-50%, calc(-100% + 8px)) scale(0.85); }
 	12%, 80% { opacity: 1; transform: translate(-50%, -100%) scale(1); }
@@ -154,7 +157,9 @@ dialog .dialog-note { font-size: 10px; }
 /* Touch screens: an on-screen stick replaces WASD and a round Shoot button replaces Space. */
 #stick, #turn, .touch-only { display: none; }
 @media (pointer: coarse) {
-	body { touch-action: manipulation; }
+	/* A long press that misses a control would otherwise select nearby text, such as a footer menu's name. */
+	body { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+	#help { -webkit-user-select: text; user-select: text; }
 	/* game.js sizes the canvas to the court, so the grass and trees around it overflow and are cropped here. */
 	#stage { display: block; overflow: hidden; }
 	/* Where scenery is cropped at the top or bottom, fade it out instead of cutting it in a straight line. */
@@ -162,6 +167,9 @@ dialog .dialog-note { font-size: 10px; }
 	#stage canvas { position: absolute; left: 50%; top: 50%; }
 	.pointer-only, #controls, #shoot kbd, #shoot-label { display: none; }
 	.touch-only { display: inline; }
+	/* The gaps between the controls take no browser gestures either, so a thumb that misses the stick or Shoot
+	   can't double-tap zoom, or turn a stick-and-Shoot hold into a pinch. */
+	.shoot-panel { touch-action: none; }
 	.shoot-panel { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "feedback feedback feedback" "label label label" "meter meter meter" "stick turn shoot"; align-items: center; width: calc(100% - 44px); max-width: 420px; }
 	#feedback { grid-area: feedback; margin-bottom: 14px; }
 	.power-label { grid-area: label; }
