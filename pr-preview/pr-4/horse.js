@@ -2,14 +2,14 @@ import { HOOP } from './physics.js?v=3'
 
 export const LETTERS = ['H', 'O', 'R', 'S', 'E']
 /** How close to a spot's centre the player must stand to shoot, in metres. Also the marker ring's radius. */
-export const SPOT_RADIUS = 0.55
+export const SPOT_RADIUS = 0.7
 export const MAKES_PER_TIER = 3
-// Called spots move out every few makes: close range, short, mid-range, then beyond the arc (6.7 m).
-// The launch angle is fixed, so nothing closer than about 2.2 m can drop in; 2.6 m leaves a fair power window.
+// Called spots move out every few makes: mid-range, long mid-range, just inside the arc (6.7 m), then threes.
+// There are no close shots: HORSE is about range, and the fixed launch angle can't drop anything under about 2.2 m anyway.
 export const TIERS = [
-	{ min: 2.6, max: 3.6 },
-	{ min: 3.6, max: 5 },
-	{ min: 5, max: 6.4 },
+	{ min: 4, max: 5 },
+	{ min: 5, max: 6.2 },
+	{ min: 6.2, max: 6.7 },
 	{ min: 7, max: 7.8 },
 ]
 // Where the player can walk (see update() in game.js), kept a little inside so the ring is fully on the court.
