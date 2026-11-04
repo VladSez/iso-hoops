@@ -45,7 +45,7 @@ const FREE_THROW_BEST_KEY = 'iso-hoops:free-throw-best'
 const LONGEST_KEY = 'iso-hoops:longest-basket'
 const CANVAS_LABELS = {
 	free: canvas.getAttribute('aria-label'),
-	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space to charge, release inside the band on the meter to shoot.',
+	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space or the mouse button to charge, release inside the band on the meter to shoot.',
 }
 try {
 	const saved = localStorage.getItem(MODE_KEY)
@@ -673,11 +673,24 @@ addEventListener('keyup', event => {
 	}
 })
 canvas.addEventListener('pointermove', aimAtPointer)
+// Holding the left mouse button on the court charges a shot like Space; a quick click only aims or focuses it.
+const CLICK_MS = 150
+let mouseDownAt = 0
 canvas.addEventListener('pointerdown', event => {
 	canvas.focus({ preventScroll: true })
 	aimAtPointer(event)
 	if (event.pointerType === 'touch') canvas.setPointerCapture(event.pointerId)
+	if (event.pointerType !== 'mouse' || event.button !== 0) return
+	canvas.setPointerCapture(event.pointerId)
+	mouseDownAt = performance.now()
+	beginCharge('mouse')
 })
+canvas.addEventListener('pointerup', event => {
+	if (event.pointerType !== 'mouse' || event.button !== 0 || state.chargeSource !== 'mouse') return
+	if (performance.now() - mouseDownAt < CLICK_MS) cancelInput()
+	else releaseShot('mouse')
+})
+canvas.addEventListener('pointercancel', () => { if (state.chargeSource === 'mouse') cancelInput() })
 nodes.shoot.addEventListener('pointerdown', event => {
 	if (event.button !== 0) return
 	event.preventDefault()

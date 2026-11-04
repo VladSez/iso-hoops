@@ -35,7 +35,7 @@
 			</div>
 		</header>
 		<main>
-			<div id="stage"><canvas id="c" tabindex="0" aria-label="Basketball practice court. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space to charge, release to shoot." aria-describedby="controls"></canvas></div>
+			<div id="stage"><canvas id="c" tabindex="0" aria-label="Basketball practice court. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot." aria-describedby="controls"></canvas></div>
 			<div id="basket-callout" hidden aria-hidden="true"><strong id="callout-title">BASKET!</strong><span id="callout-detail">+1 MADE</span></div>
 			<div class="shoot-panel">
 				<p id="feedback" role="status" aria-live="polite">A little time. A few good shots.</p>
@@ -45,7 +45,7 @@
 			</div>
 		</main>
 		<footer class="footer">
-			<div id="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> move</span><span><span class="mouse-icon" aria-hidden="true"></span> mouse aim <span class="alternate">/ Q E turn</span></span></div>
+			<div id="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> move</span><span><span class="mouse-icon" aria-hidden="true"></span> mouse aim &amp; shoot <span class="alternate">/ Q E turn</span></span></div>
 			<div class="settings" role="group" aria-label="Game settings">
 				<div class="footer-menu">
 					<fieldset id="mode-options" class="menu-options" hidden>
@@ -87,13 +87,13 @@
 			<div class="dialog-top"><span>THE COURT IS YOURS</span><button id="help-close" class="text-button" type="button" aria-label="Close instructions">Close ×</button></div>
 			<h1>Just you.<br />And the basket.</h1>
 			<p>No clock, no opponent. Find your spot and let it fly.</p>
-			<dl><div><dt>01 / MOVE</dt><dd>WASD or arrow keys move you around the court, in the direction you see on screen.</dd></div><div><dt>02 / AIM</dt><dd>Point the mouse toward the rim. Or hold Q / E to turn your aim. The dotted line shows your direction.</dd></div><div><dt>03 / SHOOT</dt><dd>Hold Space to build power, then release. More power sends the ball farther. You can also hold the shoot button.</dd></div></dl>
+			<dl><div><dt>01 / MOVE</dt><dd>WASD or arrow keys move you around the court, in the direction you see on screen.</dd></div><div><dt>02 / AIM</dt><dd>Point the mouse toward the rim. Or hold Q / E to turn your aim. The dotted line shows your direction.</dd></div><div><dt>03 / SHOOT</dt><dd>Hold Space, or the left mouse button on the court, to build power, then release. More power sends the ball farther. You can also hold the shoot button.</dd></div></dl>
 			<p class="dialog-note">Try 10 free throws from the Mode menu. Shoot ten from the line, release inside the dark band on the meter, and see how many you make. Each new round moves you a step back.</p>
 			<p class="dialog-note">The ball returns automatically. Press Esc to cancel a charge or pause. Free shooting stats last for this visit, except your longest basket, which is saved along with your best free throw round.</p>
 			<button id="help-play" class="play-button" type="button">Back to the court <span>↗</span></button>
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=5b7e2a91"></script>
-		<script type="module" src="game.js?v=e8c2f47a"></script>
+		<script type="module" src="game.js?v=f9d3a58b"></script>
 	</body>
 </html>
