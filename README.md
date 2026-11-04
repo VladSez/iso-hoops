@@ -56,12 +56,14 @@ node --test
 
 ## Deploy to GitHub Pages
 
-GitHub Pages publishes the `gh-pages` branch. When you edit `dist/style.css`, `dist/engine.js` or `dist/game.js` (or a module it imports), bump that file's `?v=` version in `dist/index.html` so browsers fetch the new code. After committing game changes on `main`, deploy the contents of `dist` with:
+GitHub Pages publishes the `gh-pages` branch. When you edit `dist/style.css`, `dist/engine.js` or `dist/game.js` (or a module it imports), bump that file's `?v=` version in `dist/index.html` so browsers fetch the new code.
 
-```sh
-git push origin main
-git subtree push --prefix dist origin gh-pages
-```
+Deploys are automatic:
+
+- **Production:** every push to `main` publishes `dist` to `gh-pages` (`.github/workflows/deploy.yml`). You can also run it by hand from the Actions tab.
+- **PR previews:** every pull request from a branch in this repo is published to `https://vladsez.github.io/iso-hoops/pr-preview/pr-<number>/`, and a comment on the PR links to it with a QR code for phones (`.github/workflows/preview.yml`). The preview is removed when the PR is closed or merged.
+
+Previews share the site's origin, so they also share its saved settings, best scores and longest basket.
 
 ## Credits
 
