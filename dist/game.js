@@ -1,7 +1,7 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
 import { RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=2'
-import { LETTERS, SPOT_RADIUS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=1'
+import { LETTERS, SPOT_RADIUS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=2'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=4'
 
@@ -723,16 +723,23 @@ function drawAimGuide() {
 	for (const [sx, sy] of arc) putPixel(sx, sy, lit)
 }
 
-// A ring on the ground round the called spot: bright over a dark outline, like the aim arc, so it reads on any court.
-// It's drawn before the player, so the depth test lets the player stand in front of it.
-// It turns white once the player is inside and can shoot.
+// A ring on the ground round the called spot: a thick bright band between dark outlines, like the aim arc,
+// so it reads on every court, including the terracotta key and the snow. It's drawn before the player, so the depth
+// test lets the player stand in front of it. It turns white once the player is inside and can shoot.
+const MARKER_OUTLINE = [52, 38, 48]
 function drawSpotMarker() {
 	const { spot } = state.horse
 	const bright = isOnSpot(state.player, spot) ? rgb(...NET_COLOR) : rgb(...ARC_COLOR)
-	const rings = [[SPOT_RADIUS + 0.06, rgb(52, 38, 48)], [SPOT_RADIUS, bright], [SPOT_RADIUS - 0.05, bright]]
+	const dark = rgb(...MARKER_OUTLINE)
+	const rings = [
+		[SPOT_RADIUS + 0.07, dark],
+		[SPOT_RADIUS, bright], [SPOT_RADIUS - 0.05, bright], [SPOT_RADIUS - 0.1, bright],
+		[SPOT_RADIUS - 0.17, dark],
+	]
 	for (const [radius, color] of rings) {
-		for (let i = 0; i < 64; i++) {
-			const angle = i / 64 * Math.PI * 2
+		// Enough points that even the outer ring has no gaps between pixels.
+		for (let i = 0; i < 96; i++) {
+			const angle = i / 96 * Math.PI * 2
 			plot(spot.x + Math.cos(angle) * radius, spot.y + Math.sin(angle) * radius, 0.02, color)
 		}
 	}

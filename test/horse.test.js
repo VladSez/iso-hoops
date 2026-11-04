@@ -30,7 +30,8 @@ test('every called spot is on the court, in front of the hoop, at its tier dista
 	}
 })
 
-test('spots move out every three makes and end beyond the arc', () => {
+test('spots start at mid-range, move out every three makes and end beyond the arc', () => {
+	assert.ok(TIERS[0].min >= 4)
 	assert.equal(tierOf(0), TIERS[0])
 	assert.equal(tierOf(MAKES_PER_TIER - 1), TIERS[0])
 	assert.equal(tierOf(MAKES_PER_TIER), TIERS[1])
@@ -40,8 +41,8 @@ test('spots move out every three makes and end beyond the arc', () => {
 
 test('you have to stand inside the ring to shoot', () => {
 	const spot = { x: 0, y: 0 }
-	assert.equal(isOnSpot({ x: 0.35, y: 0.35 }, spot), true)
-	assert.equal(isOnSpot({ x: 0.6, y: 0 }, spot), false)
+	assert.equal(isOnSpot({ x: 0.45, y: 0.45 }, spot), true)
+	assert.equal(isOnSpot({ x: 0.75, y: 0 }, spot), false)
 })
 
 test('makes score, misses earn letters, and H-O-R-S-E ends the game', () => {
