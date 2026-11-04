@@ -1,5 +1,6 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
-import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
+import { LEVELS, ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
+import { RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=1'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=4'
 
@@ -28,7 +29,7 @@ const state = {
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	feedbackTime: 0, walking: false, scoredAt: undefined,
-	mode: 'free', round: startRound(0), longest: 0,
+	mode: 'free', round: startRound(0), clock: startClockRound(0), longest: 0,
 }
 
 const COURT_KEY = 'iso-hoops:court'
@@ -39,9 +40,10 @@ try {
 } catch {}
 let court = COURTS[courtId]
 
-const MODES = { free: 'Free shooting', 'free-throws': '10 free throws' }
+const MODES = { free: 'Free shooting', 'free-throws': '10 free throws', clock: 'Beat the clock' }
 const MODE_KEY = 'iso-hoops:mode'
 const FREE_THROW_BEST_KEY = 'iso-hoops:free-throw-best'
+const CLOCK_BEST_KEY = 'iso-hoops:clock-best'
 const LONGEST_KEY = 'iso-hoops:longest-basket'
 // Phones and tablets get the on-screen stick and Shoot button instead of the keyboard hints.
 const IS_TOUCH = matchMedia('(pointer: coarse)').matches
@@ -49,11 +51,13 @@ const HOOP_SNAP_PX = 28
 const CANVAS_LABELS = {
 	free: canvas.getAttribute('aria-label'),
 	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space or the mouse button to charge, release inside the band on the meter to shoot.',
+	clock: 'Basketball court, free throw line. Make as many as you can in 60 seconds. Your spot and aim are fixed. Hold Space or the mouse button to charge, release inside the band on the meter to shoot.',
 }
 try {
 	const saved = localStorage.getItem(MODE_KEY)
 	if (saved in MODES) state.mode = saved
 	state.round = startRound(Math.max(0, Number.parseInt(localStorage.getItem(FREE_THROW_BEST_KEY), 10) || 0))
+	state.clock = startClockRound(Math.max(0, Number.parseInt(localStorage.getItem(CLOCK_BEST_KEY), 10) || 0))
 	state.longest = Math.max(0, Number.parseFloat(localStorage.getItem(LONGEST_KEY)) || 0)
 } catch {}
 
@@ -344,15 +348,25 @@ function setFeedback(message, made = false) {
 }
 
 function updateStats() {
+	const pad = value => String(value).padStart(2, '0')
+	if (state.mode === 'clock') {
+		nodes.makes.textContent = pad(state.clock.made)
+		const seconds = Math.ceil(secondsLeft(state.clock, state.time))
+		nodes.attempts.textContent = pad(seconds)
+		nodes.accuracy.textContent = pad(state.clock.best)
+		// The seconds turn red for the last ten, while the clock is running.
+		const isHurrying = state.clock.endsAt !== undefined && !state.clock.isOver && seconds <= 10
+		nodes.attempts.classList.toggle('hurry', isHurrying)
+		return
+	}
 	if (state.mode === 'free-throws') {
-		const pad = value => String(value).padStart(2, '0')
 		nodes.makes.textContent = pad(state.round.made)
 		nodes.attempts.textContent = pad(ROUND_SHOTS - state.round.taken)
 		nodes.accuracy.textContent = pad(state.round.best)
 		return
 	}
-	nodes.makes.textContent = String(state.makes).padStart(2, '0')
-	nodes.attempts.textContent = String(state.attempts).padStart(2, '0')
+	nodes.makes.textContent = pad(state.makes)
+	nodes.attempts.textContent = pad(state.attempts)
 	nodes.accuracy.textContent = state.attempts ? `${Math.round(state.makes / state.attempts * 100)}%` : '—'
 	if (state.longest) nodes.longest.innerHTML = `${state.longest.toFixed(1)}<span class="unit">m</span>`
 	else nodes.longest.textContent = '—'
@@ -372,9 +386,14 @@ function updateMeter() {
 	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.phase === 'flight' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
 }
 
+// Beat the clock always shoots from the free throw line; 10 free throws steps back each round.
+function lineLevel() {
+	return state.mode === 'clock' ? LEVELS[0] : levelOf(state.round)
+}
+
 // Puts the player on this round's spot and the meter's band over its scoring range.
 function placeForRound() {
-	const { spot, window } = levelOf(state.round)
+	const { spot, window } = lineLevel()
 	state.player.x = spot.x
 	state.player.y = spot.y
 	state.yaw = Math.PI
@@ -393,6 +412,16 @@ function beginCharge(source) {
 		setFeedback(`Round ${state.round.level}, from ${levelOf(state.round).distance} m. Ten shots.`)
 		updateStats()
 		return
+	}
+	if (state.mode === 'clock') {
+		// Like a new free throw round, this press only resets the score, so the 60 seconds start with the next shot.
+		if (state.clock.isOver) {
+			state.clock = startClockRound(state.clock.best)
+			setFeedback('Sixty seconds. The clock starts with your first shot.')
+			updateStats()
+			return
+		}
+		if (state.clock.endsAt === undefined) state.clock = startClock(state.clock, state.time)
 	}
 	state.phase = 'charging'
 	state.chargeSource = source
@@ -450,7 +479,7 @@ function aimAtPointer(event) {
 function updateAim() {
 	// Touch screens have no hovering cursor to follow, so until the player taps somewhere else they keep facing the rim.
 	const target = state.pointer ?? (IS_TOUCH ? HOOP : undefined)
-	if (!target || state.mode === 'free-throws') return
+	if (!target || state.mode !== 'free') return
 	const dx = target.x - state.player.x
 	const dy = target.y - state.player.y
 	if (Math.hypot(dx, dy) > 0.3) state.yaw = Math.atan2(dy, dx)
@@ -474,6 +503,18 @@ function takeFreeThrow(made) {
 	}
 }
 
+function finishClock() {
+	const bestBefore = state.clock.best
+	state.clock = finishRound(state.clock)
+	const { made, best } = state.clock
+	if (best > bestBefore) {
+		try { localStorage.setItem(CLOCK_BEST_KEY, String(best)) } catch {}
+	}
+	const verdict = bestBefore === 0 ? 'That’s the one to beat.' : best > bestBefore ? `New best, beating ${bestBefore}!` : `Best ${best}.`
+	setFeedback(`Time! ${made} made. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to go again.`, best > bestBefore)
+	updateStats()
+}
+
 function update(delta) {
 	if (state.paused || nodes.help.open) return
 	const previousDribble = Math.floor(state.time * DRIBBLE_SPEED / Math.PI)
@@ -488,7 +529,10 @@ function update(delta) {
 	let screenY = Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp')) + state.stick.y
 	const length = Math.hypot(screenX, screenY)
 	const freeThrows = state.mode === 'free-throws'
-	state.walking = length > 0 && !freeThrows
+	const clock = state.mode === 'clock'
+	// Both goal modes shoot from a fixed spot and aim, with a wobbling band on the meter.
+	const fromTheLine = state.mode !== 'free'
+	state.walking = length > 0 && !fromTheLine
 	if (state.walking) {
 		// Keys always walk at full speed; a partly pushed stick walks slower, for small adjustments.
 		if (length > 1) {
@@ -499,14 +543,14 @@ function update(delta) {
 		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.3, 6.3)
 		updateAim()
 	}
-	const turn = freeThrows ? 0 : Number(keys.has('KeyE')) - Number(keys.has('KeyQ'))
+	const turn = fromTheLine ? 0 : Number(keys.has('KeyE')) - Number(keys.has('KeyQ'))
 	if (turn) {
 		state.pointer = undefined
 		state.yaw += turn * 1.4 * delta
 	}
 	if (state.phase === 'charging') {
 		state.charge = Math.min(1, state.charge + delta / 1.6)
-		state.power = freeThrows ? clamp(state.charge + wobble(state.time, levelOf(state.round)), 0, 1) : state.charge
+		state.power = fromTheLine ? clamp(state.charge + wobble(state.time, lineLevel()), 0, 1) : state.charge
 	}
 	if (state.ball) {
 		const events = stepBall(state.ball, delta)
@@ -515,12 +559,15 @@ function update(delta) {
 			if (event === 'score') {
 				state.scoredAt = state.time
 				nodes['callout-title'].textContent = 'BASKET!'
-				nodes['callout-detail'].textContent = freeThrows ? '+1 MADE' : `+1 MADE · ${state.ball.distance.toFixed(1)} M`
+				nodes['callout-detail'].textContent = fromTheLine ? '+1 MADE' : `+1 MADE · ${state.ball.distance.toFixed(1)} M`
 				nodes['basket-callout'].hidden = false
 				nodes['basket-callout'].classList.add('celebrate')
 				nodes.makes.closest('.session-stats').classList.add('scored')
 				if (freeThrows) {
 					takeFreeThrow(true)
+				} else if (clock) {
+					state.clock = recordMake(state.clock)
+					setFeedback(`Basket! ${state.clock.made} made.`, true)
 				} else {
 					state.makes++
 					state.streak++
@@ -540,29 +587,38 @@ function update(delta) {
 						setFeedback(state.streak > 1 ? `Basket! ${state.streak} in a row.` : 'Basket! Nice shot.', true)
 					}
 				}
-				state.returnTime = state.time + 1.5
+				state.returnTime = state.time + (clock ? RETURN_AFTER_MAKE : 1.5)
 				updateStats()
 			}
 		}
 		if (isDead(state.ball) && state.returnTime === undefined) {
 			state.streak = 0
-			state.returnTime = state.time + 1.1
+			state.returnTime = state.time + (clock ? RETURN_AFTER_MISS : 1.1)
 			if (freeThrows) {
 				takeFreeThrow(false)
 				updateStats()
+			} else if (clock) {
+				setFeedback('Next one, quick.')
 			} else {
 				setFeedback('Another one. The court isn’t going anywhere.')
 			}
 		}
 		if (state.returnTime !== undefined && state.time >= state.returnTime) returnBall()
 	}
+	if (clock && !state.clock.isOver && isTimeUp(state.clock, state.time)) {
+		// At the buzzer a charge is lost, but a ball already in the air plays out and can still count.
+		if (state.phase === 'charging') cancelInput()
+		if (state.phase === 'ready') finishClock()
+	}
+	// The header shows whole seconds, so only touch the DOM when the shown second changes.
+	if (clock && Math.ceil(secondsLeft(state.clock, state.time)) !== Number(nodes.attempts.textContent)) updateStats()
 	if (state.scoredAt !== undefined && state.time - state.scoredAt >= 1.8) {
 		nodes['basket-callout'].hidden = true
 		nodes['basket-callout'].classList.remove('celebrate')
 		nodes.makes.closest('.session-stats').classList.remove('scored')
 		state.scoredAt = undefined
 	}
-	if (state.phase === 'ready' && state.time - state.feedbackTime > 7 && !freeThrows) {
+	if (state.phase === 'ready' && state.time - state.feedbackTime > 7 && !fromTheLine) {
 		setFeedback('Find your spot. Take your time.')
 	}
 	updateMeter()
@@ -586,7 +642,7 @@ function drawBasketball(x, y, z, time) {
 }
 
 function drawAimGuide() {
-	if (state.phase === 'flight' || state.mode === 'free-throws') return
+	if (state.phase === 'flight' || state.mode !== 'free') return
 	const direction = { x: Math.cos(state.yaw), y: Math.sin(state.yaw) }
 	const dots = []
 	for (let d = 0.8; d < 4.2; d += 0.3) {
@@ -997,22 +1053,31 @@ setupMenu(nodes.court, nodes['court-options'], id => {
 })
 showCourt()
 
+const ATTEMPT_LABELS = { free: 'SHOTS', 'free-throws': 'SHOTS LEFT', clock: 'SECONDS' }
+const MODE_INTROS = {
+	free: 'Find your spot. Take your time.',
+	'free-throws': 'Ten free throws. Release inside the band.',
+	clock: 'Sixty seconds from the line. The clock starts with your first shot.',
+}
+
 function applyMode() {
 	const freeThrows = state.mode === 'free-throws'
+	const clock = state.mode === 'clock'
+	const fromTheLine = state.mode !== 'free'
 	nodes['mode-label'].textContent = MODES[state.mode]
 	canvas.setAttribute('aria-label', CANVAS_LABELS[state.mode])
 	checkOption(nodes['mode-options'], state.mode)
-	nodes['power-target'].hidden = !freeThrows
-	nodes.stick.classList.toggle('locked', freeThrows)
-	nodes.turn.classList.toggle('locked', freeThrows)
-	nodes['label-attempts'].textContent = freeThrows ? 'SHOTS LEFT' : 'SHOTS'
-	nodes['label-accuracy'].textContent = freeThrows ? 'BEST' : 'ACCURACY'
-	nodes['longest-stat'].hidden = freeThrows
-	nodes['longest-divider'].hidden = freeThrows
-	if (freeThrows) {
-		state.round = startRound(state.round.best)
-		placeForRound()
-	}
+	nodes['power-target'].hidden = !fromTheLine
+	nodes.stick.classList.toggle('locked', fromTheLine)
+	nodes.turn.classList.toggle('locked', fromTheLine)
+	nodes['label-attempts'].textContent = ATTEMPT_LABELS[state.mode]
+	nodes['label-accuracy'].textContent = fromTheLine ? 'BEST' : 'ACCURACY'
+	nodes['longest-stat'].hidden = fromTheLine
+	nodes['longest-divider'].hidden = fromTheLine
+	nodes.attempts.classList.remove('hurry')
+	if (freeThrows) state.round = startRound(state.round.best)
+	if (clock) state.clock = startClockRound(state.clock.best)
+	if (fromTheLine) placeForRound()
 	updateStats()
 }
 setupMenu(nodes.mode, nodes['mode-options'], mode => {
@@ -1021,7 +1086,7 @@ setupMenu(nodes.mode, nodes['mode-options'], mode => {
 	cancelInput()
 	returnBall()
 	applyMode()
-	setFeedback(mode === 'free-throws' ? 'Ten free throws. Release inside the band.' : 'Find your spot. Take your time.')
+	setFeedback(MODE_INTROS[mode])
 })
 applyMode()
 // Keep the skeletons (footer menus and longest basket) up for at least 300ms after navigation, so a fast load doesn't flash them.
