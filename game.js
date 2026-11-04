@@ -19,12 +19,12 @@ const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
-	'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail',
+	'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
 	player: { x: 3.5, y: 0 }, yaw: Math.PI, pointer: undefined,
-	keys: new Set(), phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
+	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	feedbackTime: 0, walking: false, scoredAt: undefined,
@@ -43,6 +43,9 @@ const MODES = { free: 'Free shooting', 'free-throws': '10 free throws' }
 const MODE_KEY = 'iso-hoops:mode'
 const FREE_THROW_BEST_KEY = 'iso-hoops:free-throw-best'
 const LONGEST_KEY = 'iso-hoops:longest-basket'
+// Phones and tablets get the on-screen stick and Shoot button instead of the keyboard hints.
+const IS_TOUCH = matchMedia('(pointer: coarse)').matches
+const HOOP_SNAP_PX = 28
 const CANVAS_LABELS = {
 	free: canvas.getAttribute('aria-label'),
 	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space or the mouse button to charge, release inside the band on the meter to shoot.',
@@ -414,6 +417,7 @@ function releaseShot(source) {
 
 function cancelInput() {
 	state.keys.clear()
+	releaseStick()
 	if (state.phase === 'charging') state.phase = 'ready'
 	state.chargeSource = undefined
 	state.charge = 0
@@ -436,13 +440,19 @@ function aimAtPointer(event) {
 	const sy = (event.clientY - rect.top) * H / rect.height
 	// Aim on the rim's horizontal plane, so pointing at the visible hoop is literal.
 	state.pointer = unproject(sx, sy + HOOP.z * COS * S)
+	// The rim is about 10px wide on a phone, smaller than a fingertip, so a touch near it aims dead centre.
+	const hoop = project(HOOP.x, HOOP.y, HOOP.z)
+	const pixelsFromHoop = Math.hypot(sx - hoop.sx, sy - hoop.sy) * rect.width / W
+	if (event.pointerType !== 'mouse' && pixelsFromHoop < HOOP_SNAP_PX) state.pointer = { x: HOOP.x, y: HOOP.y }
 	updateAim()
 }
 
 function updateAim() {
-	if (!state.pointer || state.mode === 'free-throws') return
-	const dx = state.pointer.x - state.player.x
-	const dy = state.pointer.y - state.player.y
+	// Touch screens have no hovering cursor to follow, so until the player taps somewhere else they keep facing the rim.
+	const target = state.pointer ?? (IS_TOUCH ? HOOP : undefined)
+	if (!target || state.mode === 'free-throws') return
+	const dx = target.x - state.player.x
+	const dy = target.y - state.player.y
 	if (Math.hypot(dx, dy) > 0.3) state.yaw = Math.atan2(dy, dx)
 }
 
@@ -458,7 +468,7 @@ function takeFreeThrow(made) {
 		const verdict = bestBefore === 0 ? 'That’s the one to beat.' : best > bestBefore ? 'New best!' : `Best ${best}/${ROUND_SHOTS}.`
 		const next = { ...state.round, level: state.round.level + 1 }
 		const farther = levelOf(next).distance > levelOf(state.round).distance ? `, from ${levelOf(next).distance} m` : ''
-		setFeedback(`${score}. ${verdict} Press Space for round ${next.level}${farther}.`, made)
+		setFeedback(`${score}. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} for round ${next.level}${farther}.`, made)
 	} else {
 		setFeedback(made ? `Good. ${score}.` : `Off the mark. ${score}.`, made)
 	}
@@ -474,14 +484,17 @@ function update(delta) {
 	}
 	state.followThrough = Math.max(0, state.followThrough - delta)
 	const keys = state.keys
-	let screenX = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'))
-	let screenY = Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'))
+	let screenX = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft')) + state.stick.x
+	let screenY = Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp')) + state.stick.y
 	const length = Math.hypot(screenX, screenY)
 	const freeThrows = state.mode === 'free-throws'
 	state.walking = length > 0 && !freeThrows
 	if (state.walking) {
-		screenX /= length
-		screenY /= length
+		// Keys always walk at full speed; a partly pushed stick walks slower, for small adjustments.
+		if (length > 1) {
+			screenX /= length
+			screenY /= length
+		}
 		state.player.x = clamp(state.player.x + (screenX + screenY) / R2 * 4.4 * delta, -8.25, 8.3)
 		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.3, 6.3)
 		updateAim()
@@ -634,13 +647,42 @@ function draw() {
 	ctx.putImageData(image, 0, 0)
 }
 
+// The court's pavement (with room for the player's height) and the backboard, in canvas pixels.
+// Touch screens fit this box instead of the whole scene, cropping the grass and trees around it,
+// which makes the court about 1.6× bigger in a phone held upright and 2× bigger sideways.
+const COURT_BOX = (() => {
+	const corners = [[-COURT.x, -COURT.y], [COURT.x, -COURT.y], [-COURT.x, COURT.y], [COURT.x, COURT.y]]
+	const points = [
+		...corners.flatMap(([x, y]) => [project(x, y, 0), project(x, y, 2.2)]),
+		project(BACKBOARD_X, -1.35, 4.9), project(BACKBOARD_X, 1.35, 4.9),
+	]
+	const xs = points.map(point => point.sx)
+	const ys = points.map(point => point.sy)
+	return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) }
+})()
+const TOUCH_GUTTER_PX = 8
+
 function resizeCanvas() {
 	const rect = nodes.stage.getBoundingClientRect()
 	const dpr = window.devicePixelRatio || 1
-	const available = Math.min(rect.width / W, rect.height / H)
-	const scale = available < 1 ? available : Math.max(1, Math.floor(available * dpr)) / dpr
-	canvas.style.width = `${W * scale}px`
-	canvas.style.height = `${H * scale}px`
+	if (IS_TOUCH) {
+		const boxWidth = COURT_BOX.right - COURT_BOX.left
+		const boxHeight = COURT_BOX.bottom - COURT_BOX.top
+		const fit = Math.min((rect.width - TOUCH_GUTTER_PX * 2) / boxWidth, rect.height / boxHeight)
+		// Whole device pixels per game pixel keep the pixel art even.
+		const scale = Math.max(1, Math.floor(fit * dpr)) / dpr
+		canvas.style.width = `${W * scale}px`
+		canvas.style.height = `${H * scale}px`
+		// The canvas is centred in the stage by CSS; this shifts it so the court box is centred instead.
+		const shiftX = (W / 2 - (COURT_BOX.left + COURT_BOX.right) / 2) * scale
+		const shiftY = (H / 2 - (COURT_BOX.top + COURT_BOX.bottom) / 2) * scale
+		canvas.style.translate = `calc(-50% + ${shiftX}px) calc(-50% + ${shiftY}px)`
+	} else {
+		const available = Math.min(rect.width / W, rect.height / H)
+		const scale = available < 1 ? available : Math.max(1, Math.floor(available * dpr)) / dpr
+		canvas.style.width = `${W * scale}px`
+		canvas.style.height = `${H * scale}px`
+	}
 	const canvasRect = canvas.getBoundingClientRect()
 	const hoop = project(HOOP.x, HOOP.y, HOOP.z)
 	nodes['basket-callout'].style.left = `${canvasRect.left + hoop.sx / W * canvasRect.width}px`
@@ -698,7 +740,63 @@ nodes.shoot.addEventListener('pointerdown', event => {
 	beginCharge('pointer')
 })
 nodes.shoot.addEventListener('pointerup', () => releaseShot('pointer'))
+// iOS opens its text-selection loupe on a long press unless the default is prevented.
+nodes.shoot.addEventListener('contextmenu', event => event.preventDefault())
 nodes.shoot.addEventListener('pointercancel', cancelInput)
+
+// The stick's offset from its centre is a screen-space direction, like WASD, scaled to 0..1.
+const STICK_DEAD_ZONE = 0.15
+let stickPointerId
+function moveStick(event) {
+	const rect = nodes.stick.getBoundingClientRect()
+	const radius = rect.width / 2
+	let dx = (event.clientX - rect.left - radius) / radius
+	let dy = (event.clientY - rect.top - radius) / radius
+	const length = Math.hypot(dx, dy)
+	if (length > 1) {
+		dx /= length
+		dy /= length
+	}
+	const isPushed = length > STICK_DEAD_ZONE
+	state.stick.x = isPushed ? dx : 0
+	state.stick.y = isPushed ? dy : 0
+	// The knob travels half the base's radius, so it stays inside the ring.
+	nodes['stick-knob'].style.transform = `translate(${dx * radius / 2}px, ${dy * radius / 2}px)`
+}
+function releaseStick() {
+	stickPointerId = undefined
+	state.stick.x = 0
+	state.stick.y = 0
+	nodes['stick-knob'].style.transform = ''
+	nodes.stick.classList.remove('active')
+}
+nodes.stick.addEventListener('pointerdown', event => {
+	if (stickPointerId !== undefined) return
+	event.preventDefault()
+	stickPointerId = event.pointerId
+	nodes.stick.setPointerCapture(event.pointerId)
+	nodes.stick.classList.add('active')
+	moveStick(event)
+})
+nodes.stick.addEventListener('pointermove', event => { if (event.pointerId === stickPointerId) moveStick(event) })
+nodes.stick.addEventListener('pointerup', event => { if (event.pointerId === stickPointerId) releaseStick() })
+nodes.stick.addEventListener('pointercancel', event => { if (event.pointerId === stickPointerId) releaseStick() })
+// The ↺ / ↻ buttons hold Q / E, so they turn the aim exactly like the keys do.
+for (const button of nodes.turn.children) {
+	const key = button.dataset.key
+	button.addEventListener('pointerdown', event => {
+		event.preventDefault()
+		button.setPointerCapture(event.pointerId)
+		button.classList.add('active')
+		state.keys.add(key)
+	})
+	for (const type of ['pointerup', 'pointercancel']) {
+		button.addEventListener(type, () => {
+			button.classList.remove('active')
+			state.keys.delete(key)
+		})
+	}
+}
 addEventListener('blur', cancelInput)
 document.addEventListener('visibilitychange', () => { if (document.hidden) cancelInput() })
 
@@ -905,6 +1003,8 @@ function applyMode() {
 	canvas.setAttribute('aria-label', CANVAS_LABELS[state.mode])
 	checkOption(nodes['mode-options'], state.mode)
 	nodes['power-target'].hidden = !freeThrows
+	nodes.stick.classList.toggle('locked', freeThrows)
+	nodes.turn.classList.toggle('locked', freeThrows)
 	nodes['label-attempts'].textContent = freeThrows ? 'SHOTS LEFT' : 'SHOTS'
 	nodes['label-accuracy'].textContent = freeThrows ? 'BEST' : 'ACCURACY'
 	nodes['longest-stat'].hidden = freeThrows
@@ -924,8 +1024,10 @@ setupMenu(nodes.mode, nodes['mode-options'], mode => {
 	setFeedback(mode === 'free-throws' ? 'Ten free throws. Release inside the band.' : 'Find your spot. Take your time.')
 })
 applyMode()
-// Keep the skeleton up for at least 300ms after navigation, so a fast load doesn't flash it.
-setTimeout(() => document.querySelector('.settings').classList.add('ready'), Math.max(0, 300 - performance.now()))
+// Keep the skeletons (footer menus and longest basket) up for at least 300ms after navigation, so a fast load doesn't flash them.
+setTimeout(() => {
+	for (const node of document.querySelectorAll('.settings, .session-stats')) node.classList.add('ready')
+}, Math.max(0, 300 - performance.now()))
 
 // Try immediately where autoplay is allowed; the first gesture unlocks other browsers.
 ensureAudio()
