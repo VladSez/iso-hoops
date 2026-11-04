@@ -221,13 +221,3 @@ dialog .dialog-note { font-size: 10px; }
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 360px) {
 	.credits { display: none; }
 }
-/* Touch portrait stacks header, court, controls and footer in normal flow, so the court takes whatever height is left
-   and nothing can overlap, however tall the browser's toolbars or the system font make the page. */
-@media (pointer: coarse) and (orientation: portrait) {
-	body { display: flex; flex-direction: column; height: 100svh; min-height: 0; overflow: hidden; }
-	.header { position: relative; inset: auto; flex: none; margin: 18px 22px 0; }
-	main { display: flex; flex: 1; flex-direction: column; min-height: 0; }
-	#stage { position: relative; inset: auto; flex: 1; min-height: 0; margin-top: 8px; }
-	.shoot-panel { position: relative; left: auto; bottom: auto; flex: none; margin: 4px auto 14px; transform: none; }
-	.footer { position: relative; inset: auto; flex: none; margin: 0 22px max(14px, env(safe-area-inset-bottom)); }
-}
