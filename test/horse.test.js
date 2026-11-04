@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HOOP, createShot, stepBall } from '../dist/physics.js'
-import { LETTERS, MAKES_PER_TIER, TIERS, isOnSpot, pickSpot, recordGoatShot, startGoat, tierOf } from '../dist/goat.js'
+import { LETTERS, MAKES_PER_TIER, TIERS, isOnSpot, pickSpot, recordHorseShot, startHorse, tierOf } from '../dist/horse.js'
 
 // A tiny seeded generator, so the sweeps below are repeatable.
 function seeded(seed) {
@@ -13,7 +13,7 @@ function seeded(seed) {
 
 function play(game, results) {
 	const random = seeded(7)
-	for (const made of results) game = recordGoatShot(game, made, random)
+	for (const made of results) game = recordHorseShot(game, made, random)
 	return game
 }
 
@@ -44,8 +44,8 @@ test('you have to stand inside the ring to shoot', () => {
 	assert.equal(isOnSpot({ x: 0.6, y: 0 }, spot), false)
 })
 
-test('makes score, misses earn letters, and G-O-A-T ends the game', () => {
-	let game = play(startGoat(0, seeded(3)), [true, true, false, true])
+test('makes score, misses earn letters, and H-O-R-S-E ends the game', () => {
+	let game = play(startHorse(0, seeded(3)), [true, true, false, true])
 	assert.equal(game.made, 3)
 	assert.equal(game.letters, 1)
 	assert.equal(game.isOver, false)
@@ -53,15 +53,15 @@ test('makes score, misses earn letters, and G-O-A-T ends the game', () => {
 	assert.equal(game.letters, LETTERS.length)
 	assert.equal(game.isOver, true)
 	assert.equal(game.best, 3)
-	assert.deepEqual(recordGoatShot(game, true), game)
+	assert.deepEqual(recordHorseShot(game, true), game)
 })
 
 test('best holds still during a game and survives the next one', () => {
-	let game = play(startGoat(5, seeded(4)), Array(8).fill(true))
+	let game = play(startHorse(5, seeded(4)), Array(8).fill(true))
 	assert.equal(game.best, 5)
 	game = play(game, Array(LETTERS.length).fill(false))
 	assert.equal(game.best, 8)
-	assert.equal(startGoat(game.best).best, 8)
+	assert.equal(startHorse(game.best).best, 8)
 })
 
 // Some power must drop the ball in, aiming straight at the rim. Checked at the hardest corners of the range:

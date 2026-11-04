@@ -1,6 +1,6 @@
 import { HOOP } from './physics.js?v=3'
 
-export const LETTERS = ['G', 'O', 'A', 'T']
+export const LETTERS = ['H', 'O', 'R', 'S', 'E']
 /** How close to a spot's centre the player must stand to shoot, in metres. Also the marker ring's radius. */
 export const SPOT_RADIUS = 0.55
 export const MAKES_PER_TIER = 3
@@ -34,12 +34,12 @@ export function pickSpot(made, random = Math.random) {
 export const isOnSpot = (player, spot) => Math.hypot(player.x - spot.x, player.y - spot.y) <= SPOT_RADIUS
 
 /**
- * A game of GOAT against the court. Each called spot must be made; a miss earns the next letter, and spelling GOAT
+ * A game of HORSE against the court. Each called spot must be made; a miss earns the next letter, and spelling HORSE
  * ends the game. The score is the number of makes. Best only moves when a game ends.
  */
-export const startGoat = (best, random = Math.random) => ({ made: 0, letters: 0, best, spot: pickSpot(0, random), isOver: false })
+export const startHorse = (best, random = Math.random) => ({ made: 0, letters: 0, best, spot: pickSpot(0, random), isOver: false })
 
-export function recordGoatShot(game, made, random = Math.random) {
+export function recordHorseShot(game, made, random = Math.random) {
 	if (game.isOver) return game
 	const makes = game.made + Number(made)
 	const letters = game.letters + Number(!made)
