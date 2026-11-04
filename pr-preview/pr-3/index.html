@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="theme-color" content="#ffffff" />
+		<meta name="description" content="A quiet neighborhood court. Move around, line up a shot, and shoot at your own pace. An isometric pixel-art basketball game." />
+		<title>Neighborhood Hoops — just you and the basket</title>
+		<link rel="icon" href="favicon.ico" sizes="any" />
+		<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://vladsez.github.io/iso-hoops/" />
+		<meta property="og:title" content="Neighborhood Hoops — just you and the basket" />
+		<meta property="og:description" content="A quiet neighborhood court. Move around, line up a shot, and shoot at your own pace. An isometric pixel-art basketball game." />
+		<meta property="og:image" content="https://vladsez.github.io/iso-hoops/og-image.png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
+		<meta name="twitter:card" content="summary_large_image" />
+		<link rel="stylesheet" href="style.css?v=b7d40e2c915a" />
+	</head>
+	<body>
+		<header class="header">
+			<a class="wordmark" href="./" aria-label="Neighborhood Hoops home"><span class="ball-icon" aria-hidden="true">◉</span><span>NEIGHBORHOOD<br /><b>HOOPS</b></span></a>
+			<button id="help-open" class="text-button" type="button">How to play <span aria-hidden="true">↗</span></button>
+			<div class="session-stats" aria-label="Session statistics">
+				<div><strong id="makes">00</strong><span>MADE</span></div>
+				<span class="stat-divider" aria-hidden="true"></span>
+				<div><strong id="attempts">00</strong><span id="label-attempts">SHOTS</span></div>
+				<span class="stat-divider" aria-hidden="true"></span>
+				<div><strong id="accuracy">—</strong><span id="label-accuracy">ACCURACY</span></div>
+				<span id="longest-divider" class="stat-divider" aria-hidden="true"></span>
+				<div id="longest-stat"><strong id="longest">—</strong><span>LONGEST</span></div>
+			</div>
+		</header>
+		<main>
+			<div id="stage"><canvas id="c" tabindex="0" aria-label="Basketball practice court. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot." aria-describedby="controls"></canvas></div>
+			<div id="basket-callout" hidden aria-hidden="true"><strong id="callout-title">BASKET!</strong><span id="callout-detail">+1 MADE</span></div>
+			<div class="shoot-panel">
+				<p id="feedback" role="status" aria-live="polite">A little time. A few good shots.</p>
+				<div class="power-label"><span>SHOT POWER</span><output id="power-value">0%</output></div>
+				<div id="power-meter" role="meter" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="power-fill"></div><div id="power-target" hidden></div><span></span><span></span><span></span></div>
+				<div id="stick" aria-hidden="true"><span id="stick-knob"></span></div>
+				<div id="turn" aria-hidden="true"><span data-key="KeyQ">↺</span><span data-key="KeyE">↻</span></div>
+				<button id="shoot" type="button"><kbd>SPACE</kbd><span id="shoot-label">Hold to charge · release to shoot</span><span class="touch-only">SHOOT</span></button>
+			</div>
+		</main>
+		<footer class="footer">
+			<div id="controls"><span><kbd>W A S D</kbd> / <kbd>↑ ← ↓ →</kbd> move</span><span><span class="mouse-icon" aria-hidden="true"></span> mouse aim &amp; shoot <span class="alternate">/ Q E turn</span></span></div>
+			<div class="settings" role="group" aria-label="Game settings">
+				<div class="footer-menu">
+					<fieldset id="mode-options" class="menu-options" hidden>
+						<legend>MODE</legend>
+						<label><input type="radio" name="mode" value="free" /> Free shooting</label>
+						<label><input type="radio" name="mode" value="free-throws" /> 10 free throws</label>
+						<label><input type="radio" name="mode" value="clock" /> Beat the clock</label>
+					</fieldset>
+					<button id="mode" class="menu-button" type="button" aria-expanded="false" aria-controls="mode-options"><span class="menu-name">MODE</span><span class="menu-value"><span id="mode-label">Free shooting</span> <span aria-hidden="true">▾</span></span></button>
+				</div>
+				<div class="footer-menu">
+					<fieldset id="court-options" class="menu-options" hidden>
+						<legend>COURT</legend>
+						<label><input type="radio" name="court" value="neighborhood" /> Neighborhood</label>
+						<label><input type="radio" name="court" value="rooftop" /> Rooftop at dusk</label>
+						<label><input type="radio" name="court" value="beach" /> Boardwalk beach</label>
+						<label><input type="radio" name="court" value="autumn" /> Autumn park</label>
+						<label><input type="radio" name="court" value="winter" /> First snow</label>
+					</fieldset>
+					<button id="court" class="menu-button" type="button" aria-expanded="false" aria-controls="court-options"><span class="menu-name">COURT</span><span class="menu-value"><span id="court-label">Neighborhood</span> <span aria-hidden="true">▾</span></span></button>
+				</div>
+				<div class="footer-menu">
+					<fieldset id="sound-options" class="menu-options" hidden>
+						<legend>SOUND</legend>
+						<label><input type="radio" name="sound-mode" value="all" /> Music and effects</label>
+						<label><input type="radio" name="sound-mode" value="effects" /> Effects only</label>
+						<label><input type="radio" name="sound-mode" value="off" /> Off</label>
+					</fieldset>
+					<button id="sound" class="menu-button" type="button" aria-expanded="false" aria-controls="sound-options"><span class="menu-name">SOUND</span><span class="menu-value"><span id="sound-label">On</span> <span aria-hidden="true">▾</span></span></button>
+				</div>
+			</div>
+			<nav class="credits" aria-label="Links">
+				<a href="https://github.com/VladSez/iso-hoops" target="_blank" rel="noreferrer" aria-label="View iso-hoops source on GitHub">GitHub</a><span aria-hidden="true">·</span>
+				<a href="https://vladsez.github.io/iso-football/" target="_blank" rel="noreferrer" aria-label="Play iso-football">iso-football</a><span aria-hidden="true">·</span>
+				<a href="https://github.com/amirmushichge/pixel-plays" target="_blank" rel="noreferrer" aria-label="Built on Pixel Plays">Pixel Plays</a><span aria-hidden="true">·</span>
+				<a href="https://x.com/vladsazonau" target="_blank" rel="noreferrer" aria-label="Made by @vladsazonau">Made by @vladsazonau</a>
+			</nav>
+		</footer>
+		<dialog id="help">
+			<div class="dialog-top"><span>THE COURT IS YOURS</span><button id="help-close" class="text-button" type="button" aria-label="Close instructions">Close ×</button></div>
+			<h1>Just you.<br />And the basket.</h1>
+			<p>No clock, no opponent. Find your spot and let it fly.</p>
+			<dl><div><dt>01 / MOVE</dt><dd><span class="pointer-only">WASD or arrow keys move you around the court, in the direction you see on screen.</span><span class="touch-only">Drag the stick in the bottom left to move around the court, in the direction you see on screen.</span></dd></div><div><dt>02 / AIM</dt><dd><span class="pointer-only">Point the mouse toward the rim. Or hold Q / E to turn your aim.</span><span class="touch-only">You face the rim on your own, even as you move. Tap or drag on the court to aim somewhere else, or hold ↺ / ↻ to turn a little. Tap near the rim to aim back at it.</span> The dotted line shows your direction.</dd></div><div><dt>03 / SHOOT</dt><dd><span class="pointer-only">Hold Space, or the left mouse button on the court, to build power, then release. More power sends the ball farther. You can also hold the shoot button.</span><span class="touch-only">Hold the Shoot button to build power, then release. More power sends the ball farther.</span></dd></div></dl>
+			<p class="dialog-note">Try 10 free throws from the Mode menu. Shoot ten from the line, release inside the dark band on the meter, and see how many you make. Each new round moves you a step back.</p>
+			<p class="dialog-note">Or pick Beat the clock: as many makes as you can from the free throw line in 60 seconds. The clock starts with your first shot, and a shot in the air at the buzzer still counts.</p>
+			<p class="dialog-note">The ball returns automatically.<span class="pointer-only"> Press Esc to cancel a charge or pause.</span> Free shooting stats last for this visit, except your longest basket, which is saved along with your best free throw round and your best against the clock.</p>
+			<button id="help-play" class="play-button" type="button">Back to the court <span>↗</span></button>
+		</dialog>
+		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
+		<script src="engine.js?v=5b7e2a91"></script>
+		<script type="module" src="game.js?v=9e41d2b6"></script>
+	</body>
+</html>
