@@ -45,6 +45,7 @@ const FREE_THROW_BEST_KEY = 'iso-hoops:free-throw-best'
 const LONGEST_KEY = 'iso-hoops:longest-basket'
 // Phones and tablets get the on-screen stick and Shoot button instead of the keyboard hints.
 const IS_TOUCH = matchMedia('(pointer: coarse)').matches
+const HOOP_SNAP_PX = 28
 const CANVAS_LABELS = {
 	free: canvas.getAttribute('aria-label'),
 	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space or the mouse button to charge, release inside the band on the meter to shoot.',
@@ -439,13 +440,19 @@ function aimAtPointer(event) {
 	const sy = (event.clientY - rect.top) * H / rect.height
 	// Aim on the rim's horizontal plane, so pointing at the visible hoop is literal.
 	state.pointer = unproject(sx, sy + HOOP.z * COS * S)
+	// The rim is about 10px wide on a phone, smaller than a fingertip, so a touch near it aims dead centre.
+	const hoop = project(HOOP.x, HOOP.y, HOOP.z)
+	const pixelsFromHoop = Math.hypot(sx - hoop.sx, sy - hoop.sy) * rect.width / W
+	if (event.pointerType !== 'mouse' && pixelsFromHoop < HOOP_SNAP_PX) state.pointer = { x: HOOP.x, y: HOOP.y }
 	updateAim()
 }
 
 function updateAim() {
-	if (!state.pointer || state.mode === 'free-throws') return
-	const dx = state.pointer.x - state.player.x
-	const dy = state.pointer.y - state.player.y
+	// Touch screens have no hovering cursor to follow, so until the player taps somewhere else they keep facing the rim.
+	const target = state.pointer ?? (IS_TOUCH ? HOOP : undefined)
+	if (!target || state.mode === 'free-throws') return
+	const dx = target.x - state.player.x
+	const dy = target.y - state.player.y
 	if (Math.hypot(dx, dy) > 0.3) state.yaw = Math.atan2(dy, dx)
 }
 
