@@ -18,7 +18,7 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=0a7c3e91b4d6" />
+		<link rel="stylesheet" href="style.css?v=e5a1c8f37b92" />
 	</head>
 	<body>
 		<header class="header">
@@ -41,7 +41,9 @@
 				<p id="feedback" role="status" aria-live="polite">A little time. A few good shots.</p>
 				<div class="power-label"><span>SHOT POWER</span><output id="power-value">0%</output></div>
 				<div id="power-meter" role="meter" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="power-fill"></div><div id="power-target" hidden></div><span></span><span></span><span></span></div>
-				<button id="shoot" type="button"><kbd>SPACE</kbd><span id="shoot-label">Hold to charge · release to shoot</span></button>
+				<div id="stick" aria-hidden="true"><span id="stick-knob"></span></div>
+				<div id="turn" aria-hidden="true"><span data-key="KeyQ">↺</span><span data-key="KeyE">↻</span></div>
+				<button id="shoot" type="button"><kbd>SPACE</kbd><span id="shoot-label">Hold to charge · release to shoot</span><span class="touch-only">SHOOT</span></button>
 			</div>
 		</main>
 		<footer class="footer">
@@ -87,13 +89,13 @@
 			<div class="dialog-top"><span>THE COURT IS YOURS</span><button id="help-close" class="text-button" type="button" aria-label="Close instructions">Close ×</button></div>
 			<h1>Just you.<br />And the basket.</h1>
 			<p>No clock, no opponent. Find your spot and let it fly.</p>
-			<dl><div><dt>01 / MOVE</dt><dd>WASD or arrow keys move you around the court, in the direction you see on screen.</dd></div><div><dt>02 / AIM</dt><dd>Point the mouse toward the rim. Or hold Q / E to turn your aim. The dotted line shows your direction.</dd></div><div><dt>03 / SHOOT</dt><dd>Hold Space, or the left mouse button on the court, to build power, then release. More power sends the ball farther. You can also hold the shoot button.</dd></div></dl>
+			<dl><div><dt>01 / MOVE</dt><dd><span class="pointer-only">WASD or arrow keys move you around the court, in the direction you see on screen.</span><span class="touch-only">Drag the stick in the bottom left to move around the court, in the direction you see on screen.</span></dd></div><div><dt>02 / AIM</dt><dd><span class="pointer-only">Point the mouse toward the rim. Or hold Q / E to turn your aim.</span><span class="touch-only">You face the rim on your own, even as you move. Tap or drag on the court to aim somewhere else, or hold ↺ / ↻ to turn a little. Tap near the rim to aim back at it.</span> The dotted line shows your direction.</dd></div><div><dt>03 / SHOOT</dt><dd><span class="pointer-only">Hold Space, or the left mouse button on the court, to build power, then release. More power sends the ball farther. You can also hold the shoot button.</span><span class="touch-only">Hold the Shoot button to build power, then release. More power sends the ball farther.</span></dd></div></dl>
 			<p class="dialog-note">Try 10 free throws from the Mode menu. Shoot ten from the line, release inside the dark band on the meter, and see how many you make. Each new round moves you a step back.</p>
-			<p class="dialog-note">The ball returns automatically. Press Esc to cancel a charge or pause. Free shooting stats last for this visit, except your longest basket, which is saved along with your best free throw round.</p>
+			<p class="dialog-note">The ball returns automatically.<span class="pointer-only"> Press Esc to cancel a charge or pause.</span> Free shooting stats last for this visit, except your longest basket, which is saved along with your best free throw round.</p>
 			<button id="help-play" class="play-button" type="button">Back to the court <span>↗</span></button>
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=5b7e2a91"></script>
-		<script type="module" src="game.js?v=f9d3a58b"></script>
+		<script type="module" src="game.js?v=7c3f0a58"></script>
 	</body>
 </html>

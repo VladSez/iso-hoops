@@ -18,6 +18,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 - **Sound effects made on the fly:** dribbles, swishes and the scoring chime are all generated with the Web Audio API.
 - **Made-shot feedback:** the net animates, a basket callout appears and the made count pulses.
 - **Remembers your settings:** your court and sound choices are kept between visits.
+- **Plays on phones:** an on-screen stick and Shoot button replace the keyboard, with layouts for portrait and landscape.
 - **Accessible motion:** with reduced motion turned on, the net and callout stay still.
 
 ## Controls
@@ -31,7 +32,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 
 In 10 free throws mode your spot and aim are locked, starting at the free throw line. Release inside the dark band on the meter, which wobbles slightly, so time your release. After your tenth shot, Space starts the next round a step farther back, from 5.5 m, then 6 m, then the three-point line.
 
-On touch screens, tap the court to aim and hold the shoot button to charge.
+On phones and tablets, drag the stick in the bottom left to move. You keep facing the rim as you walk; tap or drag on the court to aim elsewhere, or hold the ↺ / ↻ buttons to turn a little. Tap near the rim to aim back at it. Hold the Shoot button to charge. Both portrait and landscape work.
 
 The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round is saved in your browser too.
 
@@ -55,12 +56,14 @@ node --test
 
 ## Deploy to GitHub Pages
 
-GitHub Pages publishes the `gh-pages` branch. When you edit `dist/style.css`, `dist/engine.js` or `dist/game.js` (or a module it imports), bump that file's `?v=` version in `dist/index.html` so browsers fetch the new code. After committing game changes on `main`, deploy the contents of `dist` with:
+GitHub Pages publishes the `gh-pages` branch. When you edit `dist/style.css`, `dist/engine.js` or `dist/game.js` (or a module it imports), bump that file's `?v=` version in `dist/index.html` so browsers fetch the new code.
 
-```sh
-git push origin main
-git subtree push --prefix dist origin gh-pages
-```
+Deploys are automatic:
+
+- **Production:** every push to `main` publishes `dist` to `gh-pages` (`.github/workflows/deploy.yml`). You can also run it by hand from the Actions tab.
+- **PR previews:** every pull request from a branch in this repo is published to `https://vladsez.github.io/iso-hoops/pr-preview/pr-<number>/`, and a comment on the PR links to it with a QR code for phones (`.github/workflows/preview.yml`). The preview is removed when the PR is closed or merged.
+
+Previews share the site's origin, so they also share its saved settings, best scores and longest basket.
 
 ## Credits
 
