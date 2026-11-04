@@ -1,5 +1,5 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
-import { FREE_THROW_SPOT, MAKE_WINDOW, ROUND_SHOTS, isDone, recordShot, startRound, wobble } from './free-throws.js?v=3'
+import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=4'
 
@@ -369,18 +369,32 @@ function updateMeter() {
 	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.phase === 'flight' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
 }
 
+// Puts the player on this round's spot and the meter's band over its scoring range.
+function placeForRound() {
+	const { spot, window } = levelOf(state.round)
+	state.player.x = spot.x
+	state.player.y = spot.y
+	state.yaw = Math.PI
+	state.pointer = undefined
+	nodes['power-target'].style.left = `${window.min * 100}%`
+	nodes['power-target'].style.width = `${(window.max - window.min) * 100}%`
+}
+
 function beginCharge(source) {
 	if (state.phase !== 'ready' || state.paused || nodes.help.open) return
+	ensureAudio()
+	// This press only starts the next round, so the player sees the new spot and band before shooting.
+	if (state.mode === 'free-throws' && isDone(state.round)) {
+		state.round = startRound(state.round.best, state.round.level + 1)
+		placeForRound()
+		setFeedback(`Round ${state.round.level}, from ${levelOf(state.round).distance} m. Ten shots.`)
+		updateStats()
+		return
+	}
 	state.phase = 'charging'
 	state.chargeSource = source
 	state.charge = 0
 	state.power = 0
-	if (state.mode === 'free-throws' && isDone(state.round)) {
-		state.round = startRound(state.round.best)
-		setFeedback('New round. Ten shots.')
-		updateStats()
-	}
-	ensureAudio()
 }
 
 function releaseShot(source) {
@@ -442,7 +456,9 @@ function takeFreeThrow(made) {
 	const score = `${state.round.made}/${taken}`
 	if (isDone(state.round)) {
 		const verdict = bestBefore === 0 ? 'That’s the one to beat.' : best > bestBefore ? 'New best!' : `Best ${best}/${ROUND_SHOTS}.`
-		setFeedback(`${score}. ${verdict} Press Space to shoot another round.`, made)
+		const next = { ...state.round, level: state.round.level + 1 }
+		const farther = levelOf(next).distance > levelOf(state.round).distance ? `, from ${levelOf(next).distance} m` : ''
+		setFeedback(`${score}. ${verdict} Press Space for round ${next.level}${farther}.`, made)
 	} else {
 		setFeedback(made ? `Good. ${score}.` : `Off the mark. ${score}.`, made)
 	}
@@ -477,7 +493,7 @@ function update(delta) {
 	}
 	if (state.phase === 'charging') {
 		state.charge = Math.min(1, state.charge + delta / 1.6)
-		state.power = freeThrows ? clamp(state.charge + wobble(state.time), 0, 1) : state.charge
+		state.power = freeThrows ? clamp(state.charge + wobble(state.time, levelOf(state.round)), 0, 1) : state.charge
 	}
 	if (state.ball) {
 		const events = stepBall(state.ball, delta)
@@ -876,18 +892,13 @@ function applyMode() {
 	canvas.setAttribute('aria-label', CANVAS_LABELS[state.mode])
 	checkOption(nodes['mode-options'], state.mode)
 	nodes['power-target'].hidden = !freeThrows
-	nodes['power-target'].style.left = `${MAKE_WINDOW.min * 100}%`
-	nodes['power-target'].style.width = `${(MAKE_WINDOW.max - MAKE_WINDOW.min) * 100}%`
 	nodes['label-attempts'].textContent = freeThrows ? 'SHOTS LEFT' : 'SHOTS'
 	nodes['label-accuracy'].textContent = freeThrows ? 'BEST' : 'ACCURACY'
 	nodes['longest-stat'].hidden = freeThrows
 	nodes['longest-divider'].hidden = freeThrows
 	if (freeThrows) {
-		state.player.x = FREE_THROW_SPOT.x
-		state.player.y = FREE_THROW_SPOT.y
-		state.yaw = Math.PI
-		state.pointer = undefined
 		state.round = startRound(state.round.best)
+		placeForRound()
 	}
 	updateStats()
 }
