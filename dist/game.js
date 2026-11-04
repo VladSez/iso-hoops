@@ -1024,8 +1024,10 @@ setupMenu(nodes.mode, nodes['mode-options'], mode => {
 	setFeedback(mode === 'free-throws' ? 'Ten free throws. Release inside the band.' : 'Find your spot. Take your time.')
 })
 applyMode()
-// Keep the skeleton up for at least 300ms after navigation, so a fast load doesn't flash it.
-setTimeout(() => document.querySelector('.settings').classList.add('ready'), Math.max(0, 300 - performance.now()))
+// Keep the skeletons (footer menus and longest basket) up for at least 300ms after navigation, so a fast load doesn't flash them.
+setTimeout(() => {
+	for (const node of document.querySelectorAll('.settings, .session-stats')) node.classList.add('ready')
+}, Math.max(0, 300 - performance.now()))
 
 // Try immediately where autoplay is allowed; the first gesture unlocks other browsers.
 ensureAudio()
