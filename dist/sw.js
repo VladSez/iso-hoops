@@ -4,7 +4,7 @@
 // test/offline.test.js checks this. Any edit to this file makes browsers install it again,
 // which downloads every file fresh, so bump VERSION when a file changes without its URL
 // changing (index.html, the icons).
-const VERSION = 1
+const VERSION = 2
 const FILES = [
 	'./',
 	'style.css?v=a7c3e09d5f14',

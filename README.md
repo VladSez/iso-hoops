@@ -21,7 +21,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 - **Made-shot feedback:** the net animates, a basket callout appears and the made count pulses.
 - **Remembers your settings:** your court and sound choices are kept between visits.
 - **Plays on phones:** an on-screen stick and Shoot button replace the keyboard, with layouts for portrait and landscape.
-- **Plays offline:** after your first visit, the game loads without an internet connection. You can also install it to your home screen or desktop from the browser's menu.
+- **Plays offline:** after your first visit, the game loads without an internet connection. See [Play offline](#play-offline) to install it like an app.
 - **Accessible motion:** with reduced motion turned on, the net and callout stay still.
 
 ## Controls
@@ -42,6 +42,17 @@ In HORSE you move and aim freely too, but you can only shoot from inside the rin
 On phones and tablets, drag the stick in the bottom left to move. You keep facing the rim as you walk; tap or drag on the court to aim elsewhere, or hold the ↺ / ↻ buttons to turn a little. Tap near the rim to aim back at it. Hold the Shoot button to charge. Both portrait and landscape work.
 
 The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round, your best against the clock and your best HORSE game are saved in your browser too.
+
+## Play offline
+
+Open the game once while online. Everything it needs is saved, and from then on it loads without an internet connection, saved bests included. To keep it a tap away, install it:
+
+- **Chrome or Edge on a computer:** click Install in the address bar, or in the browser menu.
+- **Safari on a Mac:** File › Add to Dock.
+- **iPhone or iPad:** tap Share, then Add to Home Screen.
+- **Android:** open the browser menu and tap Install app or Add to Home screen.
+
+The installed game opens full screen, without the browser bars. The How to play dialog has the same steps.
 
 ## Sound
 
