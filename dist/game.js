@@ -3,7 +3,8 @@ import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './
 import { RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=2'
 import { LETTERS, SPOT_RADIUS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=2'
 import { createMusicBuffer } from './music.js?v=2'
-import { COURTS } from './courts.js?v=4'
+import { COURTS } from './courts.js?v=5'
+import { PHASES, resolvePhase } from './time-of-day.js?v=2'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -20,6 +21,7 @@ const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
+	'time', 'time-label', 'time-options', 'time-menu',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
 	'label-makes', 'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 ].map(id => [id, document.getElementById(id)]))
@@ -268,7 +270,11 @@ function drawPalm(px, py, height, lean, seed) {
 
 // Props frame each court without covering play.
 const PROPS = {
-	neighborhood: parkProps,
+	neighborhood() {
+		parkProps()
+		drawStreetlights()
+		drawFloodlight()
+	},
 	autumn: parkProps,
 	winter() {
 		parkProps()
@@ -315,6 +321,82 @@ function parkProps() {
 	growTree(9.8, 5.5, 0.66, 220, 1000)
 }
 
+// Posts ring the neighborhood court with their arms reaching in over the lines, and each pool lands just inside its arm.
+const STREETLIGHTS = [
+	{ post: [-4.6, -9.4], head: [-4.6, -8.4], pool: [-4.6, -7] },
+	{ post: [2.6, -9.6], head: [2.6, -8.6], pool: [2.6, -7.2] },
+	{ post: [10.7, -4.4], head: [9.7, -4.4], pool: [8.3, -4.4] },
+	{ post: [10.7, 2.8], head: [9.7, 2.8], pool: [8.3, 2.8] },
+	{ post: [-11.1, 2.4], head: [-10.1, 2.4], pool: [-8.7, 2.4] },
+]
+// A taller light behind the hoop, aimed at the basket, so the board and the key are the brightest part of the court.
+const FLOODLIGHT = { post: [-11.6, -2.2], height: 6.2, arm: [-10.9, -1.6], pool: [-6.6, 0], radius: 3.8, strength: 1.7 }
+const LAMP_POST = [70, 78, 80]
+const LAMP_LIT = rgb(255, 238, 176)
+const LAMP_OFF = rgb(214, 212, 198)
+const POOL_RADIUS = 3.7
+const STAR = rgb(255, 240, 232)
+const PAGE = rgb(255, 255, 255)
+// The canvas pixels the hoop covers, found at bake time, so the floodlight can light them.
+const hoopPixels = new Uint8Array(W * H)
+
+function drawStreetlights() {
+	const glass = phase?.lamps ? LAMP_LIT : LAMP_OFF
+	for (const { post: [px, py], head: [hx, hy] } of STREETLIGHTS) {
+		line3D([px, py, 0], [px, py, 5.3], 0.07, LAMP_POST)
+		line3D([px, py, 5.3], [hx, hy, 5.25], 0.05, LAMP_POST)
+		for (let a = -0.18; a <= 0.18; a += 0.06) for (let b = -0.18; b <= 0.18; b += 0.06) plot(hx + a, hy + b, 5.1, glass)
+	}
+}
+
+function drawFloodlight() {
+	const { post: [px, py], height, arm: [ax, ay] } = FLOODLIGHT
+	line3D([px, py, 0], [px, py, height], 0.09, LAMP_POST)
+	line3D([px, py, height], [ax, ay, height - 0.1], 0.07, LAMP_POST)
+	const glass = phase?.lamps ? LAMP_LIT : LAMP_OFF
+	for (let a = -0.3; a <= 0.3; a += 0.06) for (let b = -0.2; b <= 0.2; b += 0.06) plot(ax + 0.1 + a * 0.4, ay + 0.1 + a, height - 0.25 + b, glass)
+}
+
+// How much lamplight reaches each canvas pixel, stepped into bands so the pools read as pixel art, not an airbrush.
+let poolLight
+function poolLightMap() {
+	if (poolLight) return poolLight
+	poolLight = new Float32Array(W * H)
+	for (let iy = 0; iy < H; iy++) for (let ix = 0; ix < W; ix++) {
+		const p = unproject(ix + 0.5, iy + 0.5)
+		let light = 0
+		for (const { pool: [x, y] } of STREETLIGHTS) light += Math.exp(-((p.x - x) ** 2 + (p.y - y) ** 2) / POOL_RADIUS ** 2)
+		const { pool: [fx, fy], radius, strength } = FLOODLIGHT
+		light += strength * Math.exp(-((p.x - fx) ** 2 + (p.y - fy) ** 2) / radius ** 2)
+		poolLight[iy * W + ix] = Math.round(Math.min(1, light) * 5) / 5
+	}
+	return poolLight
+}
+
+// Lights the finished frame for the phase. The white page around the court turns transparent so the sky behind the canvas shows.
+function gradeFrame() {
+	const { mul: [mr, mg, mb], add: [ar, ag, ab] } = phase.grade
+	const light = phase.lamps ? poolLightMap() : undefined
+	for (let i = 0; i < pix.length; i++) {
+		const c = pix[i]
+		if (c === PAGE) {
+			const ix = i % W, iy = i / W | 0
+			pix[i] = phase.stars && iy < 120 && hash(ix * 7, iy * 13) > 0.9965 ? STAR : 0
+			continue
+		}
+		if (c === LAMP_LIT) continue
+		const r = c & 255, g = c >> 8 & 255, b = c >> 16 & 255
+		// The floodlight keeps the backboard, rim and pole bright and warm instead of darkening them with the court.
+		if (phase.hoopGlow && hoopPixels[i]) {
+			const k = phase.hoopGlow
+			pix[i] = rgb(r * (1 + 0.12 * k) + 22 * k, g * (1 + 0.06 * k) + 16 * k, b * (1 - 0.08 * k) + 4 * k)
+			continue
+		}
+		const lit = light ? light[i] * phase.lamps : 0
+		pix[i] = rgb(r * (mr + lit * 0.95) + ar, g * (mg + lit * 0.72) + ag, b * (mb + lit * 0.38) + ab)
+	}
+}
+
 function bakeCourt() {
 	resetScene()
 	seaPixels.length = 0
@@ -334,7 +416,9 @@ function bakeCourt() {
 	groundZ.set(zb)
 	growGrass()
 	drawFence()
+	const beforeHoop = pix.slice()
 	drawHoop()
+	for (let i = 0; i < pix.length; i++) hoopPixels[i] = pix[i] === beforeHoop[i] ? 0 : 1
 	PROPS[courtId]()
 	for (let z = 0.2; z < 4.5; z += 0.15) castShadow(-8.9, 0, z, 0.15)
 	for (let y = -1.35; y < 1.35; y += 0.15) castShadow(BACKBOARD_X, y, 4.4, 0.25)
@@ -781,6 +865,7 @@ function draw() {
 	shadeEdges()
 	drawNet()
 	drawAimGuide()
+	if (phase) gradeFrame()
 	ctx.putImageData(image, 0, 0)
 }
 
@@ -1136,10 +1221,42 @@ setupMenu(nodes.court, nodes['court-options'], id => {
 	court = COURTS[id]
 	showCourt()
 	try { localStorage.setItem(COURT_KEY, courtId) } catch {}
-	bakeCourt()
+	applyPhase()
 	if (audio) playCourtSound()
 })
 showCourt()
+
+// The court's phase: undefined on courts that keep one look, else the pinned phase or the one the player's clock is in.
+const TIME_KEY = 'iso-hoops:time'
+const SCENE_SHADOW = { x: window.PP_SCENE.shadowX, y: window.PP_SCENE.shadowY }
+let timeChoice = 'auto'
+try {
+	const saved = localStorage.getItem(TIME_KEY)
+	if (saved === 'auto' || saved in PHASES) timeChoice = saved
+} catch {}
+let phaseId
+let phase
+function applyPhase() {
+	phaseId = court.timeOfDay ? resolvePhase(timeChoice, new Date().getHours()) : undefined
+	phase = PHASES[phaseId]
+	const sun = phase?.shadow ?? SCENE_SHADOW
+	setShadowDirection(sun.x, sun.y)
+	if (phaseId) document.body.dataset.phase = phaseId
+	else delete document.body.dataset.phase
+	nodes['time-menu'].hidden = !phaseId
+	if (phase) nodes['time-label'].textContent = timeChoice === 'auto' ? `Auto · ${phase.name}` : phase.name
+	checkOption(nodes['time-options'], timeChoice)
+	bakeCourt()
+}
+setupMenu(nodes.time, nodes['time-options'], choice => {
+	timeChoice = choice
+	try { localStorage.setItem(TIME_KEY, timeChoice) } catch {}
+	applyPhase()
+})
+// On Auto the court moves into the next phase while someone plays through the boundary.
+setInterval(() => {
+	if (court.timeOfDay && timeChoice === 'auto' && resolvePhase('auto', new Date().getHours()) !== phaseId) applyPhase()
+}, 60_000)
 
 const ATTEMPT_LABELS = { free: 'SHOTS', 'free-throws': 'SHOTS LEFT', clock: 'SECONDS', horse: 'LETTERS' }
 const MODE_INTROS = {
@@ -1195,7 +1312,7 @@ ensureAudio()
 
 addEventListener('resize', resizeCanvas)
 resizeCanvas()
-bakeCourt()
+applyPhase()
 updateStats()
 let lastFrame = performance.now()
 function frame(now) {

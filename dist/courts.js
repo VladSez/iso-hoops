@@ -3,6 +3,7 @@
 export const COURTS = {
 	neighborhood: {
 		name: 'Neighborhood',
+		timeOfDay: true,
 		court: [126, 153, 141], key: [177, 125, 96], line: [235, 225, 196], apron: [174, 170, 150],
 		grass: [[34, 62, 50], [52, 88, 52], [82, 118, 54], [124, 146, 62], [168, 172, 76]],
 		leaf: [[58, 84, 62], [100, 126, 78], [146, 162, 112]], bark: [92, 74, 60],
