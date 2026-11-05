@@ -4,7 +4,14 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const ROOT = path.resolve(fileURLToPath(new URL('./dist/', import.meta.url)))
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' }
+const TYPES = {
+	'.html': 'text/html',
+	'.js': 'text/javascript',
+	'.css': 'text/css',
+	'.webmanifest': 'application/manifest+json',
+	'.png': 'image/png',
+	'.svg': 'image/svg+xml',
+}
 
 createServer(async (request, response) => {
 	const pathname = new URL(request.url, 'http://localhost').pathname
