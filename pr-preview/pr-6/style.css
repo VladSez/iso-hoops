@@ -33,7 +33,6 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 #help-open span { margin-left: 12px; }
 .header-actions { display: flex; align-items: center; gap: 22px; }
 .header-menu { position: relative; }
-.header-menu[hidden] { display: none; }
 .time-button { display: flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font-size: 11px; white-space: nowrap; }
 .time-button:hover, .time-button[aria-expanded="true"] { color: var(--orange); }
 .time-button:focus-visible { outline-offset: 2px; }
