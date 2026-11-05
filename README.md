@@ -21,6 +21,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 - **Made-shot feedback:** the net animates, a basket callout appears and the made count pulses.
 - **Remembers your settings:** your court and sound choices are kept between visits.
 - **Plays on phones:** an on-screen stick and Shoot button replace the keyboard, with layouts for portrait and landscape.
+- **Plays offline:** after your first visit, the game loads without an internet connection. You can also install it to your home screen or desktop from the browser's menu.
 - **Accessible motion:** with reduced motion turned on, the net and callout stay still.
 
 ## Controls
@@ -53,6 +54,8 @@ node serve.mjs
 ```
 
 Then open http://127.0.0.1:5300.
+
+The offline service worker (`dist/sw.js`) doesn't register on `localhost` or `127.0.0.1`, so your edits always show up. Its `FILES` list must match what the page loads, `?v=` strings included; the tests check this.
 
 Run the tests with:
 

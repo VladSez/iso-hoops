@@ -9,6 +9,7 @@
 		<link rel="icon" href="favicon.ico" sizes="any" />
 		<link rel="icon" href="favicon.svg" type="image/svg+xml" />
 		<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+		<link rel="manifest" href="manifest.webmanifest" />
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content="https://vladsez.github.io/iso-hoops/" />
 		<meta property="og:title" content="Neighborhood Hoops — just you and the basket" />
@@ -101,5 +102,11 @@
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=5b7e2a91"></script>
 		<script type="module" src="game.js?v=0c5e9b27"></script>
+		<script>
+			// Saves the game for offline play. Skipped when running locally, where edits
+			// would otherwise be hidden behind the saved copies.
+			const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname)
+			if ('serviceWorker' in navigator && !isLocal) navigator.serviceWorker.register('sw.js')
+		</script>
 	</body>
 </html>
