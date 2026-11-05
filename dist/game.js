@@ -3,8 +3,8 @@ import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './
 import { RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=2'
 import { LETTERS, SPOT_RADIUS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=2'
 import { createMusicBuffer } from './music.js?v=2'
-import { COURTS } from './courts.js?v=5'
-import { PHASES, resolvePhase } from './time-of-day.js?v=2'
+import { COURTS } from './courts.js?v=6'
+import { PHASES, resolvePhase } from './time-of-day.js?v=3'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -21,7 +21,7 @@ const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
-	'time', 'time-label', 'time-options', 'time-menu',
+	'time', 'time-label', 'time-options',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
 	'label-makes', 'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 ].map(id => [id, document.getElementById(id)]))
@@ -270,11 +270,7 @@ function drawPalm(px, py, height, lean, seed) {
 
 // Props frame each court without covering play.
 const PROPS = {
-	neighborhood() {
-		parkProps()
-		drawStreetlights()
-		drawFloodlight()
-	},
+	neighborhood: parkProps,
 	autumn: parkProps,
 	winter() {
 		parkProps()
@@ -291,7 +287,7 @@ const PROPS = {
 		sphere(-9.9, -7.9, 6.1, 0.75, [92, 66, 52], 'rough')
 		box(4.6, -9.8, 0, 6.2, -8.6, 1.1, [176, 178, 182])
 		box(7, -9.8, 0, 8.2, -8.8, 0.8, [176, 178, 182])
-		for (let x = -8; x < 9.4; x += 0.55) plot(x, -8.1, 2.1 + Math.sin((x + 8) / 17.4 * Math.PI * 4) * 0.15, rgb(255, 214, 120))
+		for (let x = -8; x < 9.4; x += 0.55) plot(x, -8.1, 2.1 + Math.sin((x + 8) / 17.4 * Math.PI * 4) * 0.15, phase.lamps ? LAMP_LIT : rgb(255, 214, 120))
 		box(9.2, 5, 0, 11.2, 7, 0.6, [150, 120, 96])
 		growTree(10.2, 6, 0.55, 240, 1000)
 		drawBench()
@@ -341,7 +337,7 @@ const PAGE = rgb(255, 255, 255)
 const hoopPixels = new Uint8Array(W * H)
 
 function drawStreetlights() {
-	const glass = phase?.lamps ? LAMP_LIT : LAMP_OFF
+	const glass = phase.lamps ? LAMP_LIT : LAMP_OFF
 	for (const { post: [px, py], head: [hx, hy] } of STREETLIGHTS) {
 		line3D([px, py, 0], [px, py, 5.3], 0.07, LAMP_POST)
 		line3D([px, py, 5.3], [hx, hy, 5.25], 0.05, LAMP_POST)
@@ -353,7 +349,7 @@ function drawFloodlight() {
 	const { post: [px, py], height, arm: [ax, ay] } = FLOODLIGHT
 	line3D([px, py, 0], [px, py, height], 0.09, LAMP_POST)
 	line3D([px, py, height], [ax, ay, height - 0.1], 0.07, LAMP_POST)
-	const glass = phase?.lamps ? LAMP_LIT : LAMP_OFF
+	const glass = phase.lamps ? LAMP_LIT : LAMP_OFF
 	for (let a = -0.3; a <= 0.3; a += 0.06) for (let b = -0.2; b <= 0.2; b += 0.06) plot(ax + 0.1 + a * 0.4, ay + 0.1 + a, height - 0.25 + b, glass)
 }
 
@@ -375,7 +371,7 @@ function poolLightMap() {
 
 // Lights the finished frame for the phase. The white page around the court turns transparent so the sky behind the canvas shows.
 function gradeFrame() {
-	const { mul: [mr, mg, mb], add: [ar, ag, ab] } = phase.grade
+	const { mul: [mr, mg, mb], add: [ar, ag, ab] } = court.paintedForDusk && phaseId === 'evening' ? PHASES.day.grade : phase.grade
 	const light = phase.lamps ? poolLightMap() : undefined
 	for (let i = 0; i < pix.length; i++) {
 		const c = pix[i]
@@ -392,7 +388,7 @@ function gradeFrame() {
 			pix[i] = rgb(r * (1 + 0.12 * k) + 22 * k, g * (1 + 0.06 * k) + 16 * k, b * (1 - 0.08 * k) + 4 * k)
 			continue
 		}
-		const lit = light ? light[i] * phase.lamps : 0
+		const lit = light ? light[i] * phase.lamps * (court.lampScale ?? 1) : 0
 		pix[i] = rgb(r * (mr + lit * 0.95) + ar, g * (mg + lit * 0.72) + ag, b * (mb + lit * 0.38) + ab)
 	}
 }
@@ -420,6 +416,8 @@ function bakeCourt() {
 	drawHoop()
 	for (let i = 0; i < pix.length; i++) hoopPixels[i] = pix[i] === beforeHoop[i] ? 0 : 1
 	PROPS[courtId]()
+	drawStreetlights()
+	drawFloodlight()
 	for (let z = 0.2; z < 4.5; z += 0.15) castShadow(-8.9, 0, z, 0.15)
 	for (let y = -1.35; y < 1.35; y += 0.15) castShadow(BACKBOARD_X, y, 4.4, 0.25)
 	bakeOcclusion()
@@ -865,7 +863,7 @@ function draw() {
 	shadeEdges()
 	drawNet()
 	drawAimGuide()
-	if (phase) gradeFrame()
+	gradeFrame()
 	ctx.putImageData(image, 0, 0)
 }
 
@@ -1226,9 +1224,8 @@ setupMenu(nodes.court, nodes['court-options'], id => {
 })
 showCourt()
 
-// The court's phase: undefined on courts that keep one look, else the pinned phase or the one the player's clock is in.
+// The court's phase: the one the player pinned, or the one their clock is in.
 const TIME_KEY = 'iso-hoops:time'
-const SCENE_SHADOW = { x: window.PP_SCENE.shadowX, y: window.PP_SCENE.shadowY }
 let timeChoice = 'auto'
 try {
 	const saved = localStorage.getItem(TIME_KEY)
@@ -1237,14 +1234,12 @@ try {
 let phaseId
 let phase
 function applyPhase() {
-	phaseId = court.timeOfDay ? resolvePhase(timeChoice, new Date().getHours()) : undefined
+	phaseId = resolvePhase(timeChoice, new Date().getHours())
 	phase = PHASES[phaseId]
-	const sun = phase?.shadow ?? SCENE_SHADOW
-	setShadowDirection(sun.x, sun.y)
-	if (phaseId) document.body.dataset.phase = phaseId
-	else delete document.body.dataset.phase
-	nodes['time-menu'].hidden = !phaseId
-	if (phase) nodes['time-label'].textContent = timeChoice === 'auto' ? `Auto · ${phase.name}` : phase.name
+	court = { ...COURTS[courtId], ...(phase.daylight && COURTS[courtId].daylight) }
+	setShadowDirection(phase.shadow.x, phase.shadow.y)
+	document.body.dataset.phase = phaseId
+	nodes['time-label'].textContent = timeChoice === 'auto' ? `Auto · ${phase.name}` : phase.name
 	checkOption(nodes['time-options'], timeChoice)
 	bakeCourt()
 }
@@ -1255,7 +1250,7 @@ setupMenu(nodes.time, nodes['time-options'], choice => {
 })
 // On Auto the court moves into the next phase while someone plays through the boundary.
 setInterval(() => {
-	if (court.timeOfDay && timeChoice === 'auto' && resolvePhase('auto', new Date().getHours()) !== phaseId) applyPhase()
+	if (timeChoice === 'auto' && resolvePhase('auto', new Date().getHours()) !== phaseId) applyPhase()
 }, 60_000)
 
 const ATTEMPT_LABELS = { free: 'SHOTS', 'free-throws': 'SHOTS LEFT', clock: 'SECONDS', horse: 'LETTERS' }
