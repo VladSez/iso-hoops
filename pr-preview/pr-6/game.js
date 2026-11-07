@@ -4,7 +4,7 @@ import { RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor,
 import { LETTERS, SPOT_RADIUS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=2'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=6'
-import { PHASES, hoursOf, resolvePhase } from './time-of-day.js?v=4'
+import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -21,7 +21,7 @@ const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
-	'time', 'time-label', 'time-options', 'time-tip-name', 'time-tip-hours', 'time-tip-mode',
+	'time', 'time-label', 'time-options', 'time-zone', 'time-tip-name', 'time-tip-hours', 'time-tip-zone', 'time-tip-mode',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
 	'label-makes', 'longest', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 ].map(id => [id, document.getElementById(id)]))
@@ -1226,6 +1226,11 @@ showCourt()
 
 // The court's phase: the one the player pinned, or the one their clock is in.
 const TIME_KEY = 'iso-hoops:time'
+// Today's phase start times, kept so index.html can paint the right sky on the next load before game.js arrives.
+const SKY_KEY = 'iso-hoops:sky'
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
+const PLACE = placeFor(TIME_ZONE)
+const minuteOf = date => date.getHours() * 60 + date.getMinutes()
 let timeChoice = 'auto'
 try {
 	const saved = localStorage.getItem(TIME_KEY)
@@ -1234,7 +1239,10 @@ try {
 let phaseId
 let phase
 function applyPhase() {
-	phaseId = resolvePhase(timeChoice, new Date().getHours())
+	const now = new Date()
+	const schedule = scheduleFor(now, PLACE)
+	try { localStorage.setItem(SKY_KEY, JSON.stringify({ date: now.toDateString(), starts: PHASE_IDS.map(id => schedule[id]) })) } catch {}
+	phaseId = resolvePhase(timeChoice, minuteOf(now), schedule)
 	phase = PHASES[phaseId]
 	court = { ...COURTS[courtId], ...(phase.daylight && COURTS[courtId].daylight) }
 	setShadowDirection(phase.shadow.x, phase.shadow.y)
@@ -1243,7 +1251,9 @@ function applyPhase() {
 	nodes['time-label'].textContent = auto ? `Auto · ${phase.name}` : phase.name
 	nodes.time.classList.toggle('pinned', !auto)
 	nodes['time-tip-name'].textContent = phase.name.toUpperCase()
-	nodes['time-tip-hours'].textContent = hoursOf(phaseId)
+	nodes['time-tip-hours'].textContent = hoursOf(phaseId, schedule)
+	for (const slot of nodes['time-options'].querySelectorAll('[data-hours]')) slot.textContent = hoursOf(slot.dataset.hours, schedule)
+	nodes['time-zone'].textContent = nodes['time-tip-zone'].textContent = zoneLabel(TIME_ZONE, now.getTimezoneOffset())
 	nodes['time-tip-mode'].textContent = auto ? 'Auto · follows your clock' : 'Pinned · click to change'
 	checkOption(nodes['time-options'], timeChoice)
 	bakeCourt()
@@ -1255,7 +1265,8 @@ setupMenu(nodes.time, nodes['time-options'], choice => {
 })
 // On Auto the court moves into the next phase while someone plays through the boundary.
 setInterval(() => {
-	if (timeChoice === 'auto' && resolvePhase('auto', new Date().getHours()) !== phaseId) applyPhase()
+	const now = new Date()
+	if (timeChoice === 'auto' && resolvePhase('auto', minuteOf(now), scheduleFor(now, PLACE)) !== phaseId) applyPhase()
 }, 60_000)
 
 const ATTEMPT_LABELS = { free: 'SHOTS', 'free-throws': 'SHOTS LEFT', clock: 'SECONDS', horse: 'LETTERS' }
