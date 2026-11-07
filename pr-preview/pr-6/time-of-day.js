@@ -15,6 +15,13 @@ export function phaseAt(hour) {
 	return BY_START.find(id => hour >= PHASES[id].from) ?? BY_START[0]
 }
 
+// The local hours a phase covers, such as '20–05', for the Time button's tooltip.
+export function hoursOf(id) {
+	const next = BY_START[(BY_START.indexOf(id) + BY_START.length - 1) % BY_START.length]
+	const pad = hour => String(hour).padStart(2, '0')
+	return `${pad(PHASES[id].from)}–${pad(PHASES[next].from)}`
+}
+
 // `choice` is 'auto' or a phase id the player pinned from the Time menu.
 export function resolvePhase(choice, hour) {
 	return choice in PHASES ? choice : phaseAt(hour)

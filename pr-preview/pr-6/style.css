@@ -33,13 +33,22 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 #help-open span { margin-left: 12px; }
 .header-actions { display: flex; align-items: center; gap: 22px; }
 .header-menu { position: relative; }
-.time-button { display: flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font-size: 11px; white-space: nowrap; }
+.time-button { position: relative; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
 .time-button:hover, .time-button[aria-expanded="true"] { color: var(--orange); }
 .time-button:focus-visible { outline-offset: 2px; }
-#time-label { min-width: 14ch; text-align: left; }
-.time-button .arrow { color: var(--muted); }
-.time-button .moon, [data-phase="evening"] .time-button .sun, [data-phase="night"] .time-button .sun { display: none; }
-[data-phase="evening"] .time-button .moon, [data-phase="night"] .time-button .moon { display: block; }
+/* The dot marks Auto; a pinned phase shows the clock alone. */
+.auto-dot { position: absolute; right: 5px; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--orange); }
+.time-button:not(.auto) .auto-dot { display: none; }
+/* Pointers that can hover get a tooltip naming the phase; touch opens the menu on tap instead. */
+.time-tip { position: absolute; top: calc(100% + 10px); right: -8px; z-index: 3; padding: 10px 12px; border: 1px solid var(--edge); background: var(--panel); color: var(--ink); white-space: nowrap; font-size: 10px; line-height: 1.6; box-shadow: 0 12px 40px #28231518; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.15s, visibility 0.15s; }
+.time-tip::before { content: ""; position: absolute; top: -5px; right: 20px; width: 8px; height: 8px; background: var(--panel); border-left: 1px solid var(--edge); border-top: 1px solid var(--edge); transform: rotate(45deg); }
+.time-tip strong { display: block; font-size: 11px; letter-spacing: 1.4px; }
+.time-tip small { margin-left: 8px; font-weight: 400; font-size: 10px; letter-spacing: 0; color: var(--muted); }
+.time-tip > span { color: var(--muted); }
+@media (hover: hover) {
+	.time-button:hover ~ .time-tip, .time-button:focus-visible ~ .time-tip { opacity: 1; visibility: visible; }
+	.time-button[aria-expanded="true"] ~ .time-tip { opacity: 0; visibility: hidden; }
+}
 .header .menu-options { top: calc(100% + 10px); bottom: auto; left: auto; right: 0; width: 220px; }
 /* The sky behind the page for each phase of the neighborhood court; game.js sets data-phase from the player's clock. */
 [data-phase="morning"] { --sky-top: #f3d9c8; --sky-bottom: #fbf0e6; --ink: #3a2f29; --muted: #6e5a4f; --label: #6e5a4f; --soft: #4f3f36; --faint: #9c8579; --panel: #fdf4ec; --line: #ead6c8; --edge: #e3cdbd; --hover: #f7e8dc; --kbd: #5a4a41; --skeleton: #f1e2d6; }
@@ -161,7 +170,6 @@ dialog .dialog-note { font-size: 10px; }
 	.header-actions { gap: 14px; }
 	#help-open { white-space: nowrap; }
 	#help-open span { margin-left: 6px; }
-	#time-label { min-width: 0; }
 	#stage { inset: 135px 0 246px; }
 	.shoot-panel { bottom: 133px; width: 270px; }
 	.footer { left: 22px; right: 22px; bottom: 19px; font-size: 8px; display: flex; flex-wrap: wrap; justify-content: center; }
