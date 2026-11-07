@@ -1,5 +1,7 @@
 // Palettes, ground options and sound for each playground. The props each one adds are drawn in game.js.
 // `sound` scales effect pitch, how loud the ball hits the floor, and how much the air echoes.
+// Every court follows the player's clock (time-of-day.js). `lampScale` softens lamplight on pale ground that would wash out,
+// `daylight` replaces palette entries in the morning and day, and `paintedForDusk` skips the evening grade for a palette that is already dusk.
 export const COURTS = {
 	neighborhood: {
 		name: 'Neighborhood',
@@ -11,9 +13,15 @@ export const COURTS = {
 		sound: { pitch: 1, floor: 1, echo: 0 },
 	},
 	rooftop: {
-		name: 'Rooftop at dusk',
+		name: 'Rooftop',
 		court: [92, 106, 142], key: [196, 112, 74], line: [238, 226, 200], apron: [150, 140, 150],
 		roof: [118, 112, 126],
+		paintedForDusk: true,
+		daylight: {
+			court: [104, 128, 150], key: [206, 124, 84], roof: [146, 142, 150], apron: [168, 164, 166],
+			grass: [[92, 92, 104], [118, 116, 128], [140, 138, 148], [160, 158, 166], [182, 180, 186]],
+			cool: [46, 38, 84], warm: [255, 232, 180],
+		},
 		grass: [[60, 58, 74], [84, 80, 96], [104, 98, 112], [124, 118, 130], [146, 138, 148]],
 		leaf: [[52, 82, 70], [84, 120, 88], [132, 160, 110]], bark: [92, 74, 60],
 		cool: [70, 40, 96], warm: [255, 196, 150],
@@ -22,6 +30,7 @@ export const COURTS = {
 	},
 	beach: {
 		name: 'Boardwalk beach',
+		lampScale: 0.4,
 		court: [104, 160, 168], key: [222, 132, 108], line: [250, 244, 226], apron: [196, 160, 118],
 		boardwalk: true, sea: true,
 		grass: [[196, 172, 128], [214, 190, 142], [226, 204, 156], [236, 218, 172], [246, 232, 192]],
@@ -42,6 +51,7 @@ export const COURTS = {
 	},
 	winter: {
 		name: 'First snow',
+		lampScale: 0.45,
 		court: [112, 128, 146], key: [150, 104, 104], line: [244, 248, 252], apron: [204, 210, 220],
 		grass: [[150, 164, 186], [186, 198, 216], [214, 222, 234], [232, 238, 246], [248, 250, 254]],
 		leaf: [[30, 60, 56], [44, 82, 70], [236, 242, 248]], bark: [74, 62, 56],
