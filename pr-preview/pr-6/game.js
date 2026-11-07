@@ -1301,9 +1301,9 @@ setupMenu(nodes.mode, nodes['mode-options'], mode => {
 applyMode()
 // The page's default line is free shooting's, so a saved goal mode explains itself on load.
 if (state.mode !== 'free') setFeedback(MODE_INTROS[state.mode])
-// Keep the skeletons (footer menus and longest basket) up for at least 300ms after navigation, so a fast load doesn't flash them.
+// Keep the placeholders (footer menus, scoreboard and helper line) up for at least 300ms after navigation, so a fast load doesn't flash them.
 setTimeout(() => {
-	for (const node of document.querySelectorAll('.settings, .session-stats')) node.classList.add('ready')
+	for (const node of document.querySelectorAll('.settings, .session-stats, .shoot-panel')) node.classList.add('ready')
 }, Math.max(0, 300 - performance.now()))
 
 // Try immediately where autoplay is allowed; the first gesture unlocks other browsers.

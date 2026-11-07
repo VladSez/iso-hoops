@@ -98,6 +98,11 @@ canvas { display: block; image-rendering: pixelated; cursor: crosshair; touch-ac
 .shoot-panel { position: absolute; width: 292px; left: 50%; bottom: 78px; transform: translateX(-50%); z-index: 2; }
 #feedback { margin: 0 0 22px; height: 14px; text-align: center; color: var(--muted); font-size: 11px; }
 #feedback.made { color: var(--orange); }
+/* The page ships free shooting's line; a goal mode swaps in its own once game.js loads, so the line waits behind a placeholder until then. */
+.shoot-panel:not(.ready) #feedback { position: relative; color: transparent; animation: reveal-feedback 0s 2s forwards; }
+.shoot-panel:not(.ready) #feedback::before { content: ""; position: absolute; left: calc(50% - 110px); width: 220px; top: calc(50% - 5px); height: 10px; border-radius: 2px; background: var(--skeleton); animation: skeleton 0.9s ease-in-out infinite alternate, hide-skeleton 0s 2s forwards; }
+@keyframes reveal-feedback { to { color: var(--muted); } }
+@media (prefers-reduced-motion: reduce) { .shoot-panel:not(.ready) #feedback::before { animation: hide-skeleton 0s 2s forwards; } }
 .power-label { display: flex; justify-content: space-between; color: var(--muted); font-size: 8px; letter-spacing: 1.4px; }
 #power-value { font-variant-numeric: tabular-nums; color: var(--soft); }
 #power-meter { position: relative; margin-top: 8px; height: 5px; background: var(--line); overflow: hidden; }
