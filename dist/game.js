@@ -332,7 +332,6 @@ const LAMP_LIT = rgb(255, 238, 176)
 const LAMP_OFF = rgb(214, 212, 198)
 const POOL_RADIUS = 3.7
 const STAR = rgb(255, 240, 232)
-const PAGE = rgb(255, 255, 255)
 // The canvas pixels the hoop covers, found at bake time, so the floodlight can light them.
 const hoopPixels = new Uint8Array(W * H)
 
@@ -375,7 +374,7 @@ function gradeFrame() {
 	const light = phase.lamps ? poolLightMap() : undefined
 	for (let i = 0; i < pix.length; i++) {
 		const c = pix[i]
-		if (c === PAGE) {
+		if (!c) {
 			const ix = i % W, iy = i / W | 0
 			pix[i] = phase.stars && iy < 120 && hash(ix * 7, iy * 13) > 0.9965 ? STAR : 0
 			continue
@@ -399,7 +398,8 @@ function bakeCourt() {
 	seaTime = undefined
 	applyPalette()
 	zb.fill(-1e9)
-	pix.fill(rgb(255, 255, 255))
+	// Transparent, so the court's drop shadow in style.css follows its edge instead of the canvas box.
+	pix.fill(0)
 	for (let iy = 0; iy < H; iy++) for (let ix = 0; ix < W; ix++) {
 		const p = unproject(ix + 0.5, iy + 0.5)
 		const index = iy * W + ix
