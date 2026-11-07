@@ -18,6 +18,13 @@ test('each phase names the hours it covers, night wrapping past midnight', () =>
 	assert.deepEqual(Object.keys(PHASES).map(hoursOf), ['05–10', '10–17', '17–20', '20–05'])
 })
 
+test('the page picks the same phase as the table before game.js loads', () => {
+	const { morning, day, evening, night } = PHASES
+	const rule = `hour >= ${night.from} || hour < ${morning.from} ? 'night' : hour >= ${evening.from} ? 'evening' : hour >= ${day.from} ? 'day' : 'morning'`
+	assert.ok(html.replace(/\s+/g, ' ').includes(rule), `index.html's early script should read: ${rule}`)
+	assert.match(html, new RegExp(`\\[${Object.keys(PHASES).map(id => `'${id}'`).join(', ')}\\]\\.includes\\(time\\)`))
+})
+
 test('a pinned phase wins over the clock, and auto follows it', () => {
 	assert.equal(resolvePhase('morning', 23), 'morning')
 	assert.equal(resolvePhase('auto', 23), 'night')

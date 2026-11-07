@@ -23,7 +23,7 @@ const nodes = Object.fromEntries([
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 	'time', 'time-label', 'time-options', 'time-tip-name', 'time-tip-hours', 'time-tip-mode',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
-	'label-makes', 'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
+	'label-makes', 'longest', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -1280,8 +1280,7 @@ function applyMode() {
 	nodes['label-attempts'].textContent = ATTEMPT_LABELS[state.mode]
 	// Goal modes show their best score in the third slot, so the longest basket is free shooting's alone.
 	nodes['label-accuracy'].textContent = hasGoal ? 'BEST' : 'ACCURACY'
-	nodes['longest-stat'].hidden = hasGoal
-	nodes['longest-divider'].hidden = hasGoal
+	document.body.dataset.mode = state.mode
 	nodes.attempts.classList.remove('hurry')
 	if (freeThrows) {
 		state.round = startRound(state.round.best)

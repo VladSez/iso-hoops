@@ -19,9 +19,24 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=e70b9d3c5f12" />
+		<link rel="stylesheet" href="style.css?v=c6a2d8f1e3b5" />
 	</head>
 	<body>
+		<script>
+			// Paints the right sky and stats before game.js loads, so the page never flashes white
+			// and the longest basket only shows in free shooting. test/time-of-day.test.js keeps the hours in step.
+			{
+				const hour = new Date().getHours()
+				let time, mode
+				try {
+					time = localStorage.getItem('iso-hoops:time')
+					mode = localStorage.getItem('iso-hoops:mode')
+				} catch {}
+				document.body.dataset.phase = ['morning', 'day', 'evening', 'night'].includes(time) ? time
+					: hour >= 20 || hour < 5 ? 'night' : hour >= 17 ? 'evening' : hour >= 10 ? 'day' : 'morning'
+				document.body.dataset.mode = ['free', 'free-throws', 'clock', 'horse'].includes(mode) ? mode : 'free'
+			}
+		</script>
 		<header class="header">
 			<a class="wordmark" href="./" aria-label="Neighborhood Hoops home"><span class="ball-icon" aria-hidden="true">◉</span><span>NEIGHBORHOOD<br /><b>HOOPS</b></span></a>
 			<div class="header-actions">
@@ -116,7 +131,7 @@
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=7c2d4e10"></script>
-		<script type="module" src="game.js?v=8a3f20c6"></script>
+		<script type="module" src="game.js?v=1d7b4e9a3c"></script>
 		<script>
 			// Saves the game for offline play. Skipped when running locally, where edits
 			// would otherwise be hidden behind the saved copies.
