@@ -321,7 +321,8 @@ function bakeCourt() {
 	seaTime = undefined
 	applyPalette()
 	zb.fill(-1e9)
-	pix.fill(rgb(255, 255, 255))
+	// Transparent, so the court's drop shadow in style.css follows its edge instead of the canvas box.
+	pix.fill(0)
 	for (let iy = 0; iy < H; iy++) for (let ix = 0; ix < W; ix++) {
 		const p = unproject(ix + 0.5, iy + 0.5)
 		const index = iy * W + ix
