@@ -4,19 +4,19 @@
 // test/offline.test.js checks this. Any edit to this file makes browsers install it again,
 // which downloads every file fresh, so bump VERSION when a file changes without its URL
 // changing (index.html, the icons).
-const VERSION = 4
+const VERSION = 5
 const FILES = [
 	'./',
-	'style.css?v=91b4c7e0a2d6',
+	'style.css?v=c42e8f61b9a3',
 	'engine.js?v=7c2d4e10',
-	'game.js?v=e3c58a20',
+	'game.js?v=5d17ab94',
 	'physics.js?v=3',
 	'free-throws.js?v=5',
 	'beat-the-clock.js?v=2',
 	'horse.js?v=2',
 	'music.js?v=2',
 	'courts.js?v=6',
-	'time-of-day.js?v=3',
+	'time-of-day.js?v=4',
 	'favicon.ico',
 	'favicon.svg',
 	'apple-touch-icon.png',

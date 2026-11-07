@@ -19,7 +19,7 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=91b4c7e0a2d6" />
+		<link rel="stylesheet" href="style.css?v=c42e8f61b9a3" />
 	</head>
 	<body>
 		<header class="header">
@@ -34,7 +34,8 @@
 						<label><input type="radio" name="time" value="evening" /> Evening</label>
 						<label><input type="radio" name="time" value="night" /> Night</label>
 					</fieldset>
-					<button id="time" class="time-button" type="button" aria-expanded="false" aria-controls="time-options"><span class="visually-hidden">Time of day: </span><svg class="sun" aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="3" /><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" /></svg><svg class="moon" aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" /></svg><span id="time-label">Auto · Day</span><span class="arrow" aria-hidden="true">▾</span></button>
+					<button id="time" class="time-button auto" type="button" aria-expanded="false" aria-controls="time-options"><span class="visually-hidden">Time of day: <span id="time-label">Auto · Day</span></span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6" /><path d="M8 4.5V8l2.5 1.5" /></svg><span class="auto-dot" aria-hidden="true"></span></button>
+					<div class="time-tip" aria-hidden="true"><strong><span id="time-tip-name">DAY</span><small id="time-tip-hours">10–17</small></strong><span id="time-tip-mode">Auto · follows your clock</span></div>
 				</div>
 				<button id="help-open" class="text-button" type="button">How to play <span aria-hidden="true">↗</span></button>
 			</div>
@@ -115,7 +116,7 @@
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=7c2d4e10"></script>
-		<script type="module" src="game.js?v=e3c58a20"></script>
+		<script type="module" src="game.js?v=5d17ab94"></script>
 		<script>
 			// Saves the game for offline play. Skipped when running locally, where edits
 			// would otherwise be hidden behind the saved copies.

@@ -4,7 +4,7 @@ import { RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor,
 import { LETTERS, SPOT_RADIUS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=2'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=6'
-import { PHASES, resolvePhase } from './time-of-day.js?v=3'
+import { PHASES, hoursOf, resolvePhase } from './time-of-day.js?v=4'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -21,7 +21,7 @@ const NET_COLOR = [255, 250, 230]
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
-	'time', 'time-label', 'time-options',
+	'time', 'time-label', 'time-options', 'time-tip-name', 'time-tip-hours', 'time-tip-mode',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
 	'label-makes', 'longest', 'longest-stat', 'longest-divider', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 ].map(id => [id, document.getElementById(id)]))
@@ -1239,7 +1239,12 @@ function applyPhase() {
 	court = { ...COURTS[courtId], ...(phase.daylight && COURTS[courtId].daylight) }
 	setShadowDirection(phase.shadow.x, phase.shadow.y)
 	document.body.dataset.phase = phaseId
-	nodes['time-label'].textContent = timeChoice === 'auto' ? `Auto · ${phase.name}` : phase.name
+	const auto = timeChoice === 'auto'
+	nodes['time-label'].textContent = auto ? `Auto · ${phase.name}` : phase.name
+	nodes.time.classList.toggle('auto', auto)
+	nodes['time-tip-name'].textContent = phase.name.toUpperCase()
+	nodes['time-tip-hours'].textContent = hoursOf(phaseId)
+	nodes['time-tip-mode'].textContent = auto ? 'Auto · follows your clock' : 'Pinned · click to change'
 	checkOption(nodes['time-options'], timeChoice)
 	bakeCourt()
 }
