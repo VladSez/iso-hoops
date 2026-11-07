@@ -13,9 +13,10 @@ button { font: inherit; cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outline-offset: 6px; }
 .header { position: absolute; top: 32px; left: 40px; right: 40px; display: flex; align-items: center; justify-content: space-between; z-index: 2; }
-.wordmark { display: flex; gap: 11px; align-items: center; font-size: 9px; letter-spacing: 1.5px; line-height: 1.7; }
-.wordmark b { font-size: 17px; letter-spacing: 3.2px; font-weight: 600; }
-.ball-icon { color: var(--orange); font-size: 32px; line-height: 1; }
+.wordmark { display: flex; gap: 10px; align-items: center; font-size: 7px; letter-spacing: 2.6px; line-height: 1; }
+.wordmark > span { display: flex; flex-direction: column; gap: 2px; }
+.wordmark b { color: var(--orange); font-size: 20px; letter-spacing: 0.6px; font-weight: 800; }
+.ball-icon { display: block; width: 32px; height: 32px; }
 .text-button { border: 0; background: none; padding: 6px 0; color: var(--muted); font-size: 11px; }
 .text-button:hover, .footer a:hover { color: var(--orange); }
 #help-open span { margin-left: 12px; }
@@ -208,9 +209,9 @@ dialog .dialog-note { font-size: 10px; }
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
 	body { min-height: 0; overflow: hidden; }
 	.header { top: 10px; left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right)); display: flex; }
-	.wordmark { font-size: 7px; gap: 8px; }
-	.wordmark b { font-size: 13px; }
-	.ball-icon { font-size: 24px; }
+	.wordmark { font-size: 6px; letter-spacing: 2px; gap: 8px; }
+	.wordmark b { font-size: 15px; }
+	.ball-icon { width: 24px; height: 24px; }
 	.session-stats { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); gap: 14px; padding: 4px 10px; }
 	.session-stats strong { font-size: 17px; }
 	.session-stats > div { gap: 4px; }
