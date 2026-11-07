@@ -1241,7 +1241,7 @@ function applyPhase() {
 	document.body.dataset.phase = phaseId
 	const auto = timeChoice === 'auto'
 	nodes['time-label'].textContent = auto ? `Auto · ${phase.name}` : phase.name
-	nodes.time.classList.toggle('auto', auto)
+	nodes.time.classList.toggle('pinned', !auto)
 	nodes['time-tip-name'].textContent = phase.name.toUpperCase()
 	nodes['time-tip-hours'].textContent = hoursOf(phaseId)
 	nodes['time-tip-mode'].textContent = auto ? 'Auto · follows your clock' : 'Pinned · click to change'

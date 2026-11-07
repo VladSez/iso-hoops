@@ -36,9 +36,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .time-button { position: relative; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
 .time-button:hover, .time-button[aria-expanded="true"] { color: var(--orange); }
 .time-button:focus-visible { outline-offset: 2px; }
-/* The dot marks Auto; a pinned phase shows the clock alone. */
-.auto-dot { position: absolute; right: 5px; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--orange); }
-.time-button:not(.auto) .auto-dot { display: none; }
+/* Auto, the usual state, shows the clock alone; the dot flags a phase the player pinned. */
+.pin-dot { position: absolute; right: 5px; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--orange); }
+.time-button:not(.pinned) .pin-dot { display: none; }
 /* Pointers that can hover get a tooltip naming the phase; touch opens the menu on tap instead. */
 .time-tip { position: absolute; top: calc(100% + 10px); right: -8px; z-index: 3; padding: 10px 12px; border: 1px solid var(--edge); background: var(--panel); color: var(--ink); white-space: nowrap; font-size: 10px; line-height: 1.6; box-shadow: 0 12px 40px #28231518; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.15s, visibility 0.15s; }
 .time-tip::before { content: ""; position: absolute; top: -5px; right: 20px; width: 8px; height: 8px; background: var(--panel); border-left: 1px solid var(--edge); border-top: 1px solid var(--edge); transform: rotate(45deg); }
