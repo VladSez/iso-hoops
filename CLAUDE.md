@@ -40,7 +40,7 @@ In free throws mode, holding Space for about 620 ms usually makes the shot, and 
 - `dist/engine.js`: the renderer, vendored from Pixel Plays (MIT). It is a classic script whose top-level names (`pix`, `plot`, `project`, `unproject`, `castShadow`, `hash`) are globals that `game.js` uses. Change it only when you must, and keep its two-space style.
 - `dist/physics.js`, `free-throws.js`, `beat-the-clock.js`, `horse.js`: pure rules for the ball and each mode. Each has a test file in `test/`.
 - `dist/courts.js`: one data entry per court (palette, sound, lighting settings). Add per-court behaviour here as data, not as branches in `game.js`.
-- `dist/time-of-day.js`: the phase table (morning, day, evening, night) and the hour lookup.
+- `dist/time-of-day.js`: the phase table (morning, day, evening, night) and today's schedule from sunrise and sunset. `dist/places.js` holds reference coordinates for Europe, the US, Turkey and the most populous zones elsewhere (other zones are estimated from their UTC offset), generated from tzdb's `zone.tab` and `backward`; regenerate it with `node scripts/build-places.mjs` rather than editing by hand. `game.js` saves today's schedule as `iso-hoops:sky` so the early script in `index.html` paints the right sky.
 - `dist/music.js`: the music, generated sample by sample with no audio files.
 - `dist/style.css`: colours are CSS variables on `:root`, and each phase overrides them under `[data-phase="…"]`. Use the variables, not hex values.
 - `dist/sw.js`: the service worker for offline play.

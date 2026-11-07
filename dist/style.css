@@ -153,6 +153,9 @@ kbd { font: inherit; font-size: 9px; color: var(--kbd); border: 1px solid var(--
 .menu-options label { clear: left; display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 10px; color: var(--soft); cursor: pointer; }
 .menu-options label:hover { background: var(--hover); }
 .menu-options input { margin: 0; accent-color: var(--orange); }
+/* Each phase's times today, so phones (which get no tooltip) can see them too. */
+.menu-options legend small { float: right; color: var(--muted); letter-spacing: 0.4px; }
+.menu-options label small { margin-left: auto; color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100svh - 40px); padding: 30px; border: 1px solid #e7e3dc; color: #302e2a; background: #fff; box-shadow: 0 25px 100px #28231515; }
 dialog::backdrop { background: #fff9; backdrop-filter: blur(5px); }
