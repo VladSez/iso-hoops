@@ -38,7 +38,7 @@
 				const [morning, day, evening, night] = sky?.date === now.toDateString() ? sky.starts : [300, 600, 1020, 1200]
 				document.body.dataset.phase = ['morning', 'day', 'evening', 'night'].includes(time) ? time
 					: minute >= night || minute < morning ? 'night' : minute >= evening ? 'evening' : minute >= day ? 'day' : 'morning'
-				document.body.dataset.mode = ['free', 'free-throws', 'clock', 'horse'].includes(mode) ? mode : 'free'
+				document.body.dataset.mode = ['free', 'free-throws', 'clock', 'horse', 'three-point'].includes(mode) ? mode : 'free'
 			}
 		</script>
 		<header class="header">
@@ -90,6 +90,7 @@
 						<label><input type="radio" name="mode" value="free-throws" /> 10 free throws</label>
 						<label><input type="radio" name="mode" value="clock" /> Beat the clock</label>
 						<label><input type="radio" name="mode" value="horse" /> HORSE</label>
+						<label><input type="radio" name="mode" value="three-point" /> 3PT contest</label>
 					</fieldset>
 					<button id="mode" class="menu-button" type="button" aria-expanded="false" aria-controls="mode-options"><span class="menu-name">MODE</span><span class="menu-value"><span id="mode-label">Free shooting</span> <span aria-hidden="true">▾</span></span></button>
 				</div>
@@ -129,13 +130,14 @@
 			<p class="dialog-note">Try 10 free throws from the Mode menu. Shoot ten from the line, release inside the dark band on the meter, and see how many you make. Each new round moves you a step back.</p>
 			<p class="dialog-note">Or pick Beat the clock: score as many points as you can in 60 seconds, shooting from anywhere. A basket is worth 2, or 3 from beyond the arc. The clock starts with your first shot, and a shot in the air at the buzzer still counts.</p>
 			<p class="dialog-note">Or play HORSE: a ring marks a spot on the court. Walk into it and make the shot. Every miss earns a letter of H-O-R-S-E, and spelling it ends the game. The spots start at mid-range and move back every three makes.</p>
-			<p class="dialog-note">The ball returns automatically.<span class="pointer-only"> Press Esc to cancel a charge or pause.</span> Free shooting stats last for this visit, except your longest basket, which is saved along with your best free throw round, your best against the clock and your best HORSE game.</p>
+			<p class="dialog-note">Or take on the 3PT contest: five racks round the arc, five balls each, and two deep balls, all in 60 seconds. You move from rack to rack on your own, so just release inside the band. A basket is worth 1, the last ball on each rack (the blue money ball) 2, and the gold deep balls 3. Before your first shot, pick one rack to be all money balls<span class="pointer-only"> with ← → or by clicking it</span><span class="touch-only"> by tapping it</span>. The most you can score is 40.</p>
+			<p class="dialog-note">The ball returns automatically.<span class="pointer-only"> Press Esc to cancel a charge or pause.</span> Free shooting stats last for this visit, except your longest basket, which is saved along with your best free throw round, your best against the clock, your best HORSE game and your best 3PT contest.</p>
 			<p class="dialog-note">Plays offline too. Once the court has loaded, it works without an internet connection. To keep it close, install it: <span class="pointer-only">in Chrome or Edge, click Install in the address bar or the browser menu; in Safari on a Mac, choose File › Add to Dock.</span><span class="touch-only">on iPhone or iPad, tap Share, then Add to Home Screen; on Android, open the browser menu and tap Install app or Add to Home screen.</span></p>
 			<button id="help-play" class="play-button" type="button">Back to the court <span>↗</span></button>
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=7c2d4e10"></script>
-		<script type="module" src="game.js?v=6c9e4a1b3d"></script>
+		<script type="module" src="game.js?v=7d1f3a5c2e"></script>
 		<script>
 			// Saves the game for offline play. Skipped when running locally, where edits
 			// would otherwise be hidden behind the saved copies.

@@ -16,6 +16,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 - **10 free throws:** a mode with a goal. Shoot ten from the free throw spot and see how many you make, then step back a little each round, out to the three-point line. Your best round is remembered. Pick it from the Mode menu in the footer.
 - **Beat the clock:** free shooting against a 60-second clock. A basket is worth 2 points, or 3 from beyond the arc. The clock starts with your first shot, the ball comes back quickly, and the last ten seconds turn red. Your best score is saved.
 - **HORSE:** a one-player game of HORSE against the court. A ring marks a spot; walk into it and make the shot. Every miss earns a letter, and spelling H-O-R-S-E ends the game. The spots start at mid-range (4–5 m) and move back every three makes, out beyond the arc. Your best run is saved.
+- **3PT contest:** the All-Star three-point contest. Five racks of five balls round the arc plus two deep balls, 60 seconds. Each rack's last ball is a money ball worth 2, one rack of your choice is all money balls, and the deep balls are worth 3, for 40 at most. Your best score is saved.
 - **Real shot physics:** the ball can bounce off the rim and the backboard. A basket counts only when the ball drops down through the hoop.
 - **Music written in code:** a quiet, original 76 BPM loop built sample by sample, with no audio files.
 - **Sound effects made on the fly:** dribbles, swishes and the scoring chime are all generated with the Web Audio API.
@@ -40,9 +41,11 @@ Beat the clock plays like free shooting: move and aim anywhere. Points go by whe
 
 In HORSE you move and aim freely too, but you can only shoot from inside the ring, which turns white once you're in it. Your feet stay planted while you charge. Each shot, made or missed, calls a new spot. After H-O-R-S-E, Space (or Shoot) starts a new game.
 
+In the 3PT contest you're moved from rack to rack and always face the rim, so the shot is all timing: release inside the band on the meter, and watch the arc while you charge. The next ball is ready while the last is still in the air. Before your first shot, pick the money rack with ← → or 1–5, or by clicking or tapping a rack. The clock starts with your first shot and the contest ends when time runs out or the racks are empty.
+
 On phones and tablets, drag the stick in the bottom left to move. You keep facing the rim as you walk; tap or drag on the court to aim elsewhere, or hold the ↺ / ↻ buttons to turn a little. Tap near the rim to aim back at it. Hold the Shoot button to charge. Both portrait and landscape work.
 
-The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round, your best against the clock and your best HORSE game are saved in your browser too.
+The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round, your best against the clock, your best HORSE game and your best 3PT contest are saved in your browser too.
 
 ## Play offline
 
