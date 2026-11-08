@@ -740,8 +740,16 @@ function showCallout(title, detail) {
 	nodes['callout-title'].textContent = title
 	nodes['callout-detail'].textContent = detail
 	nodes['basket-callout'].hidden = false
-	nodes['basket-callout'].classList.add('celebrate')
-	nodes.makes.closest('.session-stats').classList.add('scored')
+	replayAnimation(nodes['basket-callout'], 'celebrate')
+	replayAnimation(nodes.makes.closest('.session-stats'), 'scored')
+}
+
+// A make can land while the last one's popup is still showing, so the class is already on and the animation would not
+// restart. Reading layout in between makes the browser start it again.
+function replayAnimation(node, className) {
+	node.classList.remove(className)
+	void node.offsetWidth
+	node.classList.add(className)
 }
 
 function takeHorseShot(made) {
