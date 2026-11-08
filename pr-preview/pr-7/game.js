@@ -740,8 +740,16 @@ function showCallout(title, detail) {
 	nodes['callout-title'].textContent = title
 	nodes['callout-detail'].textContent = detail
 	nodes['basket-callout'].hidden = false
-	nodes['basket-callout'].classList.add('celebrate')
-	nodes.makes.closest('.session-stats').classList.add('scored')
+	replayAnimation(nodes['basket-callout'], 'celebrate')
+	replayAnimation(nodes.makes.closest('.session-stats'), 'scored')
+}
+
+// A make can land while the last one's popup is still showing, so the class is already on and the animation would not
+// restart. Reading layout in between makes the browser start it again.
+function replayAnimation(node, className) {
+	node.classList.remove(className)
+	void node.offsetWidth
+	node.classList.add(className)
 }
 
 function takeHorseShot(made) {
@@ -1143,9 +1151,14 @@ nodes.shoot.addEventListener('pointerdown', event => {
 	beginCharge('pointer')
 })
 nodes.shoot.addEventListener('pointerup', () => releaseShot('pointer'))
-// iOS opens its text-selection loupe on a long press unless the default is prevented.
-nodes.shoot.addEventListener('contextmenu', event => event.preventDefault())
 nodes.shoot.addEventListener('pointercancel', cancelInput)
+// iOS starts its long-press text selection and Copy menu from touch events, which user-select: none and a
+// prevented pointerdown don't always stop, so the held controls cancel the touch itself. Pointer events still fire.
+for (const control of [nodes.shoot, nodes.stick, ...nodes.turn.children]) {
+	for (const type of ['touchstart', 'contextmenu', 'selectstart']) {
+		control.addEventListener(type, event => event.preventDefault(), { passive: false })
+	}
+}
 
 // The stick's offset from its centre is a screen-space direction, like WASD, scaled to 0..1.
 const STICK_DEAD_ZONE = 0.15
@@ -1208,7 +1221,14 @@ document.addEventListener('gesturestart', event => {
 	if (isHoldingControl) event.preventDefault()
 })
 addEventListener('blur', cancelInput)
-document.addEventListener('visibilitychange', () => { if (document.hidden) cancelInput() })
+// Switching apps on a phone can land a stray touch on the court, which reads as aiming at that spot and stops the
+// player facing the rim. Coming back starts from facing the rim again.
+document.addEventListener('visibilitychange', () => {
+	if (!document.hidden) return
+	cancelInput()
+	state.pointer = undefined
+	updateAim()
+})
 
 function openHelp() {
 	cancelInput()
