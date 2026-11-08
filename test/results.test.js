@@ -25,6 +25,11 @@ test('the contest card shows every ball by rack, with money and deep balls count
 	assert.equal(results.note, 'Best rack: rack 3, 10 of 10')
 })
 
+test('the contest card counts seconds left the way the header does', () => {
+	const results = contestResults({ log: [], moneyRack: 0, points: 0, best: 0, bestBefore: 0, secondsLeft: 26.4, racksDone: true })
+	assert.equal(results.side, '27 S LEFT')
+})
+
 test('a first round sets the bar without a stamp, and later rounds say how far off the best they were', () => {
 	assert.equal(clockResults({ log: [], points: 0, best: 0, bestBefore: 0 }).stamp, undefined)
 	assert.equal(clockResults({ log: [], points: 30, best: 34, bestBefore: 34 }).scoreNote, 'points · 4 short of your best')
