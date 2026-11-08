@@ -48,7 +48,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .time-button:hover { box-shadow: 0 0 0 1px var(--edge), 0 4px 6px color-mix(in srgb, var(--shade) 8%, transparent), 0 12px 22px -6px color-mix(in srgb, var(--shade) 16%, transparent); transform: translateY(-1px); }
 .time-button:focus-visible { outline-offset: 2px; }
 /* Auto, the usual state, shows the clock alone; the dot flags a phase the player pinned. */
-.pin-dot { position: absolute; right: 4px; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--orange); }
+/* Sits on the clock face's lower right, ringed in the button colour so it reads as a badge inside the circle. */
+.pin-dot { position: absolute; right: 7px; bottom: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 2px var(--panel); }
 .time-button:not(.pinned) .pin-dot { display: none; }
 /* Pointers that can hover get a tooltip naming the phase; touch opens the menu on tap instead. */
 .time-tip { position: absolute; top: calc(100% + 10px); right: -8px; z-index: 3; padding: 10px 12px; border: 1px solid var(--edge); border-radius: 10px; background: var(--panel); color: var(--ink); white-space: nowrap; font-size: 10px; line-height: 1.6; box-shadow: 0 4px 8px color-mix(in srgb, var(--shade) 8%, transparent), 0 24px 48px -12px color-mix(in srgb, var(--shade) 24%, transparent); pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.15s, visibility 0.15s; }
@@ -256,7 +257,10 @@ dialog .dialog-note { font-size: 10px; }
 	#turn { grid-area: turn; display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
 	#turn > span { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: radial-gradient(circle at 50% 35%, var(--panel), color-mix(in srgb, var(--panel) 94%, var(--shade))); box-shadow: 0 0 0 1px var(--edge), 0 3px 6px color-mix(in srgb, var(--shade) 10%, transparent); color: var(--soft); font-size: 22px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; transition: background 0.15s, color 0.15s; }
 	#turn > span.active { background: var(--orange); box-shadow: inset 0 2px 4px #6e2f1559; color: #fff; }
-	#shoot { grid-area: shoot; padding: 0; color: var(--ink); font-size: 11px; letter-spacing: 2px; transition: background 0.15s, color 0.15s; }
+	/* Squeezes in while held and springs back past full size on release. */
+	#shoot { grid-area: shoot; padding: 0; color: var(--ink); font-size: 11px; letter-spacing: 2px; transition: background 0.15s, color 0.15s, transform 0.3s cubic-bezier(0.3, 1.4, 0.5, 1); }
+	#shoot:active, body.charging #shoot { transform: scale(0.96); transition: background 0.15s, color 0.15s, transform 0.1s ease-out; }
+	@media (prefers-reduced-motion: reduce) { #shoot, #shoot:active, body.charging #shoot { transform: none; } }
 	body.charging #shoot { background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--orange) 82%, #fff), color-mix(in srgb, var(--orange) 90%, #000)); box-shadow: inset 0 3px 6px #6e2f1559, 0 1px 2px color-mix(in srgb, var(--shade) 16%, transparent); color: #fff; }
 	#stage { bottom: 300px; }
 	.shoot-panel { bottom: 112px; }
