@@ -5,7 +5,9 @@ const SCENE = window.PP_SCENE || {};
 const W = 360, H = 280, S = 10;
 const SIN = 0.5, COS = Math.sqrt(3) / 2, R2 = Math.SQRT2;
 const OX = W / 2, OY = H / 2 + (SCENE.originY || 0);
-const SHADOW_X = SCENE.shadowX == null ? 1.3 : SCENE.shadowX, SHADOW_Y = SCENE.shadowY == null ? -.12 : SCENE.shadowY;
+let SHADOW_X = SCENE.shadowX == null ? 1.3 : SCENE.shadowX, SHADOW_Y = SCENE.shadowY == null ? -.12 : SCENE.shadowY;
+// Games that move the sun call this before baking the scene again.
+function setShadowDirection(x, y) { SHADOW_X = x; SHADOW_Y = y; }
 const canvas = document.getElementById('c');
 canvas.width = W; canvas.height = H;
 const ctx = canvas.getContext('2d');

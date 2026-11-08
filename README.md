@@ -10,7 +10,8 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 
 ## Features
 
-- **5 courts:** neighborhood, rooftop at dusk, boardwalk beach, autumn park and first snow. Switch between them from the Court menu in the footer.
+- **5 courts:** neighborhood, rooftop, boardwalk beach, autumn park and first snow. Switch between them from the Court menu in the footer.
+- **Every court keeps your hours:** each one follows today's sun where you live: morning from first light, day from two hours after sunrise, evening's golden hour from ninety minutes before sunset, and night after dark. The times shift with the seasons and daylight saving, and come from your time zone, never your location. The page takes the colour of the sky, the sun's shadows move, and after dark five streetlights and a floodlight on the hoop light the court under the stars. The clock button in the header shows the phase and today's times, and you can pin one instead of following the sun. The choice is saved.
 - **Longest basket:** in free shooting, the header tracks your longest make in metres, measured from where you shot to the hoop. Beat it for a NEW LONGEST callout. It is saved in your browser.
 - **10 free throws:** a mode with a goal. Shoot ten from the free throw spot and see how many you make, then step back a little each round, out to the three-point line. Your best round is remembered. Pick it from the Mode menu in the footer.
 - **Beat the clock:** free shooting against a 60-second clock. A basket is worth 2 points, or 3 from beyond the arc. The clock starts with your first shot, the ball comes back quickly, and the last ten seconds turn red. Your best score is saved.
