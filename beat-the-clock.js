@@ -13,17 +13,17 @@ export const pointsFor = spot => (Math.hypot(spot.x - HOOP.x, spot.y - HOOP.y) >
 /**
  * A 60-second round of free shooting for points. The clock waits for the first shot, so `endsAt` (in game seconds)
  * stays undefined until then. Once time runs out the round still waits for a ball in the air, and only ends with
- * `finishRound`, which is when the best score moves.
+ * `finishRound`, which is when the best score moves and the clock stops, at `now`.
  */
 export const startClockRound = best => ({ points: 0, best, endsAt: undefined, isOver: false })
 
 export const startClock = (round, now) => ({ ...round, endsAt: now + ROUND_SECONDS })
 
-export const secondsLeft = (round, now) => (round.endsAt === undefined ? ROUND_SECONDS : Math.max(0, round.endsAt - now))
+export const secondsLeft = (round, now) => (round.endsAt === undefined ? ROUND_SECONDS : Math.max(0, round.endsAt - (round.stoppedAt ?? now)))
 
 export const isTimeUp = (round, now) => round.endsAt !== undefined && now >= round.endsAt
 
 // A shot released before the buzzer counts even if it drops after it, so makes are only refused once the round is over.
 export const recordMake = (round, points) => (round.isOver ? round : { ...round, points: round.points + points })
 
-export const finishRound = round => ({ ...round, isOver: true, best: Math.max(round.best, round.points) })
+export const finishRound = (round, now) => ({ ...round, isOver: true, best: Math.max(round.best, round.points), stoppedAt: now })
