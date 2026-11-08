@@ -19,7 +19,7 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=3b9d5f8a1e60" />
+		<link rel="stylesheet" href="style.css?v=4c1e7a9b2d50" />
 	</head>
 	<body>
 		<script>
@@ -71,13 +71,29 @@
 		<main>
 			<div id="stage"><canvas id="c" tabindex="0" aria-label="Basketball practice court. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot." aria-describedby="controls"></canvas></div>
 			<div id="basket-callout" hidden aria-hidden="true"><strong id="callout-title">BASKET!</strong><span id="callout-detail">+1 MADE</span></div>
+			<section id="results" aria-label="Round results" hidden>
+				<div class="results-top"><span id="results-label"></span><span id="results-side"></span></div>
+				<div class="results-score">
+					<p><strong id="results-score"></strong><span id="results-note"></span></p>
+					<div id="results-stamp" hidden><span id="results-stamp-text"></span><small id="results-stamp-detail"></small></div>
+				</div>
+				<div id="results-chart"></div>
+				<div id="results-stats"></div>
+				<div class="results-foot">
+					<span id="results-foot-note"></span>
+					<div class="results-go">
+						<button id="results-again" type="button"><span id="results-action">Play again</span><small id="results-action-detail" hidden></small></button>
+						<span class="results-hint pointer-only" aria-hidden="true">press <kbd>SPACE</kbd> or click</span>
+					</div>
+				</div>
+			</section>
 			<div class="shoot-panel">
 				<p id="feedback" role="status" aria-live="polite">A little time. A few good shots.</p>
 				<div class="power-label"><span>SHOT POWER</span><output id="power-value">0%</output></div>
 				<div id="power-meter" role="meter" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="power-fill"></div><div id="power-target" hidden></div><span></span><span></span><span></span></div>
 				<div id="stick" aria-hidden="true"><span id="stick-knob"></span></div>
 				<div id="turn" aria-hidden="true"><span data-key="KeyQ">↺</span><span data-key="KeyE">↻</span></div>
-				<button id="shoot" type="button"><kbd>SPACE</kbd><span id="shoot-label">Hold to charge · release to shoot</span><span class="touch-only">SHOOT</span></button>
+				<button id="shoot" type="button"><kbd>SPACE</kbd><span class="shoot-mouse pointer-only" aria-hidden="true">/ <span class="mouse-icon"></span></span><span class="visually-hidden pointer-only">or the mouse button:</span><span id="shoot-label">Hold to charge · release to shoot</span><span class="touch-only">SHOOT</span></button>
 			</div>
 		</main>
 		<footer class="footer">
@@ -137,7 +153,7 @@
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=7c2d4e10"></script>
-		<script type="module" src="game.js?v=a0c4d6e8f2"></script>
+		<script type="module" src="game.js?v=b1d5e7f9a3"></script>
 		<script>
 			// Saves the game for offline play. Skipped when running locally, where edits
 			// would otherwise be hidden behind the saved copies.

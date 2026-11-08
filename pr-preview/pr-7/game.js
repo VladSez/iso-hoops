@@ -1,8 +1,9 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
-import { RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=2'
-import { LETTERS, SPOT_RADIUS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=2'
+import { ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=2'
+import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=2'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
+import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=1'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=6'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
@@ -29,6 +30,9 @@ const nodes = Object.fromEntries([
 	'time', 'time-label', 'time-options', 'time-zone', 'time-tip-name', 'time-tip-hours', 'time-tip-zone', 'time-tip-mode',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
 	'label-makes', 'longest', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
+	'results', 'results-label', 'results-side', 'results-score', 'results-note', 'results-stamp', 'results-stamp-text',
+	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
+	'results-action-detail',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -41,6 +45,8 @@ const state = {
 	mode: 'free', round: startRound(0), clock: startClockRound(0), horse: startHorse(0), longest: 0,
 	// The contest lets the next ball go while earlier ones are still in the air, so its balls live in `flying`.
 	contest: startContest(0), flying: [], reloadAt: undefined,
+	// The current round's shots, one entry each, for the results card at its end.
+	log: [],
 }
 
 const COURT_KEY = 'iso-hoops:court'
@@ -488,6 +494,7 @@ function updateMeter() {
 	nodes['power-fill'].style.width = `${percent}%`
 	nodes['power-meter'].setAttribute('aria-valuenow', String(percent))
 	document.body.classList.toggle('charging', state.phase === 'charging')
+	document.body.dataset.charge = state.phase === 'charging' ? state.chargeSource : ''
 	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.phase === 'flight' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
 }
 
@@ -529,6 +536,7 @@ function beginCharge(source) {
 		// Like a new free throw round, this press only resets the racks, so the player can pick a money rack again.
 		if (state.contest.isOver) {
 			state.contest = startContest(state.contest.best, state.contest.moneyRack)
+			startLog()
 			placeForStation()
 			setFeedback(`${PICK_HINT}, then shoot to start.`)
 			updateStats()
@@ -540,6 +548,7 @@ function beginCharge(source) {
 	// This press only starts the next round, so the player sees the new spot and band before shooting.
 	if (state.mode === 'free-throws' && isDone(state.round)) {
 		state.round = startRound(state.round.best, state.round.level + 1)
+		startLog()
 		placeForRound()
 		setFeedback(`Round ${state.round.level}, from ${levelOf(state.round).distance} m. Ten shots.`)
 		updateStats()
@@ -549,6 +558,7 @@ function beginCharge(source) {
 		// Like a new free throw round, this press only starts a new game, so the player sees the first spot first.
 		if (state.horse.isOver) {
 			state.horse = startHorse(state.horse.best)
+			startLog()
 			setFeedback('New game. Walk into the ring.')
 			updateStats()
 			return
@@ -562,6 +572,7 @@ function beginCharge(source) {
 		// Like a new free throw round, this press only resets the score, so the 60 seconds start with the next shot.
 		if (state.clock.isOver) {
 			state.clock = startClockRound(state.clock.best)
+			startLog()
 			setFeedback('60 seconds again. Your first shot starts it.')
 			updateStats()
 			return
@@ -582,6 +593,7 @@ function releaseShot(source) {
 	state.ball.distance = shotDistance(state.player)
 	// Scored from where the shot was released, since the player can walk while the ball is in the air.
 	state.ball.points = pointsFor(state.player)
+	state.ball.releasedAt = state.time
 	state.returnTime = undefined
 	state.phase = 'flight'
 	state.chargeSource = undefined
@@ -599,6 +611,7 @@ function releaseContestBall() {
 	const shot = nextShot(state.contest)
 	const ball = createShot(state.player, state.yaw, state.power)
 	ball.value = valueOf(shot, state.contest.moneyRack)
+	ball.shot = state.contest.taken
 	state.flying.push(ball)
 	state.contest = takeBall(state.contest)
 	const next = nextShot(state.contest)
@@ -654,6 +667,7 @@ function updateAim() {
 
 function takeFreeThrow(made) {
 	const bestBefore = state.round.best
+	state.log.push({ made })
 	state.round = recordShot(state.round, made)
 	const { taken, best } = state.round
 	if (best > bestBefore) {
@@ -665,6 +679,10 @@ function takeFreeThrow(made) {
 		const next = { ...state.round, level: state.round.level + 1 }
 		const farther = levelOf(next).distance > levelOf(state.round).distance ? `, from ${levelOf(next).distance} m` : ''
 		setFeedback(`${score}. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} for round ${next.level}${farther}.`, made)
+		showResults(freeThrowResults({
+			log: state.log, made: state.round.made, level: state.round.level, best, bestBefore,
+			distance: levelOf(state.round).distance, nextDistance: levelOf(next).distance,
+		}))
 	} else {
 		setFeedback(made ? `Good. ${score}.` : `Off the mark. ${score}.`, made)
 	}
@@ -683,6 +701,12 @@ function finishClock() {
 	else if (best > bestBefore) verdict = 'New best!'
 	setFeedback(`Time! ${points} points. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to restart.`, best > bestBefore)
 	updateStats()
+	showResults(clockResults({ log: state.log, points, best, bestBefore }))
+}
+
+function logClockShot(made) {
+	const { ball, clock } = state
+	state.log.push({ at: ball.releasedAt - (clock.endsAt - ROUND_SECONDS), made, points: ball.points, distance: ball.distance })
 }
 
 function finishContest() {
@@ -701,6 +725,10 @@ function finishContest() {
 	const ending = nextShot(state.contest) ? 'Time!' : 'Racks done!'
 	setFeedback(`${ending} ${pointsText(points)}. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to restart.`, best > bestBefore)
 	updateStats()
+	showResults(contestResults({
+		log: state.log, moneyRack: state.contest.moneyRack, points, best, bestBefore,
+		secondsLeft: secondsLeft(state.contest, state.time), racksDone: !nextShot(state.contest),
+	}))
 }
 
 const pointsText = points => `${points} ${points === 1 ? 'point' : 'points'}`
@@ -708,6 +736,7 @@ const pointsText = points => `${points} ${points === 1 ? 'point' : 'points'}`
 const CONTEST_CALLOUTS = { 1: 'BASKET!', 2: 'MONEY BALL!', 3: 'DEEP THREE!' }
 function scoreContestBall(ball) {
 	state.contest = recordMake(state.contest, ball.value)
+	state.log.push({ shot: ball.shot, made: true })
 	showCallout(CONTEST_CALLOUTS[ball.value], `+${ball.value} · ${state.contest.points} PTS`)
 	setFeedback(`${pointsText(state.contest.points)}.`, true)
 	updateStats()
@@ -719,7 +748,10 @@ function updateContest(delta) {
 			playSound(event)
 			if (event === 'score') scoreContestBall(ball)
 		}
-		if (ball.goneAt === undefined && (ball.made || isDead(ball))) ball.goneAt = state.time + (ball.made ? 1.2 : 0.9)
+		if (ball.goneAt === undefined && (ball.made || isDead(ball))) {
+			ball.goneAt = state.time + (ball.made ? 1.2 : 0.9)
+			if (!ball.made) state.log.push({ shot: ball.shot, made: false })
+		}
 	}
 	state.flying = state.flying.filter(ball => ball.goneAt === undefined || state.time < ball.goneAt)
 	if (state.reloadAt !== undefined && state.time >= state.reloadAt) {
@@ -744,6 +776,106 @@ function showCallout(title, detail) {
 	replayAnimation(nodes.makes.closest('.session-stats'), 'scored')
 }
 
+function startLog() {
+	state.log = []
+	nodes.results.hidden = true
+}
+
+const el = (tag, className = '', text = '') => Object.assign(document.createElement(tag), { className, textContent: text })
+
+// The card shown when a round ends: see results.js for what each mode puts on it.
+function showResults(results) {
+	nodes['results-label'].textContent = results.label
+	nodes['results-side'].textContent = results.side
+	nodes['results-score'].replaceChildren(results.score, ...(results.scoreUnit ? [el('small', '', results.scoreUnit)] : []))
+	nodes['results-note'].textContent = results.scoreNote
+	nodes['results-stamp'].hidden = !results.stamp
+	if (results.stamp) {
+		nodes['results-stamp-text'].textContent = results.stamp.text
+		nodes['results-stamp-detail'].textContent = results.stamp.detail
+	}
+	nodes['results-chart'].replaceChildren(...CHARTS[results.chart.type](results.chart))
+	nodes['results-stats'].replaceChildren(...results.stats.map(stat => {
+		const value = el('strong', '', String(stat.value))
+		if (stat.of !== undefined) value.append(el('small', '', `/${stat.of}`))
+		if (stat.unit) value.append(el('small', '', stat.unit))
+		const slot = el('div')
+		slot.append(value, el('span', '', stat.label))
+		return slot
+	}))
+	nodes['results-foot-note'].textContent = results.note
+	nodes['results-action'].textContent = results.action ?? 'Play again'
+	nodes['results-action-detail'].textContent = results.actionDetail ?? ''
+	nodes['results-action-detail'].hidden = !results.actionDetail
+	// The card takes over from the last basket's popup, which would otherwise poke out above it.
+	nodes['basket-callout'].hidden = true
+	nodes.results.hidden = false
+}
+
+const ballMark = (value, outcome) => el('span', `ball v${value} ${outcome}`)
+
+const CHARTS = {
+	racks({ columns }) {
+		const racks = el('div', 'racks')
+		for (const column of columns) {
+			const rack = el('div', `rack${column.isMoney ? ' money' : ''}`)
+			const made = column.balls.filter(b => b.outcome === 'made').length
+			rack.setAttribute('aria-label', `${column.label.toLowerCase()}: ${made} of ${column.balls.length}, ${pointsText(column.points)}`)
+			const balls = el('div', 'rack-balls')
+			balls.append(...column.balls.map(b => ballMark(b.value, b.outcome)))
+			rack.append(el('span', 'rack-label', column.label), balls, el('strong', '', String(column.points)), el('span', 'rack-tag', column.isMoney ? 'MONEY' : ''))
+			racks.append(rack)
+		}
+		const legend = el('div', 'results-legend')
+		legend.setAttribute('aria-hidden', 'true')
+		for (const [value, outcome, text] of [[1, 'made', '1 pt'], [2, 'made', 'Money ball, 2'], [3, 'made', 'Deep ball, 3'], [1, 'missed', 'Missed']]) {
+			const item = el('span')
+			item.append(ballMark(value, outcome), text)
+			legend.append(item)
+		}
+		return [racks, legend]
+	},
+	timeline({ shots }) {
+		const line = el('div', 'timeline')
+		line.setAttribute('aria-label', `${shots.length} shots over 60 seconds`)
+		for (const shot of shots) {
+			const tick = el('span', `tick p${shot.points}`)
+			tick.style.left = `${shot.at / ROUND_SECONDS * 100}%`
+			line.append(tick)
+		}
+		const axis = el('div', 'timeline-axis')
+		axis.append(el('span', '', '0 s'), el('span', '', '30 s'), el('span', '', '60 s'))
+		const legend = el('div', 'results-legend')
+		legend.setAttribute('aria-hidden', 'true')
+		for (const [points, text] of [[3, 'Three'], [2, 'Two'], [0, 'Miss']]) {
+			const item = el('span')
+			item.append(el('span', `tick p${points}`), text)
+			legend.append(item)
+		}
+		return [line, axis, legend]
+	},
+	shots({ shots }) {
+		const row = el('ol', 'shot-row')
+		row.setAttribute('aria-label', 'Shot by shot')
+		shots.forEach((made, i) => {
+			const item = el('li')
+			item.setAttribute('aria-label', `${i + 1}: ${made ? 'made' : 'missed'}`)
+			item.append(ballMark(1, made ? 'made' : 'missed'), el('span', '', String(i + 1)))
+			row.append(item)
+		})
+		return [row]
+	},
+	ladder({ rows }) {
+		return rows.map(row => {
+			const line = el('div', 'ladder-row')
+			const marks = el('div', 'ladder-marks')
+			marks.append(...row.marks.map(letter => (letter ? el('span', 'ball letter', letter) : ballMark(1, 'made'))))
+			line.append(el('span', '', row.name), el('span', 'ladder-range', row.range), marks)
+			return line
+		})
+	},
+}
+
 // A make can land while the last one's popup is still showing, so the class is already on and the animation would not
 // restart. Reading layout in between makes the browser start it again.
 function replayAnimation(node, className) {
@@ -756,6 +888,7 @@ function takeHorseShot(made) {
 	const before = state.horse
 	state.horse = recordHorseShot(state.horse, made)
 	const { made: makes, letters, best, isOver } = state.horse
+	state.log.push({ made, tier: TIERS.indexOf(tierOf(before.made)), letter: made ? '' : LETTERS[letters - 1], distance: state.ball.distance })
 	if (isOver) {
 		if (best > before.best) {
 			try { localStorage.setItem(HORSE_BEST_KEY, String(best)) } catch {}
@@ -765,6 +898,7 @@ function takeHorseShot(made) {
 		if (before.best === 0) verdict = 'One to beat.'
 		else if (best > before.best) verdict = 'New best!'
 		setFeedback(`HORSE. ${makes} made. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to restart.`, best > before.best)
+		showResults(horseResults({ log: state.log, made: makes, best, bestBefore: before.best }))
 		return
 	}
 	if (!made) {
@@ -835,6 +969,7 @@ function update(delta) {
 					takeHorseShot(true)
 				} else if (clock) {
 					state.clock = recordMake(state.clock, state.ball.points)
+					logClockShot(true)
 					const shot = state.ball.points === 3 ? 'Three!' : 'Basket!'
 					setFeedback(`${shot} ${state.clock.points} points.`, true)
 				} else {
@@ -870,6 +1005,7 @@ function update(delta) {
 				takeHorseShot(false)
 				updateStats()
 			} else if (clock) {
+				logClockShot(false)
 				setFeedback('Next one, quick.')
 			} else {
 				setFeedback('Another one. The court isn’t going anywhere.')
@@ -1151,6 +1287,8 @@ nodes.shoot.addEventListener('pointerdown', event => {
 	beginCharge('pointer')
 })
 nodes.shoot.addEventListener('pointerup', () => releaseShot('pointer'))
+// The round is over while the card shows, so this only starts the next one, like Space.
+nodes['results-again'].addEventListener('click', () => beginCharge('button'))
 nodes.shoot.addEventListener('pointercancel', cancelInput)
 // iOS starts its long-press text selection and Copy menu from touch events, which user-select: none and a
 // prevented pointerdown don't always stop, so the held controls cancel the touch itself. Pointer events still fire.
@@ -1505,6 +1643,7 @@ function applyMode() {
 	}
 	if (clock) state.clock = startClockRound(state.clock.best)
 	if (state.mode === 'horse') state.horse = startHorse(state.horse.best)
+	startLog()
 	state.flying = []
 	state.reloadAt = undefined
 	if (contest) {
