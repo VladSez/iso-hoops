@@ -961,9 +961,14 @@ nodes.shoot.addEventListener('pointerdown', event => {
 	beginCharge('pointer')
 })
 nodes.shoot.addEventListener('pointerup', () => releaseShot('pointer'))
-// iOS opens its text-selection loupe on a long press unless the default is prevented.
-nodes.shoot.addEventListener('contextmenu', event => event.preventDefault())
 nodes.shoot.addEventListener('pointercancel', cancelInput)
+// iOS starts its long-press text selection and Copy menu from touch events, which user-select: none and a
+// prevented pointerdown don't always stop, so the held controls cancel the touch itself. Pointer events still fire.
+for (const control of [nodes.shoot, nodes.stick, ...nodes.turn.children]) {
+	for (const type of ['touchstart', 'contextmenu', 'selectstart']) {
+		control.addEventListener(type, event => event.preventDefault(), { passive: false })
+	}
+}
 
 // The stick's offset from its centre is a screen-space direction, like WASD, scaled to 0..1.
 const STICK_DEAD_ZONE = 0.15
