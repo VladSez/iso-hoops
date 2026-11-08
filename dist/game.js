@@ -1031,7 +1031,14 @@ document.addEventListener('gesturestart', event => {
 	if (isHoldingControl) event.preventDefault()
 })
 addEventListener('blur', cancelInput)
-document.addEventListener('visibilitychange', () => { if (document.hidden) cancelInput() })
+// Switching apps on a phone can land a stray touch on the court, which reads as aiming at that spot and stops the
+// player facing the rim. Coming back starts from facing the rim again.
+document.addEventListener('visibilitychange', () => {
+	if (!document.hidden) return
+	cancelInput()
+	state.pointer = undefined
+	updateAim()
+})
 
 function openHelp() {
 	cancelInput()
