@@ -27,7 +27,8 @@ const nodes = Object.fromEntries([
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
-	player: { x: 3.5, y: 0 }, yaw: Math.PI, pointer: undefined,
+	// Just behind the three-point arc at the top of the key (7.2 m), so the first shot is a realistic three.
+	player: { x: 0.2, y: 0 }, yaw: Math.PI, pointer: undefined,
 	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
