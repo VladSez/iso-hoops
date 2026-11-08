@@ -699,15 +699,17 @@ function finishContest() {
 	if (bestBefore === 0) verdict = 'One to beat.'
 	else if (best > bestBefore) verdict = 'New best!'
 	const ending = nextShot(state.contest) ? 'Time!' : 'Racks done!'
-	setFeedback(`${ending} ${points} points. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to restart.`, best > bestBefore)
+	setFeedback(`${ending} ${pointsText(points)}. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to restart.`, best > bestBefore)
 	updateStats()
 }
+
+const pointsText = points => `${points} ${points === 1 ? 'point' : 'points'}`
 
 const CONTEST_CALLOUTS = { 1: 'BASKET!', 2: 'MONEY BALL!', 3: 'DEEP THREE!' }
 function scoreContestBall(ball) {
 	state.contest = recordMake(state.contest, ball.value)
 	showCallout(CONTEST_CALLOUTS[ball.value], `+${ball.value} · ${state.contest.points} PTS`)
-	setFeedback(`${state.contest.points} points.`, true)
+	setFeedback(`${pointsText(state.contest.points)}.`, true)
 	updateStats()
 }
 
