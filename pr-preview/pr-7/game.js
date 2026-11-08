@@ -1,9 +1,9 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
-import { ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=2'
+import { ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=3'
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=3'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
-import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=2'
+import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=3'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=6'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
@@ -690,7 +690,7 @@ function takeFreeThrow(made) {
 
 function finishClock() {
 	const bestBefore = state.clock.best
-	state.clock = finishRound(state.clock)
+	state.clock = finishRound(state.clock, state.time)
 	const { points, best } = state.clock
 	if (best > bestBefore) {
 		try { localStorage.setItem(CLOCK_BEST_KEY, String(best)) } catch {}
@@ -711,7 +711,7 @@ function logClockShot(made) {
 
 function finishContest() {
 	const bestBefore = state.contest.best
-	state.contest = finishRound(state.contest)
+	state.contest = finishRound(state.contest, state.time)
 	const { points, best } = state.contest
 	if (best > bestBefore) {
 		try { localStorage.setItem(THREE_POINT_BEST_KEY, String(best)) } catch {}

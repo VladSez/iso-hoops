@@ -42,7 +42,8 @@ export function contestResults({ log, moneyRack, points, best, bestBefore, secon
 	const rackMax = rack => rack.balls.reduce((total, ball) => total + ball.value, 0)
 	return {
 		label: `3PT CONTEST · ${racksDone ? 'RACKS DONE' : 'TIME!'}`,
-		side: racksDone ? `${Math.floor(secondsLeft)} S LEFT` : '',
+		// Rounded up, like the header's countdown, so the two always agree.
+		side: racksDone ? `${Math.ceil(secondsLeft)} S LEFT` : '',
 		score: String(points),
 		scoreNote: joined('/ 40 points', againstBest(points, best, bestBefore)),
 		stamp: newBest(best, bestBefore),
