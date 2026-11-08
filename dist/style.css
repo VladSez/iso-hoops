@@ -66,7 +66,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 [data-phase="morning"] { --sky-top: #f3d9c8; --sky-bottom: #fbf0e6; --ink: #3a2f29; --muted: #6e5a4f; --label: #6e5a4f; --soft: #4f3f36; --faint: #9c8579; --panel: #fdf4ec; --line: #ead6c8; --edge: #e3cdbd; --hover: #f7e8dc; --kbd: #5a4a41; --skeleton: #f1e2d6; }
 [data-phase="day"] { --sky-top: #e4eff3; --sky-bottom: #fafcfc; --muted: #5f6a6d; --label: #5f6a6d; --line: #dde7ea; --edge: #d6e1e4; --hover: #f3f7f8; --skeleton: #e8eff1; }
 [data-phase="evening"] { --sky-top: #b9a3c9; --sky-bottom: #f4c3a1; --ink: #2e2433; --muted: #45364b; --label: #45364b; --soft: #3e3044; --faint: #6e5a72; --panel: #f8e9e1; --line: #d9c3c9; --edge: #d3bcc4; --hover: #f1dcd2; --kbd: #3e3044; --skeleton: #eedbd3; --orange: #b4512a; }
-[data-phase="night"] { --sky-top: #0c1028; --sky-bottom: #1d2448; --ink: #e8e6f2; --muted: #a3a6c4; --label: #a3a6c4; --soft: #c9cbe0; --faint: #7d81a6; --panel: #161c3a; --line: #2c3460; --edge: #343d6c; --hover: #1f2650; --kbd: #c9cbe0; --skeleton: #232a52; --orange: #f08a4b; --glint: #ffffff14; --shade: #000; color-scheme: dark; }
+[data-phase="night"] { --sky-top: #0c1028; --sky-bottom: #1d2448; --ink: #e8e6f2; --muted: #a3a6c4; --label: #a3a6c4; --soft: #c9cbe0; --faint: #7d81a6; --panel: #161c3a; --line: #2c3460; --edge: #343d6c; --hover: #1f2650; --kbd: #c9cbe0; --skeleton: #232a52; --orange: #f08a4b; --glint: #ffffff14; --shade: #000; --stamp: #05081a; color-scheme: dark; }
 .session-stats { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 27px; align-items: center; padding: 12px 24px; border-radius: 14px; background: linear-gradient(var(--panel), color-mix(in srgb, var(--panel) 97%, var(--shade))); box-shadow: var(--raised); }
 /* Every slot has the same fixed width, so the row only changes size with the number of slots (which the page knows before
    game.js loads), never with what a mode writes into them: HORSE letters, SHOTS LEFT or a longest basket up to 99.9m. */
@@ -86,10 +86,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .session-stats:not(.ready) > div > span::before { left: 14px; right: 14px; top: calc(50% - 4px); height: 8px; }
 @keyframes reveal-stat { to { color: var(--ink); } }
 @media (prefers-reduced-motion: reduce) { .session-stats:not(.ready) > div > :is(strong, span)::before { animation: hide-skeleton 0s 2s forwards; } }
-#basket-callout { position: absolute; z-index: 2; transform: translate(-50%, -100%); padding: 10px 15px; border-radius: 10px; background: #fffdf5; color: var(--orange); text-align: center; pointer-events: none; box-shadow: 0 0 0 1px #ecd6bf, 0 4px 8px #ad75442b, 0 16px 30px -8px #ad754459; }
+/* An arcade stamp: no card, a big headline outlined in the panel colour over a hard one-step pixel shadow, like the court's art,
+   so it reads on any part of the court; the detail is an orange ribbon tucked under it. */
+#basket-callout { position: absolute; z-index: 2; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; white-space: nowrap; pointer-events: none; }
 #basket-callout[hidden] { display: none; }
-#basket-callout strong { display: block; font-size: 16px; letter-spacing: 2px; }
-#basket-callout span { display: block; margin-top: 5px; color: #8b765c; font-size: 9px; letter-spacing: 1px; }
+#basket-callout strong { position: relative; z-index: 1; color: var(--orange); font-size: 24px; font-weight: 800; letter-spacing: 1px; text-shadow: -2px 0px 0 var(--panel), 2px 0px 0 var(--panel), 0px -2px 0 var(--panel), 0px 2px 0 var(--panel), -2px -2px 0 var(--panel), 2px -2px 0 var(--panel), -2px 2px 0 var(--panel), 2px 2px 0 var(--panel), 4px 4px 0 var(--stamp, var(--ink)), 0 8px 14px color-mix(in srgb, var(--shade) 30%, transparent); }
+#basket-callout span { margin-top: -2px; padding: 4px 9px 3px; border-radius: 3px; background: var(--orange); color: var(--panel); font-size: 9px; font-weight: 700; letter-spacing: 1.2px; box-shadow: 2px 2px 0 var(--stamp, var(--ink)), 0 6px 10px color-mix(in srgb, var(--shade) 25%, transparent); }
 #basket-callout.celebrate { animation: basket-pop 1.8s both; }
 .session-stats.scored #makes { animation: score-pop 0.5s ease-out; }
 .session-stats #attempts.hurry { color: #c0492b; }
