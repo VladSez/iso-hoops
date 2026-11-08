@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HOOP, createShot, stepBall } from '../dist/physics.js'
-import { LETTERS, MAKES_PER_TIER, TIERS, isOnSpot, pickSpot, recordHorseShot, startHorse, tierOf } from '../dist/horse.js'
+import { LETTERS, MAKES_PER_TIER, MIN_GAP, TIERS, isOnSpot, pickSpot, recordHorseShot, startHorse, tierOf } from '../dist/horse.js'
 
 // A tiny seeded generator, so the sweeps below are repeatable.
 function seeded(seed) {
@@ -81,4 +81,30 @@ function canScore(distance, angle) {
 test('the closest and farthest called spots can be made', () => {
 	assert.ok(canScore(TIERS[0].min, Math.PI * 0.42))
 	assert.ok(canScore(TIERS.at(-1).max, Math.PI * 0.42))
+})
+
+test('each called spot is well away from the last two, in every tier', () => {
+	const random = seeded(3)
+	const gap = (a, b) => Math.hypot(a.x - b.x, a.y - b.y)
+	let closest = Infinity
+	let tooClose = 0
+	let calls = 0
+	for (let game = 0; game < 500; game++) {
+		let state = startHorse(0, random)
+		const spots = [state.spot]
+		// Make a few, miss one, and repeat, so the spots climb through every tier before HORSE ends the game.
+		for (let shot = 0; !state.isOver; shot++) {
+			state = recordHorseShot(state, shot % 4 !== 3, random)
+			spots.push(state.spot)
+		}
+		for (let i = 1; i < spots.length; i++) {
+			const nearest = Math.min(gap(spots[i], spots[i - 1]), i > 1 ? gap(spots[i], spots[i - 2]) : Infinity)
+			closest = Math.min(closest, nearest)
+			tooClose += nearest < MIN_GAP
+			calls++
+		}
+	}
+	// Where the thin band just inside the arc has no room left, the farthest spot tried still keeps them well apart.
+	assert.ok(closest >= 2, `two spots ${closest.toFixed(2)} m apart`)
+	assert.ok(tooClose / calls < 0.01, `${tooClose} of ${calls} spots closer than ${MIN_GAP} m`)
 })

@@ -45,3 +45,10 @@ test('best only moves when a round finishes, and survives the next round', () =>
 	assert.equal(round.best, 8)
 	assert.equal(finishRound(startClockRound(round.best)).best, 8)
 })
+
+test('the clock stops when the round ends early', () => {
+	let round = startClock(startClockRound(0), 10)
+	round = finishRound(round, 43.4)
+	assert.equal(secondsLeft(round, 43.4), 26.6)
+	assert.equal(secondsLeft(round, 60), 26.6)
+})

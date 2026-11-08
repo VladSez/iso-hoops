@@ -1,7 +1,9 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
-import { RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=2'
-import { LETTERS, SPOT_RADIUS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=2'
+import { ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=3'
+import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=3'
+import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
+import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=3'
 import { createMusicBuffer } from './music.js?v=2'
 import { COURTS } from './courts.js?v=6'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
@@ -18,12 +20,19 @@ const BALL_SEAM = [99, 56, 31]
 const ARC_COLOR = [246, 150, 72]
 const STEEL = [86, 99, 94]
 const NET_COLOR = [255, 250, 230]
+// The money balls are blue and the deep balls gold, so the valuable ones read on the rack and in the air.
+const MONEY_BALL_COLOR = [58, 104, 196]
+const DEEP_BALL_COLOR = [232, 186, 58]
+const BALL_COLORS = { 1: BALL_COLOR, 2: MONEY_BALL_COLOR, 3: DEEP_BALL_COLOR }
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 	'time', 'time-label', 'time-options', 'time-zone', 'time-tip-name', 'time-tip-hours', 'time-tip-zone', 'time-tip-mode',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
 	'label-makes', 'longest', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
+	'results', 'results-label', 'results-side', 'results-score', 'results-note', 'results-stamp', 'results-stamp-text',
+	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
+	'results-action-detail',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -34,6 +43,10 @@ const state = {
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	feedbackTime: 0, walking: false, scoredAt: undefined,
 	mode: 'free', round: startRound(0), clock: startClockRound(0), horse: startHorse(0), longest: 0,
+	// The contest lets the next ball go while earlier ones are still in the air, so its balls live in `flying`.
+	contest: startContest(0), flying: [], reloadAt: undefined,
+	// The current round's shots, one entry each, for the results card at its end.
+	log: [],
 }
 
 const COURT_KEY = 'iso-hoops:court'
@@ -44,11 +57,12 @@ try {
 } catch {}
 let court = COURTS[courtId]
 
-const MODES = { free: 'Free shooting', 'free-throws': '10 free throws', clock: 'Beat the clock', horse: 'HORSE' }
+const MODES = { free: 'Free shooting', 'free-throws': '10 free throws', clock: 'Beat the clock', horse: 'HORSE', 'three-point': '3PT contest' }
 const MODE_KEY = 'iso-hoops:mode'
 const FREE_THROW_BEST_KEY = 'iso-hoops:free-throw-best'
 const CLOCK_BEST_KEY = 'iso-hoops:clock-best-points'
 const HORSE_BEST_KEY = 'iso-hoops:horse-best'
+const THREE_POINT_BEST_KEY = 'iso-hoops:three-point-best'
 const LONGEST_KEY = 'iso-hoops:longest-basket'
 // Phones and tablets get the on-screen stick and Shoot button instead of the keyboard hints.
 const IS_TOUCH = matchMedia('(pointer: coarse)').matches
@@ -57,6 +71,7 @@ const CANVAS_LABELS = {
 	free: canvas.getAttribute('aria-label'),
 	'free-throws': 'Basketball court, free throw line. Your spot and aim are fixed. Hold Space or the mouse button to charge, release inside the band on the meter to shoot.',
 	horse: 'Basketball court with a marked spot. Walk into the ring and make the shot; each miss earns a letter of HORSE, and five letters end the game. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot.',
+	'three-point': 'Basketball court with five ball racks round the three-point line and two deep spots, 60 seconds on the clock. You move from rack to rack on your own and always face the rim. Hold Space or the mouse button to charge, release inside the band on the meter to shoot.',
 	clock: 'Basketball practice court, 60 seconds on the clock. Score 2 for a make, 3 from beyond the arc. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot.',
 }
 try {
@@ -65,6 +80,7 @@ try {
 	state.round = startRound(Math.max(0, Number.parseInt(localStorage.getItem(FREE_THROW_BEST_KEY), 10) || 0))
 	state.clock = startClockRound(Math.max(0, Number.parseInt(localStorage.getItem(CLOCK_BEST_KEY), 10) || 0))
 	state.horse = startHorse(Math.max(0, Number.parseInt(localStorage.getItem(HORSE_BEST_KEY), 10) || 0))
+	state.contest = startContest(Math.max(0, Number.parseInt(localStorage.getItem(THREE_POINT_BEST_KEY), 10) || 0))
 	state.longest = Math.max(0, Number.parseFloat(localStorage.getItem(LONGEST_KEY)) || 0)
 } catch {}
 
@@ -436,13 +452,14 @@ function setFeedback(message, made = false) {
 
 function updateStats() {
 	const pad = value => String(value).padStart(2, '0')
-	if (state.mode === 'clock') {
-		nodes.makes.textContent = pad(state.clock.points)
-		const seconds = Math.ceil(secondsLeft(state.clock, state.time))
+	if (state.mode === 'clock' || state.mode === 'three-point') {
+		const round = state.mode === 'clock' ? state.clock : state.contest
+		nodes.makes.textContent = pad(round.points)
+		const seconds = Math.ceil(secondsLeft(round, state.time))
 		nodes.attempts.textContent = pad(seconds)
-		nodes.accuracy.textContent = pad(state.clock.best)
+		nodes.accuracy.textContent = pad(round.best)
 		// The seconds turn red for the last ten, while the clock is running.
-		const isHurrying = state.clock.endsAt !== undefined && !state.clock.isOver && seconds <= 10
+		const isHurrying = round.endsAt !== undefined && !round.isOver && seconds <= 10
 		nodes.attempts.classList.toggle('hurry', isHurrying)
 		return
 	}
@@ -477,6 +494,7 @@ function updateMeter() {
 	nodes['power-fill'].style.width = `${percent}%`
 	nodes['power-meter'].setAttribute('aria-valuenow', String(percent))
 	document.body.classList.toggle('charging', state.phase === 'charging')
+	document.body.dataset.charge = state.phase === 'charging' ? state.chargeSource : ''
 	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.phase === 'flight' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
 }
 
@@ -491,12 +509,46 @@ function placeForRound() {
 	nodes['power-target'].style.width = `${(window.max - window.min) * 100}%`
 }
 
+// Puts the player at the next ball's rack, facing the rim, with the meter's band over that spot's scoring range.
+function placeForStation() {
+	const shot = nextShot(state.contest)
+	if (!shot) return
+	const { spot, window } = STATIONS[shot.station]
+	state.player.x = spot.x
+	state.player.y = spot.y
+	state.yaw = Math.atan2(HOOP.y - spot.y, HOOP.x - spot.x)
+	state.pointer = undefined
+	nodes['power-target'].style.left = `${window.min * 100}%`
+	nodes['power-target'].style.width = `${(window.max - window.min) * 100}%`
+}
+
+const PICK_HINT = IS_TOUCH ? 'Tap a rack to make it your money rack' : 'Pick your money rack with ← →'
+function pickMoneyRack(rack) {
+	if (state.mode !== 'three-point' || hasStarted(state.contest) || state.contest.isOver) return
+	state.contest = chooseMoneyRack(state.contest, rack)
+	setFeedback(`Money rack: rack ${state.contest.moneyRack + 1}. ${IS_TOUCH ? 'Tap Shoot' : 'Shoot'} to start.`)
+}
+
 function beginCharge(source) {
 	if (state.phase !== 'ready' || state.paused || nodes.help.open) return
 	ensureAudio()
+	if (state.mode === 'three-point') {
+		// Like a new free throw round, this press only resets the racks, so the player can pick a money rack again.
+		if (state.contest.isOver) {
+			state.contest = startContest(state.contest.best, state.contest.moneyRack)
+			startLog()
+			placeForStation()
+			setFeedback(`${PICK_HINT}, then shoot to start.`)
+			updateStats()
+			return
+		}
+		if (isTimeUp(state.contest, state.time) || !nextShot(state.contest)) return
+		if (!hasStarted(state.contest)) state.contest = startClock(state.contest, state.time)
+	}
 	// This press only starts the next round, so the player sees the new spot and band before shooting.
 	if (state.mode === 'free-throws' && isDone(state.round)) {
 		state.round = startRound(state.round.best, state.round.level + 1)
+		startLog()
 		placeForRound()
 		setFeedback(`Round ${state.round.level}, from ${levelOf(state.round).distance} m. Ten shots.`)
 		updateStats()
@@ -506,6 +558,7 @@ function beginCharge(source) {
 		// Like a new free throw round, this press only starts a new game, so the player sees the first spot first.
 		if (state.horse.isOver) {
 			state.horse = startHorse(state.horse.best)
+			startLog()
 			setFeedback('New game. Walk into the ring.')
 			updateStats()
 			return
@@ -519,6 +572,7 @@ function beginCharge(source) {
 		// Like a new free throw round, this press only resets the score, so the 60 seconds start with the next shot.
 		if (state.clock.isOver) {
 			state.clock = startClockRound(state.clock.best)
+			startLog()
 			setFeedback('60 seconds again. Your first shot starts it.')
 			updateStats()
 			return
@@ -534,16 +588,38 @@ function beginCharge(source) {
 function releaseShot(source) {
 	if (state.phase !== 'charging' || source !== state.chargeSource) return
 	state.lastPower = state.power
+	if (state.mode === 'three-point') return releaseContestBall()
 	state.ball = createShot(state.player, state.yaw, state.power)
 	state.ball.distance = shotDistance(state.player)
 	// Scored from where the shot was released, since the player can walk while the ball is in the air.
 	state.ball.points = pointsFor(state.player)
+	state.ball.releasedAt = state.time
 	state.returnTime = undefined
 	state.phase = 'flight'
 	state.chargeSource = undefined
 	state.followThrough = 0.65
 	if (state.mode === 'free') state.attempts++
 	setFeedback('Let it fly.')
+	updateStats()
+	playSound('shoot')
+}
+
+// The ball leaves the rack and the next one is picked up straight away, or after the walk to the next rack.
+const RELOAD = 0.3
+const STATION_MOVE = 0.7
+function releaseContestBall() {
+	const shot = nextShot(state.contest)
+	const ball = createShot(state.player, state.yaw, state.power)
+	ball.value = valueOf(shot, state.contest.moneyRack)
+	ball.shot = state.contest.taken
+	state.flying.push(ball)
+	state.contest = takeBall(state.contest)
+	const next = nextShot(state.contest)
+	state.reloadAt = next ? state.time + (next.station === shot.station ? RELOAD : STATION_MOVE) : undefined
+	state.phase = 'flight'
+	state.chargeSource = undefined
+	state.followThrough = 0.65
+	if (!next) setFeedback('Last ball…')
 	updateStats()
 	playSound('shoot')
 }
@@ -583,7 +659,7 @@ function aimAtPointer(event) {
 function updateAim() {
 	// Touch screens have no hovering cursor to follow, so until the player taps somewhere else they keep facing the rim.
 	const target = state.pointer ?? (IS_TOUCH ? HOOP : undefined)
-	if (!target || state.mode === 'free-throws') return
+	if (!target || state.mode === 'free-throws' || state.mode === 'three-point') return
 	const dx = target.x - state.player.x
 	const dy = target.y - state.player.y
 	if (Math.hypot(dx, dy) > 0.3) state.yaw = Math.atan2(dy, dx)
@@ -591,6 +667,7 @@ function updateAim() {
 
 function takeFreeThrow(made) {
 	const bestBefore = state.round.best
+	state.log.push({ made })
 	state.round = recordShot(state.round, made)
 	const { taken, best } = state.round
 	if (best > bestBefore) {
@@ -602,6 +679,10 @@ function takeFreeThrow(made) {
 		const next = { ...state.round, level: state.round.level + 1 }
 		const farther = levelOf(next).distance > levelOf(state.round).distance ? `, from ${levelOf(next).distance} m` : ''
 		setFeedback(`${score}. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} for round ${next.level}${farther}.`, made)
+		showResults(freeThrowResults({
+			log: state.log, made: state.round.made, level: state.round.level, best, bestBefore,
+			distance: levelOf(state.round).distance, nextDistance: levelOf(next).distance,
+		}))
 	} else {
 		setFeedback(made ? `Good. ${score}.` : `Off the mark. ${score}.`, made)
 	}
@@ -609,7 +690,7 @@ function takeFreeThrow(made) {
 
 function finishClock() {
 	const bestBefore = state.clock.best
-	state.clock = finishRound(state.clock)
+	state.clock = finishRound(state.clock, state.time)
 	const { points, best } = state.clock
 	if (best > bestBefore) {
 		try { localStorage.setItem(CLOCK_BEST_KEY, String(best)) } catch {}
@@ -620,12 +701,194 @@ function finishClock() {
 	else if (best > bestBefore) verdict = 'New best!'
 	setFeedback(`Time! ${points} points. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to restart.`, best > bestBefore)
 	updateStats()
+	showResults(clockResults({ log: state.log, points, best, bestBefore }))
+}
+
+function logClockShot(made) {
+	const { ball, clock } = state
+	state.log.push({ at: ball.releasedAt - (clock.endsAt - ROUND_SECONDS), made, points: ball.points, distance: ball.distance })
+}
+
+function finishContest() {
+	const bestBefore = state.contest.best
+	state.contest = finishRound(state.contest, state.time)
+	const { points, best } = state.contest
+	if (best > bestBefore) {
+		try { localStorage.setItem(THREE_POINT_BEST_KEY, String(best)) } catch {}
+	}
+	state.phase = 'ready'
+	state.reloadAt = undefined
+	// Kept short so the message fits on one line on a phone.
+	let verdict = `Best ${best}.`
+	if (bestBefore === 0) verdict = 'One to beat.'
+	else if (best > bestBefore) verdict = 'New best!'
+	const ending = nextShot(state.contest) ? 'Time!' : 'Racks done!'
+	setFeedback(`${ending} ${pointsText(points)}. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to restart.`, best > bestBefore)
+	updateStats()
+	showResults(contestResults({
+		log: state.log, moneyRack: state.contest.moneyRack, points, best, bestBefore,
+		secondsLeft: secondsLeft(state.contest, state.time), racksDone: !nextShot(state.contest),
+	}))
+}
+
+const pointsText = points => `${points} ${points === 1 ? 'point' : 'points'}`
+
+const CONTEST_CALLOUTS = { 1: 'BASKET!', 2: 'MONEY BALL!', 3: 'DEEP THREE!' }
+function scoreContestBall(ball) {
+	state.contest = recordMake(state.contest, ball.value)
+	state.log.push({ shot: ball.shot, made: true })
+	showCallout(CONTEST_CALLOUTS[ball.value], `+${ball.value} · ${state.contest.points} PTS`)
+	setFeedback(`${pointsText(state.contest.points)}.`, true)
+	updateStats()
+}
+
+function updateContest(delta) {
+	for (const ball of state.flying) {
+		for (const event of stepBall(ball, delta)) {
+			playSound(event)
+			if (event === 'score') scoreContestBall(ball)
+		}
+		if (ball.goneAt === undefined && (ball.made || isDead(ball))) {
+			ball.goneAt = state.time + (ball.made ? 1.2 : 0.9)
+			if (!ball.made) state.log.push({ shot: ball.shot, made: false })
+		}
+	}
+	state.flying = state.flying.filter(ball => ball.goneAt === undefined || state.time < ball.goneAt)
+	if (state.reloadAt !== undefined && state.time >= state.reloadAt) {
+		state.reloadAt = undefined
+		placeForStation()
+		state.phase = 'ready'
+	}
+	const contest = state.contest
+	if (contest.isOver || !hasStarted(contest)) return
+	const timeUp = isTimeUp(contest, state.time)
+	// At the buzzer a charge is lost, but balls already in the air play out and can still count.
+	if (timeUp && state.phase === 'charging') cancelInput()
+	if ((timeUp || !nextShot(contest)) && state.flying.length === 0 && state.phase !== 'charging') finishContest()
+}
+
+function showCallout(title, detail) {
+	state.scoredAt = state.time
+	nodes['callout-title'].textContent = title
+	nodes['callout-detail'].textContent = detail
+	nodes['basket-callout'].hidden = false
+	replayAnimation(nodes['basket-callout'], 'celebrate')
+	replayAnimation(nodes.makes.closest('.session-stats'), 'scored')
+}
+
+function startLog() {
+	state.log = []
+	nodes.results.hidden = true
+}
+
+const el = (tag, className = '', text = '') => Object.assign(document.createElement(tag), { className, textContent: text })
+
+// The card shown when a round ends: see results.js for what each mode puts on it.
+function showResults(results) {
+	nodes['results-label'].textContent = results.label
+	nodes['results-side'].textContent = results.side
+	nodes['results-score'].replaceChildren(results.score, ...(results.scoreUnit ? [el('small', '', results.scoreUnit)] : []))
+	nodes['results-note'].textContent = results.scoreNote
+	nodes['results-stamp'].hidden = !results.stamp
+	if (results.stamp) {
+		nodes['results-stamp-text'].textContent = results.stamp.text
+		nodes['results-stamp-detail'].textContent = results.stamp.detail
+	}
+	nodes['results-chart'].replaceChildren(...CHARTS[results.chart.type](results.chart))
+	nodes['results-stats'].replaceChildren(...results.stats.map(stat => {
+		const value = el('strong', '', String(stat.value))
+		if (stat.of !== undefined) value.append(el('small', '', `/${stat.of}`))
+		if (stat.unit) value.append(el('small', '', stat.unit))
+		const slot = el('div')
+		slot.append(value, el('span', '', stat.label))
+		return slot
+	}))
+	nodes['results-foot-note'].textContent = results.note
+	nodes['results-action'].textContent = results.action ?? 'Play again'
+	nodes['results-action-detail'].textContent = results.actionDetail ?? ''
+	nodes['results-action-detail'].hidden = !results.actionDetail
+	// The card takes over from the last basket's popup, which would otherwise poke out above it.
+	nodes['basket-callout'].hidden = true
+	nodes.results.hidden = false
+}
+
+const ballMark = (value, outcome) => el('span', `ball v${value} ${outcome}`)
+
+const CHARTS = {
+	racks({ columns }) {
+		const racks = el('div', 'racks')
+		for (const column of columns) {
+			const rack = el('div', `rack${column.isMoney ? ' money' : ''}`)
+			const made = column.balls.filter(b => b.outcome === 'made').length
+			rack.setAttribute('aria-label', `${column.label.toLowerCase()}: ${made} of ${column.balls.length}, ${pointsText(column.points)}`)
+			const balls = el('div', 'rack-balls')
+			balls.append(...column.balls.map(b => ballMark(b.value, b.outcome)))
+			rack.append(el('span', 'rack-label', column.label), balls, el('strong', '', String(column.points)), el('span', 'rack-tag', column.isMoney ? 'MONEY' : ''))
+			racks.append(rack)
+		}
+		const legend = el('div', 'results-legend')
+		legend.setAttribute('aria-hidden', 'true')
+		for (const [value, outcome, text] of [[1, 'made', '1 pt'], [2, 'made', 'Money ball, 2'], [3, 'made', 'Deep ball, 3'], [1, 'missed', 'Missed']]) {
+			const item = el('span')
+			item.append(ballMark(value, outcome), text)
+			legend.append(item)
+		}
+		return [racks, legend]
+	},
+	timeline({ shots }) {
+		const line = el('div', 'timeline')
+		line.setAttribute('aria-label', `${shots.length} shots over 60 seconds`)
+		for (const shot of shots) {
+			const tick = el('span', `tick p${shot.points}`)
+			tick.style.left = `${shot.at / ROUND_SECONDS * 100}%`
+			line.append(tick)
+		}
+		const axis = el('div', 'timeline-axis')
+		axis.append(el('span', '', '0 s'), el('span', '', '30 s'), el('span', '', '60 s'))
+		const legend = el('div', 'results-legend')
+		legend.setAttribute('aria-hidden', 'true')
+		for (const [points, text] of [[3, 'Three'], [2, 'Two'], [0, 'Miss']]) {
+			const item = el('span')
+			item.append(el('span', `tick p${points}`), text)
+			legend.append(item)
+		}
+		return [line, axis, legend]
+	},
+	shots({ shots }) {
+		const row = el('ol', 'shot-row')
+		row.setAttribute('aria-label', 'Shot by shot')
+		shots.forEach((made, i) => {
+			const item = el('li')
+			item.setAttribute('aria-label', `${i + 1}: ${made ? 'made' : 'missed'}`)
+			item.append(ballMark(1, made ? 'made' : 'missed'), el('span', '', String(i + 1)))
+			row.append(item)
+		})
+		return [row]
+	},
+	ladder({ rows }) {
+		return rows.map(row => {
+			const line = el('div', 'ladder-row')
+			const marks = el('div', 'ladder-marks')
+			marks.append(...row.marks.map(letter => (letter ? el('span', 'ball letter', letter) : ballMark(1, 'made'))))
+			line.append(el('span', '', row.name), el('span', 'ladder-range', row.range), marks)
+			return line
+		})
+	},
+}
+
+// A make can land while the last one's popup is still showing, so the class is already on and the animation would not
+// restart. Reading layout in between makes the browser start it again.
+function replayAnimation(node, className) {
+	node.classList.remove(className)
+	void node.offsetWidth
+	node.classList.add(className)
 }
 
 function takeHorseShot(made) {
 	const before = state.horse
 	state.horse = recordHorseShot(state.horse, made)
 	const { made: makes, letters, best, isOver } = state.horse
+	state.log.push({ made, tier: TIERS.indexOf(tierOf(before.made)), letter: made ? '' : LETTERS[letters - 1], distance: state.ball.distance })
 	if (isOver) {
 		if (best > before.best) {
 			try { localStorage.setItem(HORSE_BEST_KEY, String(best)) } catch {}
@@ -635,6 +898,7 @@ function takeHorseShot(made) {
 		if (before.best === 0) verdict = 'One to beat.'
 		else if (best > before.best) verdict = 'New best!'
 		setFeedback(`HORSE. ${makes} made. ${verdict} ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to restart.`, best > before.best)
+		showResults(horseResults({ log: state.log, made: makes, best, bestBefore: before.best }))
 		return
 	}
 	if (!made) {
@@ -650,7 +914,9 @@ function update(delta) {
 	const previousDribble = Math.floor(state.time * DRIBBLE_SPEED / Math.PI)
 	state.time += delta
 	// Each zero crossing of the absolute sine is a floor contact.
-	if (state.phase === 'ready' && Math.floor(state.time * DRIBBLE_SPEED / Math.PI) > previousDribble) {
+	const contest = state.mode === 'three-point'
+	// In the contest the player holds the ball from the rack instead of dribbling it.
+	if (state.phase === 'ready' && !contest && Math.floor(state.time * DRIBBLE_SPEED / Math.PI) > previousDribble) {
 		playSound('dribble')
 	}
 	state.followThrough = Math.max(0, state.followThrough - delta)
@@ -663,7 +929,8 @@ function update(delta) {
 	const horse = state.mode === 'horse'
 	// In HORSE you plant your feet once you start charging, so a shot is always released from inside the ring.
 	const isPlanted = horse && state.phase === 'charging'
-	state.walking = length > 0 && !freeThrows && !isPlanted
+	const isFixed = freeThrows || contest
+	state.walking = length > 0 && !isFixed && !isPlanted
 	if (state.walking) {
 		// Keys always walk at full speed; a partly pushed stick walks slower, for small adjustments.
 		if (length > 1) {
@@ -674,36 +941,35 @@ function update(delta) {
 		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.3, 6.3)
 		updateAim()
 	}
-	const turn = freeThrows ? 0 : Number(keys.has('KeyE')) - Number(keys.has('KeyQ'))
+	const turn = isFixed ? 0 : Number(keys.has('KeyE')) - Number(keys.has('KeyQ'))
 	if (turn) {
 		state.pointer = undefined
 		state.yaw += turn * 1.4 * delta
 	}
 	if (state.phase === 'charging') {
 		state.charge = Math.min(1, state.charge + delta / 1.6)
-		state.power = freeThrows ? clamp(state.charge + wobble(state.time, levelOf(state.round)), 0, 1) : state.charge
+		let level
+		if (freeThrows) level = levelOf(state.round)
+		if (contest) level = STATIONS[nextShot(state.contest).station]
+		state.power = level ? clamp(state.charge + wobble(state.time, level), 0, 1) : state.charge
 	}
 	if (state.ball) {
 		const events = stepBall(state.ball, delta)
 		for (const event of events) {
 			playSound(event)
 			if (event === 'score') {
-				state.scoredAt = state.time
-				nodes['callout-title'].textContent = 'BASKET!'
 				const distance = `${state.ball.distance.toFixed(1)} M`
 				let detail = `+1 MADE · ${distance}`
 				if (freeThrows) detail = '+1 MADE'
 				if (clock) detail = `+${state.ball.points} · ${distance}`
-				nodes['callout-detail'].textContent = detail
-				nodes['basket-callout'].hidden = false
-				nodes['basket-callout'].classList.add('celebrate')
-				nodes.makes.closest('.session-stats').classList.add('scored')
+				showCallout('BASKET!', detail)
 				if (freeThrows) {
 					takeFreeThrow(true)
 				} else if (horse) {
 					takeHorseShot(true)
 				} else if (clock) {
 					state.clock = recordMake(state.clock, state.ball.points)
+					logClockShot(true)
 					const shot = state.ball.points === 3 ? 'Three!' : 'Basket!'
 					setFeedback(`${shot} ${state.clock.points} points.`, true)
 				} else {
@@ -739,6 +1005,7 @@ function update(delta) {
 				takeHorseShot(false)
 				updateStats()
 			} else if (clock) {
+				logClockShot(false)
 				setFeedback('Next one, quick.')
 			} else {
 				setFeedback('Another one. The court isn’t going anywhere.')
@@ -746,13 +1013,15 @@ function update(delta) {
 		}
 		if (state.returnTime !== undefined && state.time >= state.returnTime) returnBall()
 	}
+	if (contest) updateContest(delta)
 	if (clock && !state.clock.isOver && isTimeUp(state.clock, state.time)) {
 		// At the buzzer a charge is lost, but a ball already in the air plays out and can still count.
 		if (state.phase === 'charging') cancelInput()
 		if (state.phase === 'ready') finishClock()
 	}
 	// The header shows whole seconds, so only touch the DOM when the shown second changes.
-	if (clock && Math.ceil(secondsLeft(state.clock, state.time)) !== Number(nodes.attempts.textContent)) updateStats()
+	const timed = clock ? state.clock : contest ? state.contest : undefined
+	if (timed && Math.ceil(secondsLeft(timed, state.time)) !== Number(nodes.attempts.textContent)) updateStats()
 	if (state.scoredAt !== undefined && state.time - state.scoredAt >= 1.8) {
 		nodes['basket-callout'].hidden = true
 		nodes['basket-callout'].classList.remove('celebrate')
@@ -765,8 +1034,8 @@ function update(delta) {
 	updateMeter()
 }
 
-function drawBasketball(x, y, z, time) {
-	sphere(x, y, z, BALL_RADIUS, BALL_COLOR, 'solid')
+function drawBasketball(x, y, z, time, color = BALL_COLOR) {
+	sphere(x, y, z, BALL_RADIUS, color, 'solid')
 	// The seams follow the visible hemisphere instead of drawing over hidden pixels.
 	const p = project(x, y, z)
 	for (let i = -2; i <= 2; i++) {
@@ -828,6 +1097,35 @@ function drawSpotMarker() {
 	}
 }
 
+// Each rack stands just behind its spot, its balls in a row across the line of the shot, money balls at the end.
+// A deep spot has its one ball on a short stand.
+const RACK_SPACING = 0.5
+function drawRacks() {
+	const { moneyRack } = state.contest
+	STATIONS.forEach((station, stationIndex) => {
+		const { spot } = station
+		const out = Math.hypot(spot.x - HOOP.x, spot.y - HOOP.y)
+		const back = { x: (spot.x - HOOP.x) / out, y: (spot.y - HOOP.y) / out }
+		const side = { x: -back.y, y: back.x }
+		const base = { x: spot.x + back.x * 0.85, y: spot.y + back.y * 0.85 }
+		const at = (offset, z) => [base.x + side.x * offset, base.y + side.y * offset, z]
+		const left = ballsLeft(state.contest, stationIndex)
+		if (station.deep !== undefined) {
+			line3D(at(0, 0), at(0, 0.62), 0.06, STEEL)
+			if (left) drawBasketball(...at(0, 0.62 + BALL_RADIUS), state.time, DEEP_BALL_COLOR)
+			return
+		}
+		const half = (station.balls - 1) / 2 * RACK_SPACING + 0.3
+		for (const end of [-half, half]) line3D(at(end, 0), at(end, 0.7), 0.05, STEEL)
+		line3D(at(-half, 0.7), at(half, 0.7), 0.05, STEEL)
+		// The rack empties from the far end, so the money ball is always the last one taken.
+		for (let ball = station.balls - left; ball < station.balls; ball++) {
+			const value = valueOf({ station: stationIndex, ball }, moneyRack)
+			drawBasketball(...at((ball - (station.balls - 1) / 2) * RACK_SPACING, 0.7 + BALL_RADIUS), state.time, BALL_COLORS[value])
+		}
+	})
+}
+
 function putPixel(sx, sy, color) {
 	const ix = sx | 0, iy = sy | 0
 	if (ix >= 0 && iy >= 0 && ix < W && iy < H) pix[iy * W + ix] = color
@@ -844,18 +1142,23 @@ function draw() {
 	const armAngle = charging ? 2.25 + state.power * 0.25 : state.followThrough > 0 ? 2.85 : 0.7
 	const walkCycle = state.walking ? Math.sin(state.time * 13) : 0
 	if (state.mode === 'horse' && !state.horse.isOver) drawSpotMarker()
+	const contest = state.mode === 'three-point'
+	if (contest) drawRacks()
 	figure(state.player.x, state.player.y, state.yaw, {
 		crouch: charging ? state.power * 0.45 : 0,
 		stance: 0.12 + walkCycle * 0.18,
 		armR: armAngle, armL: shotPose ? armAngle : 0.6,
 		z: state.walking ? Math.abs(walkCycle) * 0.04 : 0,
 	}, PALETTE, dynamicAdd)
-	if (state.ball) {
-		drawBasketball(state.ball.x, state.ball.y, state.ball.z, state.time)
-		castShadow(state.ball.x, state.ball.y, state.ball.z, BALL_RADIUS, 1, 0)
-	} else {
-		const dribble = charging ? 2.5 : BALL_RADIUS + Math.abs(Math.sin(state.time * DRIBBLE_SPEED)) * 0.99
-		drawBasketball(state.player.x + Math.cos(state.yaw) * 0.55, state.player.y + Math.sin(state.yaw) * 0.55, dribble, state.time)
+	for (const ball of state.ball ? [state.ball, ...state.flying] : state.flying) {
+		drawBasketball(ball.x, ball.y, ball.z, state.time, BALL_COLORS[ball.value ?? 1])
+		castShadow(ball.x, ball.y, ball.z, BALL_RADIUS, 1, 0)
+	}
+	const inHand = contest ? state.phase !== 'flight' && nextShot(state.contest) : !state.ball
+	if (inHand) {
+		const held = contest ? 1.3 : BALL_RADIUS + Math.abs(Math.sin(state.time * DRIBBLE_SPEED)) * 0.99
+		const color = contest ? BALL_COLORS[valueOf(nextShot(state.contest), state.contest.moneyRack)] : BALL_COLOR
+		drawBasketball(state.player.x + Math.cos(state.yaw) * 0.55, state.player.y + Math.sin(state.yaw) * 0.55, charging ? 2.5 : held, state.time, color)
 	}
 	drawLeaves(windTime)
 	drawTufts(windTime)
@@ -922,8 +1225,12 @@ addEventListener('keydown', event => {
 		setFeedback(state.paused ? 'Taking a breather. Press Esc to resume.' : 'Welcome back to the court.')
 		return
 	}
+	const rackKey = /^Digit([1-5])$/.exec(event.code)
+	if (rackKey) return pickMoneyRack(Number(rackKey[1]) - 1)
 	if (!MOVEMENT_KEYS.includes(event.code)) return
 	event.preventDefault()
+	const rackStep = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1 }[event.code]
+	if (rackStep && !event.repeat) pickMoneyRack(state.contest.moneyRack + rackStep)
 	state.keys.add(event.code)
 	if (event.code === 'Space' && !event.repeat) beginCharge('keyboard')
 })
@@ -935,12 +1242,31 @@ addEventListener('keyup', event => {
 		releaseShot('keyboard')
 	}
 })
+// Before the contest starts, a click or tap on a rack makes it the money rack.
+const RACK_PICK_PX = 40
+function pickRackAt(event) {
+	if (state.mode !== 'three-point' || hasStarted(state.contest) || state.contest.isOver) return false
+	const rect = canvas.getBoundingClientRect()
+	const sx = (event.clientX - rect.left) * W / rect.width
+	const sy = (event.clientY - rect.top) * H / rect.height
+	let picked, nearest = RACK_PICK_PX
+	for (const { rack, spot } of STATIONS) {
+		if (rack === undefined) continue
+		const p = project(spot.x, spot.y, 0.8)
+		const pixels = Math.hypot(sx - p.sx, sy - p.sy) * rect.width / W
+		if (pixels < nearest) [picked, nearest] = [rack, pixels]
+	}
+	if (picked === undefined) return false
+	pickMoneyRack(picked)
+	return true
+}
 canvas.addEventListener('pointermove', aimAtPointer)
 // Holding the left mouse button on the court charges a shot like Space; a quick click only aims or focuses it.
 const CLICK_MS = 150
 let mouseDownAt = 0
 canvas.addEventListener('pointerdown', event => {
 	canvas.focus({ preventScroll: true })
+	if (pickRackAt(event)) return
 	aimAtPointer(event)
 	if (event.pointerType === 'touch') canvas.setPointerCapture(event.pointerId)
 	if (event.pointerType !== 'mouse' || event.button !== 0) return
@@ -961,6 +1287,8 @@ nodes.shoot.addEventListener('pointerdown', event => {
 	beginCharge('pointer')
 })
 nodes.shoot.addEventListener('pointerup', () => releaseShot('pointer'))
+// The round is over while the card shows, so this only starts the next one, like Space.
+nodes['results-again'].addEventListener('click', () => beginCharge('button'))
 nodes.shoot.addEventListener('pointercancel', cancelInput)
 // iOS starts its long-press text selection and Copy menu from touch events, which user-select: none and a
 // prevented pointerdown don't always stop, so the held controls cancel the touch itself. Pointer events still fire.
@@ -1282,25 +1610,28 @@ setInterval(() => {
 	if (timeChoice === 'auto' && resolvePhase('auto', minuteOf(now), scheduleFor(now, PLACE)) !== phaseId) applyPhase()
 }, 60_000)
 
-const ATTEMPT_LABELS = { free: 'SHOTS', 'free-throws': 'SHOTS LEFT', clock: 'SECONDS', horse: 'LETTERS' }
+const ATTEMPT_LABELS = { free: 'SHOTS', 'free-throws': 'SHOTS LEFT', clock: 'SECONDS', horse: 'LETTERS', 'three-point': 'SECONDS' }
 const MODE_INTROS = {
 	free: 'Find your spot. Take your time.',
 	'free-throws': 'Ten free throws. Release inside the band.',
 	clock: '60 seconds. 2 a basket, 3 beyond the arc.',
 	horse: 'Make the shot from the ring.',
+	'three-point': `27 balls in 60 seconds. ${PICK_HINT}, then shoot to start.`,
 }
 
 function applyMode() {
 	const freeThrows = state.mode === 'free-throws'
 	const clock = state.mode === 'clock'
+	const contest = state.mode === 'three-point'
+	const isFixed = freeThrows || contest
 	const hasGoal = state.mode !== 'free'
 	nodes['mode-label'].textContent = MODES[state.mode]
 	canvas.setAttribute('aria-label', CANVAS_LABELS[state.mode])
 	checkOption(nodes['mode-options'], state.mode)
-	nodes['power-target'].hidden = !freeThrows
-	nodes.stick.classList.toggle('locked', freeThrows)
-	nodes.turn.classList.toggle('locked', freeThrows)
-	nodes['label-makes'].textContent = clock ? 'POINTS' : 'MADE'
+	nodes['power-target'].hidden = !isFixed
+	nodes.stick.classList.toggle('locked', isFixed)
+	nodes.turn.classList.toggle('locked', isFixed)
+	nodes['label-makes'].textContent = clock || contest ? 'POINTS' : 'MADE'
 	nodes['label-attempts'].textContent = ATTEMPT_LABELS[state.mode]
 	// Goal modes show their best score in the third slot, so the longest basket is free shooting's alone.
 	nodes['label-accuracy'].textContent = hasGoal ? 'BEST' : 'ACCURACY'
@@ -1312,6 +1643,13 @@ function applyMode() {
 	}
 	if (clock) state.clock = startClockRound(state.clock.best)
 	if (state.mode === 'horse') state.horse = startHorse(state.horse.best)
+	startLog()
+	state.flying = []
+	state.reloadAt = undefined
+	if (contest) {
+		state.contest = startContest(state.contest.best, state.contest.moneyRack)
+		placeForStation()
+	}
 	updateStats()
 }
 setupMenu(nodes.mode, nodes['mode-options'], mode => {
