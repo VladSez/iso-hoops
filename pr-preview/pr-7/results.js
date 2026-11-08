@@ -1,5 +1,5 @@
 import { ROUND_SHOTS } from './free-throws.js?v=5'
-import { LETTERS, TIERS } from './horse.js?v=2'
+import { LETTERS, TIERS } from './horse.js?v=3'
 import { SHOTS, STATIONS, valueOf } from './three-point.js?v=1'
 
 // Each mode's round summary for the card shown when a round ends. These are plain data: game.js draws them. A round's
