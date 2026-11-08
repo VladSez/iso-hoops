@@ -22,7 +22,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1.8.1
+      # When another push to gh-pages lands while this preview's Pages build runs, Pages marks this build errored and
+      # publishes the later one, which includes this preview. The action counts that as a failure, so the next step
+      # judges from the live page instead.
+      - id: preview
+        uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1.8.1
+        continue-on-error: true
         with:
           source-dir: dist
           preview-branch: gh-pages
@@ -30,3 +35,37 @@ jobs:
           # Post the link only once the page is live; the QR code makes it easy to open on a phone.
           wait-for-pages-deployment: true
           qr-code: true
+
+      # Passes once the live preview serves this commit's page, or is gone after a removal. The query string skips the
+      # CDN's cached copy.
+      - name: Check the live preview
+        if: steps.preview.outcome == 'failure'
+        env:
+          URL: ${{ steps.preview.outputs.preview-url }}
+          ACTION: ${{ steps.preview.outputs.deployment-action }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "::error::The preview action failed before it worked out the preview URL"
+            exit 1
+          fi
+          for attempt in $(seq 1 30); do
+            page="$URL?check=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$attempt"
+            if [ "$ACTION" = remove ]; then
+              [ "$(curl -s -o /dev/null -w '%{http_code}' "$page")" = 404 ] && exit 0
+            elif curl -sf "$page" | cmp -s - dist/index.html; then
+              echo "The preview is live at $URL"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::After 5 minutes, $URL still doesn't match this commit"
+          exit 1
+
+      # The action skips its link comment when it fails, so leave it here once the page is live.
+      - name: Comment the preview link
+        if: steps.preview.outcome == 'failure' && steps.preview.outputs.deployment-action == 'deploy'
+        uses: marocchino/sticky-pull-request-comment@67d0dec7b07ed060a405f9b2a64b8ab319fdd7db # v2.9.2
+        with:
+          header: pr-preview
+          message: |
+            Preview of ${{ github.event.pull_request.head.sha }}: ${{ steps.preview.outputs.preview-url }}
