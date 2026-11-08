@@ -187,6 +187,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 canvas { display: block; image-rendering: pixelated; cursor: crosshair; touch-action: none; outline: none; filter: drop-shadow(0 10px 6px color-mix(in srgb, var(--shade) 20%, transparent)) drop-shadow(0 34px 28px color-mix(in srgb, var(--shade) 20%, transparent)); }
 .shoot-panel { position: absolute; width: 292px; left: 50%; bottom: 78px; transform: translateX(-50%); z-index: 2; }
 #feedback { margin: 0 0 22px; height: 14px; text-align: center; color: var(--muted); font-size: 11px; }
+/* The results card says what this line does and sits over it, so the line fades out; screen readers still hear it. */
+#results:not([hidden]) ~ .shoot-panel #feedback { opacity: 0; }
 #feedback.made { color: var(--orange); }
 /* The page ships free shooting's line; a goal mode swaps in its own once game.js loads, so the line waits behind a placeholder until then. */
 .shoot-panel:not(.ready) #feedback { position: relative; color: transparent; animation: reveal-feedback 0s 2s forwards; }
