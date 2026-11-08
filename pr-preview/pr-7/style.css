@@ -112,10 +112,19 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 #results-stamp-detail { color: var(--label); font-size: 10px; }
 #results-chart { display: flex; flex-direction: column; gap: 10px; padding: 14px 12px 12px; border-radius: 10px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--line); }
 #results-chart .ball { display: block; flex-shrink: 0; width: 14px; height: 14px; border-radius: 50%; box-sizing: border-box; }
-#results-chart .ball.made { box-shadow: inset -2px -2px 0 #0000002e; }
-#results-chart .ball.made.v1 { background: var(--ball-1); }
-#results-chart .ball.made.v2 { background: var(--ball-2); }
-#results-chart .ball.made.v3 { background: var(--ball-3); }
+/* A made ball is a basketball: a straight seam each way and a curved one down either side, in the court ball's seam brown. */
+#results-chart .ball.made {
+	--seam: #63381fcc;
+	background-image:
+		linear-gradient(90deg, transparent 45%, var(--seam) 45% 55%, transparent 55%),
+		linear-gradient(transparent 45%, var(--seam) 45% 55%, transparent 55%),
+		radial-gradient(circle at -30% 50%, transparent 39%, var(--seam) 39.5% 44%, transparent 44.5%),
+		radial-gradient(circle at 130% 50%, transparent 39%, var(--seam) 39.5% 44%, transparent 44.5%);
+	box-shadow: inset -2px -2px 0 #0000002e;
+}
+#results-chart .ball.made.v1 { background-color: var(--ball-1); }
+#results-chart .ball.made.v2 { background-color: var(--ball-2); }
+#results-chart .ball.made.v3 { background-color: var(--ball-3); }
 #results-chart .ball.missed { border: 2px solid var(--faint); }
 #results-chart .ball.unshot { border: 2px dotted var(--edge); }
 .racks { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
