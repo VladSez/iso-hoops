@@ -1186,7 +1186,14 @@ const COURT_BOX = (() => {
 })()
 const TOUCH_GUTTER_PX = 8
 
+// Some phone browsers keep 100svh at the height from before their toolbar appeared, which pushes the controls
+// under it until a reload. The window's own height is always current.
+function fitPageHeight() {
+	document.documentElement.style.setProperty('--page-height', `${innerHeight}px`)
+}
+
 function resizeCanvas() {
+	fitPageHeight()
 	const rect = nodes.stage.getBoundingClientRect()
 	const dpr = window.devicePixelRatio || 1
 	if (IS_TOUCH) {
@@ -1672,6 +1679,10 @@ setTimeout(() => {
 ensureAudio()
 
 addEventListener('resize', resizeCanvas)
+addEventListener('pageshow', resizeCanvas)
+document.addEventListener('visibilitychange', () => {
+	if (!document.hidden) resizeCanvas()
+})
 resizeCanvas()
 applyPhase()
 updateStats()

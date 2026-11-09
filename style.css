@@ -19,7 +19,7 @@
 	--sky-bottom: #fff;
 }
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 300px; height: 100svh; min-height: 600px; overflow: hidden; color: var(--ink); background: linear-gradient(var(--sky-top), var(--sky-bottom));
+body { margin: 0; min-width: 300px; height: 100svh; height: var(--page-height, 100svh); min-height: 600px; overflow: hidden; color: var(--ink); background: linear-gradient(var(--sky-top), var(--sky-bottom));
 	/* Raised surfaces: a hairline ring, a contact shadow and a soft drop, in the current phase's colours. Defined on body,
 	   where data-phase sets the colours, so they follow the phase. */
 	--glint: #fff;
@@ -402,7 +402,7 @@ dialog .dialog-note { font-size: 10px; }
    and nothing can overlap, however tall the browser's toolbars or the system font make the page. */
 @media (pointer: coarse) and (orientation: portrait) {
 	/* 100vh first for browsers without svh (Safari before iOS 15.4), which would otherwise drop the height and collapse the court. */
-	body { display: flex; flex-direction: column; height: 100vh; height: 100svh; min-height: 0; overflow: hidden; }
+	body { display: flex; flex-direction: column; height: 100vh; height: 100svh; height: var(--page-height, 100svh); min-height: 0; overflow: hidden; }
 	.header { position: relative; inset: auto; flex: none; margin: 18px 22px 0; }
 	main { display: flex; flex: 1; flex-direction: column; min-height: 0; }
 	#stage { position: relative; inset: auto; flex: 1; min-height: 0; margin-top: 8px; }
