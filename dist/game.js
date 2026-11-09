@@ -1,6 +1,6 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
-import { ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=3'
+import { ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=4'
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=3'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
 import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=3'
@@ -665,6 +665,10 @@ function updateAim() {
 	if (Math.hypot(dx, dy) > 0.3) state.yaw = Math.atan2(dy, dx)
 }
 
+// Quicker than free play so a round keeps its rhythm, with enough time to see the result.
+const FREE_THROW_RETURN_AFTER_MAKE = 1.1
+const FREE_THROW_RETURN_AFTER_MISS = 0.8
+
 function takeFreeThrow(made) {
 	const bestBefore = state.round.best
 	state.log.push({ made })
@@ -991,13 +995,13 @@ function update(delta) {
 						setFeedback(state.streak > 1 ? `Basket! ${state.streak} in a row.` : 'Basket! Nice shot.', true)
 					}
 				}
-				state.returnTime = state.time + (clock ? RETURN_AFTER_MAKE : 1.5)
+				state.returnTime = state.time + (clock ? RETURN_AFTER_MAKE : freeThrows ? FREE_THROW_RETURN_AFTER_MAKE : 1.5)
 				updateStats()
 			}
 		}
 		if (isDead(state.ball) && state.returnTime === undefined) {
 			state.streak = 0
-			state.returnTime = state.time + (clock ? RETURN_AFTER_MISS : 1.1)
+			state.returnTime = state.time + (clock ? RETURN_AFTER_MISS : freeThrows ? FREE_THROW_RETURN_AFTER_MISS : 1.1)
 			if (freeThrows) {
 				takeFreeThrow(false)
 				updateStats()

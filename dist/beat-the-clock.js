@@ -2,8 +2,8 @@ import { HOOP } from './physics.js?v=3'
 
 export const ROUND_SECONDS = 60
 // The ball comes back faster than in free shooting, since every second counts.
-export const RETURN_AFTER_MAKE = 0.5
-export const RETURN_AFTER_MISS = 0.3
+export const RETURN_AFTER_MAKE = 0.35
+export const RETURN_AFTER_MISS = 0.2
 // The painted arc's radius. Behind the hoop the corner lines sit outside where the player can walk, so distance alone decides.
 export const THREE_POINT_DISTANCE = 6.7
 
