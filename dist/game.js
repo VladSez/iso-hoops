@@ -598,7 +598,6 @@ function releaseShot(source) {
 	state.phase = 'flight'
 	state.chargeSource = undefined
 	state.followThrough = 0.65
-	if (state.mode === 'free') state.attempts++
 	setFeedback('Let it fly.')
 	updateStats()
 	playSound('shoot')
@@ -977,6 +976,7 @@ function update(delta) {
 					const shot = state.ball.points === 3 ? 'Three!' : 'Basket!'
 					setFeedback(`${shot} ${state.clock.points} points.`, true)
 				} else {
+					state.attempts++
 					state.makes++
 					state.streak++
 					if (state.ball.distance > state.longest) {
@@ -1013,7 +1013,9 @@ function update(delta) {
 				logClockShot(false)
 				setFeedback('Next one, quick.')
 			} else {
+				state.attempts++
 				setFeedback('Another one. The court isn’t going anywhere.')
+				updateStats()
 			}
 		}
 		if (state.returnTime !== undefined && state.time >= state.returnTime) returnBall()
