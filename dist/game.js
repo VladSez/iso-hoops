@@ -737,7 +737,8 @@ const CONTEST_CALLOUTS = { 1: 'BASKET!', 2: 'MONEY BALL!', 3: 'DEEP THREE!' }
 function scoreContestBall(ball) {
 	state.contest = recordMake(state.contest, ball.value)
 	state.log.push({ shot: ball.shot, made: true })
-	showCallout(CONTEST_CALLOUTS[ball.value], `+${ball.value} · ${state.contest.points} PTS`)
+	const title = ball.value === 1 && ball.banked ? 'BANK SHOT!' : CONTEST_CALLOUTS[ball.value]
+	showCallout(title, `+${ball.value} · ${state.contest.points} PTS`)
 	setFeedback(`${pointsText(state.contest.points)}.`, true)
 	updateStats()
 }
@@ -746,6 +747,7 @@ function updateContest(delta) {
 	for (const ball of state.flying) {
 		for (const event of stepBall(ball, delta)) {
 			playSound(event)
+			if (event === 'board') ball.banked = true
 			if (event === 'score') scoreContestBall(ball)
 		}
 		if (ball.goneAt === undefined && (ball.made || isDead(ball))) {
@@ -957,12 +959,14 @@ function update(delta) {
 		const events = stepBall(state.ball, delta)
 		for (const event of events) {
 			playSound(event)
+			if (event === 'board') state.ball.banked = true
 			if (event === 'score') {
 				const distance = `${state.ball.distance.toFixed(1)} M`
 				let detail = `+1 MADE · ${distance}`
 				if (freeThrows) detail = '+1 MADE'
 				if (clock) detail = `+${state.ball.points} · ${distance}`
-				showCallout('BASKET!', detail)
+				const banked = state.ball.banked
+				showCallout(banked ? 'BANK SHOT!' : 'BASKET!', detail)
 				if (freeThrows) {
 					takeFreeThrow(true)
 				} else if (horse) {
@@ -988,7 +992,8 @@ function update(delta) {
 							setFeedback(`Basket! Longest so far: ${state.longest.toFixed(1)} m.`, true)
 						}
 					} else {
-						setFeedback(state.streak > 1 ? `Basket! ${state.streak} in a row.` : 'Basket! Nice shot.', true)
+						const opener = banked ? 'Off the glass and in.' : 'Basket!'
+						setFeedback(state.streak > 1 ? `${opener} ${state.streak} in a row.` : banked ? `${opener} Basket!` : 'Basket! Nice shot.', true)
 					}
 				}
 				state.returnTime = state.time + (clock ? RETURN_AFTER_MAKE : 1.5)
