@@ -7,7 +7,7 @@
 const VERSION = 35
 const FILES = [
 	'./',
-	'style.css?v=27ce510a753e',
+	'style.css?v=f9542c8249c8',
 	'engine.js?v=7c2d4e10',
 	'game.js?v=0a3d5e7b24',
 	'physics.js?v=3',
