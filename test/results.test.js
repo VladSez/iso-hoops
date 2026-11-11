@@ -70,3 +70,11 @@ test('the HORSE card lists the spots reached, with each letter where it was earn
 	assert.equal(statOf(results, 'REACHED').value, 'Long two')
 	assert.equal(results.note, 'First letter at the mid-range')
 })
+
+test('a dunk against the clock counts as a two but never as the longest make', () => {
+	const log = [{ at: 3, made: true, points: 2, distance: 0 }, { at: 9, made: true, points: 2, distance: 4.2 }]
+	const stats = Object.fromEntries(clockResults({ log, points: 4, best: 4, bestBefore: 0 }).stats.map(stat => [stat.label, stat]))
+	assert.equal(stats.TWOS.value, 2)
+	assert.equal(stats.LONGEST.value, '4.2')
+	assert.equal(clockResults({ log: log.slice(0, 1), points: 2, best: 2, bestBefore: 0 }).stats.find(stat => stat.label === 'LONGEST').value, '—')
+})
