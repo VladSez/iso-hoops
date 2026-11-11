@@ -102,7 +102,7 @@ export function planDunk(player, moving, previous, random = Math.random) {
 
 function plan(id, angle, d, run) {
 	const dunk = DUNKS[id]
-	return { id, angle, d, run, slamAt: run + dunk.slam.t, throughAt: run + dunk.slam.t + 0.01, length: run + dunk.length }
+	return { id, angle, d, run, bend: dunk.bend, slamAt: run + dunk.slam.t, throughAt: run + dunk.slam.t + 0.01, releaseAt: run + dunk.release, length: run + dunk.length }
 }
 
 /** A random dunk, never the one just played. */

@@ -21,7 +21,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 - **Dunks:** in free shooting, run at the rim and press Shoot from within about 4 m. There is no meter: you carry on running, gather and rise, and one of seven dunks plays at random, never the same one twice in a row: a two-hand slam, a tomahawk, a quick flush, a hang and swing on the rim, a windmill, a 360, or a reverse that leaves you hanging with your back to the rim. Standing still within about 2.5 m works too: you step in and dunk. The rim bends under your weight and springs back. A dunk counts as a make but never as your longest basket. With reduced motion turned on, the ball just drops through.
 - **Real shot physics:** the ball can bounce off the rim and the backboard. A basket counts only when the ball drops down through the hoop.
 - **Music written in code:** a quiet, original 76 BPM loop built sample by sample, with no audio files.
-- **Sound effects made on the fly:** dribbles, swishes and the scoring chime are all generated with the Web Audio API.
+- **Sound effects made on the fly:** dribbles, swishes, the scoring chime and the clang of a dunk on the rim are all generated with the Web Audio API.
 - **Made-shot feedback:** the net animates, a basket callout appears and the made count pulses.
 - **Remembers your settings:** your court and sound choices are kept between visits.
 - **Plays on phones:** an on-screen stick and Shoot button replace the keyboard, with layouts for portrait and landscape.
