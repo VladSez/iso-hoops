@@ -1527,6 +1527,16 @@ function playSwish() {
 	source.start(now)
 	source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect() }
 }
+// A press on the court that only closes an open menu stops there, so the tap and any drag that follows don't also aim.
+let dismissingPointer
+for (const type of ['pointermove', 'pointerup', 'pointercancel']) {
+	addEventListener(type, event => {
+		if (event.pointerId !== dismissingPointer) return
+		event.stopPropagation()
+		if (type !== 'pointermove') dismissingPointer = undefined
+	}, { capture: true })
+}
+
 // A button that opens a panel beside it; a press outside closes it.
 function setupPopover(button, panel) {
 	function setOpen(open) {
@@ -1538,8 +1548,12 @@ function setupPopover(button, panel) {
 		if (!panel.hidden) panel.querySelector(':checked, button:not([hidden])').focus()
 	})
 	addEventListener('pointerdown', event => {
-		if (!button.parentElement.contains(event.target)) setOpen(false)
-	})
+		if (panel.hidden || button.parentElement.contains(event.target)) return
+		setOpen(false)
+		if (event.target !== canvas) return
+		event.stopPropagation()
+		dismissingPointer = event.pointerId
+	}, { capture: true })
 	return setOpen
 }
 
