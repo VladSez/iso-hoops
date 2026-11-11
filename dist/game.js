@@ -1475,8 +1475,9 @@ function unlockAudio(event) {
 	if (event.type === 'keydown' && (event.repeat || event.ctrlKey || event.metaKey || event.altKey)) return
 	ensureAudio()
 }
-addEventListener('pointerdown', unlockAudio, { passive: true })
-addEventListener('keydown', unlockAudio)
+// Audio may only start inside a user gesture, and a touch counts as one when it lifts, not when it lands.
+// Listening in the capture phase still hears a tap that closes a menu, which stops there.
+for (const type of ['pointerdown', 'pointerup', 'keydown']) addEventListener(type, unlockAudio, { capture: true, passive: true })
 
 function playSound(kind) {
 	if (!audio || soundMode === 'off' || audio.state !== 'running') return
