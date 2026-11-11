@@ -6,6 +6,7 @@ import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot,
 import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=3'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
+import { dunkBall, dunkPose, planDunk } from './dunks.js?v=1'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
@@ -45,6 +46,8 @@ const state = {
 	mode: 'free', round: startRound(0), clock: startClockRound(0), horse: startHorse(0), longest: 0,
 	// The contest lets the next ball go while earlier ones are still in the air, so its balls live in `flying`.
 	contest: startContest(0), flying: [], reloadAt: undefined,
+	// A dunk in progress, from planDunk plus when it started. The last one is never repeated. `moving` is the walking direction.
+	dunk: undefined, lastDunk: undefined, moving: undefined,
 	// The current round's shots, one entry each, for the results card at its end.
 	log: [],
 }
@@ -172,9 +175,10 @@ function line3D(from, to, radius, color) {
 	capsule(from, to, radius, radius, () => color, 'solid')
 }
 
+const RIM_COLOR = [192, 73, 36]
 function drawHoop() {
 	const board = [227, 225, 206]
-	const rim = [192, 73, 36]
+	const rim = RIM_COLOR
 	line3D([-8.9, 0, 0], [-8.9, 0, 4.05], 0.13, STEEL)
 	line3D([-8.9, 0, 4.05], [BACKBOARD_X, 0, 4.05], 0.1, STEEL)
 	box(BACKBOARD_X - 0.06, -1.35, 3, BACKBOARD_X + 0.06, 1.35, 4.9, board)
@@ -182,15 +186,21 @@ function drawHoop() {
 	for (const z of [3, 4.9]) line3D([BACKBOARD_X + 0.08, -1.35, z], [BACKBOARD_X + 0.08, 1.35, z], 0.045, STEEL)
 	for (const y of [-0.62, 0.62]) line3D([BACKBOARD_X + 0.1, y, 3.4], [BACKBOARD_X + 0.1, y, 4.2], 0.035, rim)
 	for (const z of [3.4, 4.2]) line3D([BACKBOARD_X + 0.1, -0.62, z], [BACKBOARD_X + 0.1, 0.62, z], 0.035, rim)
-	line3D([BACKBOARD_X, 0, HOOP.z], [HOOP.x - HOOP.radius, 0, HOOP.z], 0.07, rim)
-	for (let i = 0; i < 40; i++) {
-		const a = i / 40 * Math.PI * 2
-		const b = (i + 1) / 40 * Math.PI * 2
-		line3D([HOOP.x + Math.cos(a) * HOOP.radius, Math.sin(a) * HOOP.radius, HOOP.z], [HOOP.x + Math.cos(b) * HOOP.radius, Math.sin(b) * HOOP.radius, HOOP.z], 0.055, rim)
-	}
 }
 
-function drawNet() {
+// How far a dunk pulls the rim down at an angle round it: most at the front the player hangs on, none at the board.
+function rimDip(angle, bend, toward) {
+	return bend * ((1 + Math.cos(angle - toward)) / 2) ** 2
+}
+
+// Drawn every frame rather than baked, so a dunk can bend it.
+function drawRim(bend = 0, toward = 0) {
+	line3D([BACKBOARD_X, 0, HOOP.z], [HOOP.x - HOOP.radius, 0, HOOP.z], 0.07, RIM_COLOR)
+	const point = a => [HOOP.x + Math.cos(a) * HOOP.radius, Math.sin(a) * HOOP.radius, HOOP.z - rimDip(a, bend, toward)]
+	for (let i = 0; i < 40; i++) line3D(point(i / 40 * Math.PI * 2), point((i + 1) / 40 * Math.PI * 2), 0.055, RIM_COLOR)
+}
+
+function drawNet(bend = 0, toward = 0) {
 	const age = state.scoredAt === undefined ? 2 : state.time - state.scoredAt
 	const active = age < 1.3 && !STILL
 	const stretch = active ? Math.sin(Math.min(age / 0.32, 1) * Math.PI) * 0.35 : 0
@@ -202,7 +212,7 @@ function drawNet() {
 		return [
 			HOOP.x + Math.cos(angle) * radius + sway * t,
 			HOOP.y + Math.sin(angle) * radius,
-			HOOP.z - 0.05 - t * (0.95 + stretch),
+			HOOP.z - 0.05 - t * (0.95 + stretch) - rimDip(angle, bend, toward) * (1 - t * 0.6),
 		]
 	}
 	for (let row = 0; row < 4; row++) {
@@ -431,7 +441,11 @@ function bakeCourt() {
 	drawFence()
 	const beforeHoop = pix.slice()
 	drawHoop()
+	const withoutRim = [pix.slice(), zb.slice()]
+	drawRim()
 	for (let i = 0; i < pix.length; i++) hoopPixels[i] = pix[i] === beforeHoop[i] ? 0 : 1
+	pix.set(withoutRim[0])
+	zb.set(withoutRim[1])
 	PROPS[courtId]()
 	drawStreetlights()
 	drawFloodlight()
@@ -495,7 +509,7 @@ function updateMeter() {
 	nodes['power-meter'].setAttribute('aria-valuenow', String(percent))
 	document.body.classList.toggle('charging', state.phase === 'charging')
 	document.body.dataset.charge = state.phase === 'charging' ? state.chargeSource : ''
-	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.phase === 'flight' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
+	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.phase === 'flight' || state.phase === 'dunk' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
 }
 
 // Puts the player on this round's spot and the meter's band over its scoring range.
@@ -579,6 +593,9 @@ function beginCharge(source) {
 		}
 		if (state.clock.endsAt === undefined) state.clock = startClock(state.clock, state.time)
 	}
+	// A dunk needs no charge: it starts on the press, with no meter or aim guide.
+	const dunk = state.mode === 'free' && planDunk(state.player, state.moving, state.lastDunk)
+	if (dunk) return startDunk(dunk)
 	state.phase = 'charging'
 	state.chargeSource = source
 	state.charge = 0
@@ -601,6 +618,38 @@ function releaseShot(source) {
 	setFeedback('Let it fly.')
 	updateStats()
 	playSound('shoot')
+}
+
+function startDunk(plan) {
+	state.returnTime = undefined
+	// With reduced motion there is no jump: the ball just drops through the hoop.
+	if (STILL) {
+		state.ball = dunkBall()
+		state.phase = 'flight'
+		return
+	}
+	state.lastDunk = plan.id
+	state.dunk = { ...plan, start: state.time, grabbed: false }
+	state.yaw = plan.angle + Math.PI
+	state.phase = 'dunk'
+}
+
+function updateDunk() {
+	const dunk = state.dunk
+	const t = state.time - dunk.start
+	const pose = dunkPose(dunk, t)
+	state.player.x = HOOP.x + Math.cos(dunk.angle) * pose.d
+	state.player.y = HOOP.y + Math.sin(dunk.angle) * pose.d
+	state.yaw = dunk.angle + Math.PI + (pose.spin ?? 0)
+	if (!dunk.grabbed && t >= dunk.slamAt) {
+		dunk.grabbed = true
+		playSound('rim')
+	}
+	if (!state.ball && t >= dunk.throughAt) state.ball = dunkBall()
+	if (t >= dunk.length) {
+		state.dunk = undefined
+		state.phase = 'flight'
+	}
 }
 
 // The ball leaves the rack and the next one is picked up straight away, or after the walk to the next rack.
@@ -635,6 +684,7 @@ function cancelInput() {
 
 function returnBall() {
 	state.ball = undefined
+	state.dunk = undefined
 	state.phase = 'ready'
 	state.charge = 0
 	state.power = 0
@@ -658,7 +708,7 @@ function aimAtPointer(event) {
 function updateAim() {
 	// Touch screens have no hovering cursor to follow, so until the player taps somewhere else they keep facing the rim.
 	const target = state.pointer ?? (IS_TOUCH ? HOOP : undefined)
-	if (!target || state.mode === 'free-throws' || state.mode === 'three-point') return
+	if (!target || state.mode === 'free-throws' || state.mode === 'three-point' || state.phase === 'dunk') return
 	const dx = target.x - state.player.x
 	const dy = target.y - state.player.y
 	if (Math.hypot(dx, dy) > 0.3) state.yaw = Math.atan2(dy, dx)
@@ -930,14 +980,16 @@ function update(delta) {
 	const horse = state.mode === 'horse'
 	// In HORSE you plant your feet once you start charging, so a shot is always released from inside the ring.
 	const isPlanted = horse && state.phase === 'charging'
-	const isFixed = freeThrows || contest
+	const isFixed = freeThrows || contest || state.phase === 'dunk'
 	state.walking = length > 0 && !isFixed && !isPlanted
+	state.moving = undefined
 	if (state.walking) {
 		// Keys always walk at full speed; a partly pushed stick walks slower, for small adjustments.
 		if (length > 1) {
 			screenX /= length
 			screenY /= length
 		}
+		state.moving = { x: (screenX + screenY) / Math.hypot(screenX, screenY) / R2, y: (screenY - screenX) / Math.hypot(screenX, screenY) / R2 }
 		state.player.x = clamp(state.player.x + (screenX + screenY) / R2 * 4.4 * delta, -8.25, 8.3)
 		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.3, 6.3)
 		updateAim()
@@ -954,11 +1006,22 @@ function update(delta) {
 		if (contest) level = STATIONS[nextShot(state.contest).station]
 		state.power = level ? clamp(state.charge + wobble(state.time, level), 0, 1) : state.charge
 	}
+	if (state.dunk) updateDunk()
 	if (state.ball) {
 		const events = stepBall(state.ball, delta)
 		for (const event of events) {
 			playSound(event)
 			if (event === 'board') state.ball.banked = true
+			if (event === 'score' && state.ball.dunk) {
+				showCallout('DUNK!', '+1 MADE')
+				state.attempts++
+				state.makes++
+				state.streak++
+				setFeedback(state.streak > 1 ? `Dunk! ${state.streak} in a row.` : 'Dunk!', true)
+				state.returnTime = state.time + 1.5
+				updateStats()
+				continue
+			}
 			if (event === 'score') {
 				const distance = `${state.ball.distance.toFixed(1)} M`
 				let detail = `+1 MADE · ${distance}`
@@ -1018,7 +1081,7 @@ function update(delta) {
 				updateStats()
 			}
 		}
-		if (state.returnTime !== undefined && state.time >= state.returnTime) returnBall()
+		if (state.returnTime !== undefined && state.time >= state.returnTime && state.phase !== 'dunk') returnBall()
 	}
 	if (contest) updateContest(delta)
 	if (clock && !state.clock.isOver && isTimeUp(state.clock, state.time)) {
@@ -1059,7 +1122,7 @@ function drawBasketball(x, y, z, time, color = BALL_COLOR) {
 }
 
 function drawAimGuide() {
-	if (state.phase === 'flight' || state.mode === 'free-throws') return
+	if (state.phase === 'flight' || state.phase === 'dunk' || state.mode === 'free-throws') return
 	const direction = { x: Math.cos(state.yaw), y: Math.sin(state.yaw) }
 	const dots = []
 	for (let d = 0.8; d < 4.2; d += 0.3) {
@@ -1151,17 +1214,27 @@ function draw() {
 	if (state.mode === 'horse' && !state.horse.isOver) drawSpotMarker()
 	const contest = state.mode === 'three-point'
 	if (contest) drawRacks()
-	figure(state.player.x, state.player.y, state.yaw, {
+	const dunk = state.dunk && dunkPose(state.dunk, state.time - state.dunk.start)
+	drawRim(dunk?.bend, state.dunk?.angle)
+	figure(state.player.x, state.player.y, state.yaw, dunk ?? {
 		crouch: charging ? state.power * 0.45 : 0,
 		stance: 0.12 + walkCycle * 0.18,
 		armR: armAngle, armL: shotPose ? armAngle : 0.6,
 		z: state.walking ? Math.abs(walkCycle) * 0.04 : 0,
 	}, PALETTE, dynamicAdd)
+	if (dunk?.ball) {
+		const { along, across, z } = dunk.ball
+		// `across` is measured facing the rim, before any spin.
+		const x = HOOP.x + Math.cos(state.dunk.angle) * along + Math.sin(state.dunk.angle) * across
+		const y = HOOP.y + Math.sin(state.dunk.angle) * along - Math.cos(state.dunk.angle) * across
+		drawBasketball(x, y, z, state.time)
+		castShadow(x, y, z, BALL_RADIUS, 1, 0)
+	}
 	for (const ball of state.ball ? [state.ball, ...state.flying] : state.flying) {
 		drawBasketball(ball.x, ball.y, ball.z, state.time, BALL_COLORS[ball.value ?? 1])
 		castShadow(ball.x, ball.y, ball.z, BALL_RADIUS, 1, 0)
 	}
-	const inHand = contest ? state.phase !== 'flight' && nextShot(state.contest) : !state.ball
+	const inHand = contest ? state.phase !== 'flight' && nextShot(state.contest) : !state.ball && !state.dunk
 	if (inHand) {
 		const held = contest ? 1.3 : BALL_RADIUS + Math.abs(Math.sin(state.time * DRIBBLE_SPEED)) * 0.99
 		const color = contest ? BALL_COLORS[valueOf(nextShot(state.contest), state.contest.moneyRack)] : BALL_COLOR
@@ -1172,7 +1245,7 @@ function draw() {
 	flushShadows()
 	applyShadows(bakedZ)
 	shadeEdges()
-	drawNet()
+	drawNet(dunk?.bend, state.dunk?.angle)
 	drawAimGuide()
 	gradeFrame()
 	ctx.putImageData(image, 0, 0)

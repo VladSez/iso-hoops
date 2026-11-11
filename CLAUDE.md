@@ -19,7 +19,7 @@ Start the game with sound off. Before the page loads, set the saved sound settin
 localStorage.setItem('iso-hoops:sound-mode', 'off')
 ```
 
-This only mutes your own test sessions. The game's default for players stays sound on.
+Keep sound off whenever you start or reload the game in the browser pane, including when you hand it over for the user to play. Don't remove the key afterwards. This only affects the browser pane. The game's default for players stays sound on.
 
 The same way, open straight into a state by setting these keys before load:
 
