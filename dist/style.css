@@ -90,7 +90,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .track-row button:hover { color: var(--orange); }
 .track-row p { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 0; text-align: center; }
 .track-row strong { font-size: 12px; }
-.track-row small { color: var(--muted); font-size: 9px; }
+.track-row small { min-height: 2lh; color: var(--muted); font-size: 9px; }
 .track-dots { display: flex; justify-content: center; gap: 4px; }
 .track-dots span { width: 4px; height: 4px; border-radius: 2px; background: var(--edge); }
 .track-dots .current { width: 12px; background: var(--orange); }
@@ -99,6 +99,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .track-everywhere { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); color: var(--soft); cursor: pointer; }
 .track-everywhere input { margin: 0; accent-color: var(--orange); }
 .audio-panel:not([data-sound="all"]) :is(.panel-label, #track-name) { color: var(--muted); }
+/* Browsers can't read a phone's silent switch, so phones get a standing hint. With sound Off it keeps its space, so the panel doesn't jump. */
+.silent-hint { display: none; }
 /* The sky behind the page for each phase of the neighborhood court; game.js sets data-phase from the player's clock. */
 [data-phase="morning"] { --sky-top: #f3d9c8; --sky-bottom: #fbf0e6; --ink: #3a2f29; --muted: #6e5a4f; --label: #6e5a4f; --soft: #4f3f36; --faint: #9c8579; --panel: #fdf4ec; --line: #ead6c8; --edge: #e3cdbd; --hover: #f7e8dc; --kbd: #5a4a41; --skeleton: #f1e2d6; }
 [data-phase="day"] { --sky-top: #e4eff3; --sky-bottom: #fafcfc; --muted: #5f6a6d; --label: #5f6a6d; --line: #dde7ea; --edge: #d6e1e4; --hover: #f3f7f8; --skeleton: #e8eff1; }
@@ -494,6 +496,9 @@ dialog .dialog-note { font-size: 10px; }
 	.track-row small { font-size: 10px; }
 	#track-own { min-height: 40px; padding: 0 14px; font-size: 12px; }
 	.track-everywhere { min-height: 48px; padding-block: 0; }
+	.silent-hint { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--hover); color: var(--soft); font-size: 10px; line-height: 1.4; }
+	.silent-hint svg { flex: none; color: var(--orange); }
+	.audio-panel[data-sound="off"] .silent-hint { visibility: hidden; }
 }
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
 	.audio-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: min(460px, calc(100vw - 32px)); }
