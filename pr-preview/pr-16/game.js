@@ -595,7 +595,7 @@ function beginCharge(source) {
 		if (state.clock.endsAt === undefined) state.clock = startClock(state.clock, state.time)
 	}
 	// A dunk needs no charge: it starts on the press, with no meter or aim guide.
-	const dunk = state.mode === 'free' && planDunk(state.player, state.moving, state.lastDunk)
+	const dunk = canDunk() && planDunk(state.player, state.moving, state.lastDunk)
 	if (dunk) return startDunk(dunk)
 	state.phase = 'charging'
 	state.chargeSource = source
@@ -621,11 +621,19 @@ function releaseShot(source) {
 	playSound('shoot')
 }
 
+const canDunk = () => state.mode === 'free' || state.mode === 'clock'
+
+// Timed from the press, so in beat the clock a dunk started before the buzzer counts like a shot released before it.
+// It's a two from inside the arc, with no distance, so it never shows as a longest make.
+function dunkThrough(pressedAt) {
+	return { ...dunkBall(), releasedAt: pressedAt, points: 2, distance: 0 }
+}
+
 function startDunk(plan) {
 	state.returnTime = undefined
 	// With reduced motion there is no jump: the ball just drops through the hoop.
 	if (STILL) {
-		state.ball = dunkBall()
+		state.ball = dunkThrough(state.time)
 		state.phase = 'flight'
 		playDunkSound(plan.bend)
 		return
@@ -651,7 +659,7 @@ function updateDunk() {
 		dunk.letGo = true
 		playSound('spring')
 	}
-	if (!state.ball && t >= dunk.throughAt) state.ball = dunkBall()
+	if (!state.ball && t >= dunk.throughAt) state.ball = dunkThrough(dunk.start)
 	if (t >= dunk.length) {
 		state.dunk = undefined
 		state.phase = 'flight'
@@ -1005,7 +1013,7 @@ function update(delta) {
 		state.pointer = undefined
 		state.yaw += turn * 1.4 * delta
 	}
-	const drive = state.phase === 'charging' && state.mode === 'free' && drivingDunk(state.player, state.moving, state.lastDunk)
+	const drive = state.phase === 'charging' && canDunk() && drivingDunk(state.player, state.moving, state.lastDunk)
 	if (drive) {
 		state.chargeSource = undefined
 		startDunk(drive)
@@ -1023,6 +1031,15 @@ function update(delta) {
 		for (const event of events) {
 			playSound(event)
 			if (event === 'board') state.ball.banked = true
+			if (event === 'score' && state.ball.dunk && clock) {
+				showCallout('DUNK!', '+2')
+				state.clock = recordMake(state.clock, 2)
+				logClockShot(true)
+				setFeedback(`Dunk! ${state.clock.points} points.`, true)
+				state.returnTime = state.time + RETURN_AFTER_MAKE
+				updateStats()
+				continue
+			}
 			if (event === 'score' && state.ball.dunk) {
 				showCallout('DUNK!', '+1 MADE')
 				state.attempts++
