@@ -7,7 +7,7 @@ import { clockResults, contestResults, freeThrowResults, horseResults } from './
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
 import { dunkBall, dunkPose, planDunk } from './dunks.js?v=2'
-import { playSlam } from './slam.js?v=1'
+import { playSlam } from './slam.js?v=2'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
