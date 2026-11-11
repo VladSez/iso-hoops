@@ -27,7 +27,7 @@ body { margin: 0; min-width: 300px; height: 100svh; height: var(--page-height, 1
 	--raised: inset 0 1px 0 var(--glint), 0 0 0 1px var(--line), 0 2px 3px color-mix(in srgb, var(--shade) 8%, transparent), 0 12px 26px -8px color-mix(in srgb, var(--shade) 16%, transparent);
 	--raised-small: 0 0 0 1px var(--line), 0 2px 3px color-mix(in srgb, var(--shade) 7%, transparent), 0 6px 14px -4px color-mix(in srgb, var(--shade) 12%, transparent);
 }
-button, a { -webkit-tap-highlight-color: transparent; }
+button, a, label { -webkit-tap-highlight-color: transparent; }
 button { font: inherit; cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outline-offset: 6px; }
@@ -38,15 +38,21 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .ball-icon { display: block; width: 32px; height: 32px; }
 .text-button { border: 0; background: none; padding: 6px 0; color: var(--muted); font-size: 11px; }
 .text-button:hover, .footer a:hover { color: var(--orange); }
-#help-open { padding: 9px 14px; border-radius: 999px; background: var(--panel); color: var(--label); box-shadow: var(--raised-small); transition: box-shadow 0.15s, transform 0.15s; }
-#help-open:hover { box-shadow: 0 0 0 1px var(--edge), 0 4px 6px color-mix(in srgb, var(--shade) 8%, transparent), 0 12px 22px -6px color-mix(in srgb, var(--shade) 16%, transparent); transform: translateY(-1px); }
-#help-open span { margin-left: 12px; }
-.header-actions { display: flex; align-items: center; gap: 22px; }
+#help-open { padding: 9px 14px; border-radius: 999px; background: var(--panel); color: var(--label); box-shadow: var(--raised-small); }
+#help-open:hover { box-shadow: 0 0 0 1px var(--edge), 0 4px 6px color-mix(in srgb, var(--shade) 8%, transparent), 0 12px 22px -6px color-mix(in srgb, var(--shade) 16%, transparent); }
+.header-actions { display: flex; align-items: center; gap: 12px; }
 .header-menu { position: relative; }
-.time-button { position: relative; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--panel); color: var(--ink); box-shadow: var(--raised-small); transition: box-shadow 0.15s, transform 0.15s; }
+.time-button { position: relative; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--panel); color: var(--ink); box-shadow: var(--raised-small); }
 .time-button:hover, .time-button[aria-expanded="true"] { color: var(--orange); }
-.time-button:hover { box-shadow: 0 0 0 1px var(--edge), 0 4px 6px color-mix(in srgb, var(--shade) 8%, transparent), 0 12px 22px -6px color-mix(in srgb, var(--shade) 16%, transparent); transform: translateY(-1px); }
+.time-button:hover { box-shadow: 0 0 0 1px var(--edge), 0 4px 6px color-mix(in srgb, var(--shade) 8%, transparent), 0 12px 22px -6px color-mix(in srgb, var(--shade) 16%, transparent); }
 .time-button:focus-visible { outline-offset: 2px; }
+/* The header buttons grow a little under the pointer, squeeze in while pressed and spring back past full size on release, like Shoot. */
+.time-button { --grow: 1.08; --press: 0.9; }
+#help-open { --grow: 1.04; --press: 0.95; }
+:is(.time-button, #help-open) { transition: box-shadow 0.15s, color 0.15s, transform 0.3s cubic-bezier(0.3, 1.4, 0.5, 1); }
+@media (hover: hover) { :is(.time-button, #help-open):hover { transform: scale(var(--grow)); } }
+:is(.time-button, #help-open):active { transform: scale(var(--press)); transition: box-shadow 0.15s, color 0.15s, transform 0.1s ease-out; }
+@media (prefers-reduced-motion: reduce) { :is(.time-button, #help-open):is(:hover, :active) { transform: none; } }
 /* Auto, the usual state, shows the clock alone; the dot flags a phase the player pinned. */
 /* Sits on the clock face's lower right, ringed in the button colour so it reads as a badge inside the circle. */
 .pin-dot { position: absolute; right: 7px; bottom: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 0 2px var(--panel); }
@@ -62,6 +68,37 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 	.time-button[aria-expanded="true"] ~ .time-tip { opacity: 0; visibility: hidden; }
 }
 .header .menu-options { top: calc(100% + 10px); bottom: auto; left: auto; right: 0; width: 220px; }
+#sound svg { display: none; }
+#sound:not([data-sound="effects"], [data-sound="off"]) .icon-all, #sound[data-sound="effects"] .icon-effects, #sound[data-sound="off"] .icon-off { display: block; }
+/* Sound and music: one panel under the header button that stays open while the player changes things. */
+.audio-panel { position: absolute; top: calc(100% + 10px); right: 0; z-index: 3; width: min(280px, calc(100vw - 32px)); border-radius: 12px; background: var(--panel); color: var(--ink); font-size: 10px; box-shadow: 0 0 0 1px var(--edge), 0 4px 8px color-mix(in srgb, var(--shade) 8%, transparent), 0 24px 48px -12px color-mix(in srgb, var(--shade) 24%, transparent); overflow: hidden; }
+.audio-panel[hidden] { display: none; }
+.sound-switch { margin: 0; padding: 12px; border: 0; border-bottom: 1px solid var(--line); }
+.sound-switch legend, .panel-label { float: left; width: 100%; padding: 0 0 8px; font-size: 8px; letter-spacing: 1.4px; color: var(--orange); }
+.switch { clear: left; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); gap: 3px; padding: 3px; border-radius: 10px; background: var(--hover); }
+.switch label { position: relative; display: grid; place-items: center; height: 30px; border-radius: 7px; color: var(--soft); cursor: pointer; }
+.switch input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.switch label:has(:checked) { background: var(--panel); color: var(--orange); box-shadow: 0 0 0 1px var(--edge), 0 1px 2px color-mix(in srgb, var(--shade) 8%, transparent); }
+.switch label:not(:has(:checked)):active { background: color-mix(in srgb, var(--panel) 55%, transparent); transform: scale(0.96); }
+.switch label { transition: transform 0.12s; }
+.track-everywhere:active, .menu-options label:active { background: var(--hover); }
+.switch label:has(:focus-visible) { outline: 2px solid var(--orange); outline-offset: 1px; }
+.now-playing { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.now-playing .panel-label { float: none; padding: 0; }
+.track-row { display: flex; align-items: center; gap: 8px; }
+.track-row button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--hover); color: var(--ink); font-size: 15px; }
+.track-row button:hover { color: var(--orange); }
+.track-row p { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 0; text-align: center; }
+.track-row strong { font-size: 12px; }
+.track-row small { color: var(--muted); font-size: 9px; }
+.track-dots { display: flex; justify-content: center; gap: 4px; }
+.track-dots span { width: 4px; height: 4px; border-radius: 2px; background: var(--edge); }
+.track-dots .current { width: 12px; background: var(--orange); }
+#track-own { align-self: center; padding: 6px 10px; border: 0; border-radius: 999px; background: var(--hover); color: var(--orange); font-size: 10px; }
+#track-own[hidden] { display: none; }
+.track-everywhere { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); color: var(--soft); cursor: pointer; }
+.track-everywhere input { margin: 0; accent-color: var(--orange); }
+.audio-panel:not([data-sound="all"]) :is(.panel-label, #track-name) { color: var(--muted); }
 /* The sky behind the page for each phase of the neighborhood court; game.js sets data-phase from the player's clock. */
 [data-phase="morning"] { --sky-top: #f3d9c8; --sky-bottom: #fbf0e6; --ink: #3a2f29; --muted: #6e5a4f; --label: #6e5a4f; --soft: #4f3f36; --faint: #9c8579; --panel: #fdf4ec; --line: #ead6c8; --edge: #e3cdbd; --hover: #f7e8dc; --kbd: #5a4a41; --skeleton: #f1e2d6; }
 [data-phase="day"] { --sky-top: #e4eff3; --sky-bottom: #fafcfc; --muted: #5f6a6d; --label: #5f6a6d; --line: #dde7ea; --edge: #d6e1e4; --hover: #f3f7f8; --skeleton: #e8eff1; }
@@ -234,7 +271,6 @@ body[data-charge="mouse"] #shoot .mouse-icon { border-color: var(--orange); back
 .menu-value > span[id] { display: inline-block; position: relative; height: 1.3em; vertical-align: top; transition: color 0.2s; }
 #mode-label { min-width: 14ch; }
 #court-label { min-width: 15ch; }
-#sound-label { min-width: 9ch; }
 /* If game.js never marks the group ready, the default labels underneath show after 2s. */
 .settings:not(.ready) .menu-value > span[id] { color: transparent; animation: reveal-label 0s 2s forwards; }
 .settings:not(.ready) .menu-value > span[id]::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 4.5px); height: 9px; border-radius: 2px; background: var(--skeleton); animation: skeleton 0.9s ease-in-out infinite alternate, hide-skeleton 0s 2s forwards; }
@@ -244,6 +280,10 @@ body[data-charge="mouse"] #shoot .mouse-icon { border-color: var(--orange); back
 @keyframes hide-skeleton { to { opacity: 0; } }
 @keyframes reveal-arrow { to { visibility: visible; } }
 @media (prefers-reduced-motion: reduce) { .settings:not(.ready) .menu-value > span[id]::before { animation: hide-skeleton 0s 2s forwards; } }
+/* The music and clock icons show saved settings (sound on or off, a pinned time), so they wait behind a placeholder too. */
+.header-actions:not(.ready) .time-button > :is(svg, .pin-dot) { visibility: hidden; animation: reveal-arrow 0s 2s forwards; }
+.header-actions:not(.ready) .time-button::before { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--skeleton); animation: skeleton 0.9s ease-in-out infinite alternate, hide-skeleton 0s 2s forwards; }
+@media (prefers-reduced-motion: reduce) { .header-actions:not(.ready) .time-button::before { animation: hide-skeleton 0s 2s forwards; } }
 .menu-button:hover .menu-value, .menu-button[aria-expanded="true"] .menu-name, .menu-button[aria-expanded="true"] .menu-value { color: var(--orange); }
 .menu-options { position: absolute; bottom: calc(100% + 14px); left: 0; width: 180px; margin: 0; padding: 0 0 6px; border: 0; border-radius: 12px; background: var(--panel); box-shadow: 0 0 0 1px var(--edge), 0 4px 8px color-mix(in srgb, var(--shade) 8%, transparent), 0 24px 48px -12px color-mix(in srgb, var(--shade) 24%, transparent); overflow: hidden; }
 .footer-menu:last-child .menu-options { left: auto; right: 0; }
@@ -275,19 +315,23 @@ dialog .dialog-note { font-size: 10px; }
 	#stage { bottom: 92px; }
 	.shoot-panel { bottom: 104px; }
 }
-/* Narrow desktop windows: slimmer slots keep the centred scoreboard clear of the clock and How to play. */
-@media (max-width: 900px) and (min-width: 751px) {
+/* Narrow desktop windows: slimmer slots keep the centred scoreboard clear of the header buttons. */
+@media (max-width: 1080px) and (min-width: 751px) {
 	.session-stats { gap: 10px; }
 	.session-stats > div { width: 58px; }
 	.session-stats strong { font-size: 20px; }
+}
+/* Below this, How to play shrinks to a round ? like the buttons beside it, or it would run under the scoreboard. */
+@media (max-width: 910px) and (min-width: 751px) {
+	#help-open { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; }
+	#help-open .help-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+	#help-open::before { content: "?"; font-size: 13px; }
 }
 @media (max-width: 750px) {
 	.header { top: 22px; left: 22px; right: 22px; display: grid; grid-template-columns: 1fr auto; row-gap: 16px; }
 	.session-stats { position: static; grid-column: 1 / -1; justify-self: center; transform: none; gap: 8px; padding: 10px; }
 	.session-stats > div { width: 70px; }
-	.header-actions { gap: 14px; }
 	#help-open { white-space: nowrap; }
-	#help-open span { margin-left: 6px; }
 	#stage { inset: 135px 0 246px; }
 	.shoot-panel { bottom: 133px; width: 270px; }
 	.footer { left: 22px; right: 22px; bottom: 19px; font-size: 8px; display: flex; flex-wrap: wrap; justify-content: center; }
@@ -434,4 +478,27 @@ dialog .dialog-note { font-size: 10px; }
 	#results-score { font-size: 36px; }
 	#results-chart { grid-row: span 2; }
 	#results-stats { align-self: start; }
+}
+/* Where the music button sits mid-header, the panel lines up with the header's right edge so it stays on screen. */
+@media (max-width: 750px), (pointer: coarse) {
+	.header-actions { position: relative; }
+	.audio-menu { position: static; }
+}
+/* Thumb-sized controls in the sound and music panel. Sideways phones are short, so the switch sits beside the track. */
+@media (pointer: coarse) {
+	.audio-panel { width: min(300px, calc(100vw - 32px)); font-size: 12px; }
+	.switch label { font-size: 11px; }
+	.switch label { height: 40px; }
+	.track-row button { width: 44px; height: 44px; }
+	.track-row strong { font-size: 14px; }
+	.track-row small { font-size: 10px; }
+	#track-own { min-height: 40px; padding: 0 14px; font-size: 12px; }
+	.track-everywhere { min-height: 48px; padding-block: 0; }
+}
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+	.audio-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: min(460px, calc(100vw - 32px)); }
+	.sound-switch { grid-row: span 2; border-bottom: 0; border-right: 1px solid var(--line); }
+	.switch { grid-template-columns: 1fr; }
+	.now-playing { gap: 6px; padding-bottom: 6px; }
+	.track-everywhere { border-top: 0; min-height: 40px; }
 }
