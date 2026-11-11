@@ -75,7 +75,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .audio-panel[hidden] { display: none; }
 .sound-switch { margin: 0; padding: 12px; border: 0; border-bottom: 1px solid var(--line); }
 .sound-switch legend, .panel-label { float: left; width: 100%; padding: 0 0 8px; font-size: 8px; letter-spacing: 1.4px; color: var(--orange); }
-.switch { clear: left; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; border-radius: 10px; background: var(--hover); }
+.switch { clear: left; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); gap: 3px; padding: 3px; border-radius: 10px; background: var(--hover); }
 .switch label { position: relative; display: grid; place-items: center; height: 30px; border-radius: 7px; color: var(--soft); cursor: pointer; }
 .switch input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .switch label:has(:checked) { background: var(--panel); color: var(--orange); box-shadow: 0 0 0 1px var(--edge), 0 1px 2px color-mix(in srgb, var(--shade) 8%, transparent); }
