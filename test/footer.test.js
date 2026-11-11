@@ -15,7 +15,6 @@ function labelsOf(constant) {
 const LABELS = {
 	'mode-label': labelsOf('MODES'),
 	'court-label': Object.values(COURTS).map(court => court.name),
-	'sound-label': labelsOf('SOUND_MODES'),
 }
 
 for (const [id, labels] of Object.entries(LABELS)) {

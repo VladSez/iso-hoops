@@ -5,7 +5,7 @@ const BARS = 8
 // `style` sets how chords are played: held pads, offbeat stabs or broken arpeggios.
 const THEMES = {
 	neighborhood: {
-		bpm: 76, style: 'pad', voice: [1, 0.18, 0.035], lead: [1, 0.18, 0.035], chordDecay: 1.4,
+		name: 'Front stoop', bpm: 76, style: 'pad', voice: [1, 0.18, 0.035], lead: [1, 0.18, 0.035], chordDecay: 1.4,
 		chords: [[60, 64, 67, 71], [60, 64, 67, 69], [57, 60, 64, 67], [59, 62, 64, 69]],
 		bass: [36, 33, 29, 31],
 		melodies: [
@@ -15,7 +15,7 @@ const THEMES = {
 	},
 	// Minor lo-fi with a low city hum under it.
 	rooftop: {
-		bpm: 70, style: 'pad', voice: [1, 0.08, 0.02], lead: [1, 0.3, 0.06], chordDecay: 2,
+		name: 'City hum', bpm: 70, style: 'pad', voice: [1, 0.08, 0.02], lead: [1, 0.3, 0.06], chordDecay: 2,
 		chords: [[57, 60, 64, 71], [53, 57, 60, 64], [50, 53, 57, 64], [52, 57, 59, 62]],
 		bass: [33, 29, 26, 28],
 		melodies: [
@@ -26,7 +26,7 @@ const THEMES = {
 	},
 	// Bright, plucky offbeat chords over rolling waves.
 	beach: {
-		bpm: 96, style: 'offbeat', voice: [1, 0.4, 0.2, 0.08], lead: [1, 0.25, 0.1], chordDecay: 0.14,
+		name: 'Boardwalk', bpm: 96, style: 'offbeat', voice: [1, 0.4, 0.2, 0.08], lead: [1, 0.25, 0.1], chordDecay: 0.14,
 		chords: [[53, 57, 60, 65], [53, 57, 62, 65], [53, 58, 62, 65], [55, 60, 64, 67]],
 		bass: [29, 26, 34, 36],
 		melodies: [
@@ -37,7 +37,7 @@ const THEMES = {
 	},
 	// Warm broken chords in D dorian with leaves rustling in the wind.
 	autumn: {
-		bpm: 72, style: 'arpeggio', voice: [1, 0.3, 0.1], lead: [1, 0.2, 0.05], chordDecay: 0.9,
+		name: 'Leaf fall', bpm: 72, style: 'arpeggio', voice: [1, 0.3, 0.1], lead: [1, 0.2, 0.05], chordDecay: 0.9,
 		chords: [[50, 53, 57, 60], [55, 59, 62, 65], [58, 62, 65, 69], [57, 62, 64, 67]],
 		bass: [38, 31, 34, 33],
 		melodies: [
@@ -48,7 +48,7 @@ const THEMES = {
 	},
 	// Slow, sparse and bell-like, with a cold breeze.
 	winter: {
-		bpm: 64, style: 'pad', voice: [1, 0.05], lead: [1, 0, 0.32, 0, 0.12, 0, 0.05], chordDecay: 2.4,
+		name: 'Cold air', bpm: 64, style: 'pad', voice: [1, 0.05], lead: [1, 0, 0.32, 0, 0.12, 0, 0.05], chordDecay: 2.4,
 		chords: [[52, 56, 59, 63], [49, 52, 56, 59], [57, 61, 64, 68], [59, 64, 66, 71]],
 		bass: [28, 25, 33, 35],
 		melodies: [
@@ -59,9 +59,23 @@ const THEMES = {
 	},
 }
 
+export const TRACKS = Object.entries(THEMES).map(([id, { name, bpm }]) => ({ id, name, bpm }))
+
+// Each court plays its own loop unless the player picked another for it, or picked one for every court.
+// `choice` is { picks: { [courtId]: trackId }, everywhere: trackId | null }; track ids are the courts that own them.
+export function trackFor(courtId, choice) {
+	return choice.everywhere ?? choice.picks[courtId] ?? courtId
+}
+
+export function pickTrack(choice, courtId, trackId) {
+	if (choice.everywhere) return { ...choice, everywhere: trackId }
+	const { [courtId]: _, ...picks } = choice.picks
+	return { ...choice, picks: trackId === courtId ? picks : { ...picks, [courtId]: trackId } }
+}
+
 /** Renders an original, seamless instrumental loop for a court without external audio assets. */
-export function createMusicBuffer(audioContext, courtId = 'neighborhood') {
-	const theme = THEMES[courtId] ?? THEMES.neighborhood
+export function createMusicBuffer(audioContext, trackId = 'neighborhood') {
+	const theme = THEMES[trackId] ?? THEMES.neighborhood
 	const beatSeconds = 60 / theme.bpm
 	const frameCount = Math.round(BARS * 4 * beatSeconds * SAMPLE_RATE)
 	const buffer = audioContext.createBuffer(1, frameCount, SAMPLE_RATE)
