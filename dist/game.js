@@ -4,7 +4,7 @@ import { ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTim
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=3'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
 import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=3'
-import { createMusicBuffer } from './music.js?v=2'
+import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
@@ -26,7 +26,7 @@ const DEEP_BALL_COLOR = [232, 186, 58]
 const BALL_COLORS = { 1: BALL_COLOR, 2: MONEY_BALL_COLOR, 3: DEEP_BALL_COLOR }
 const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
-	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
+	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'audio-options', 'now-playing-label', 'track-prev', 'track-next', 'track-name', 'track-note', 'track-dots', 'track-own', 'track-own-label', 'track-everywhere', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 	'time', 'time-label', 'time-options', 'time-zone', 'time-tip-name', 'time-tip-hours', 'time-tip-zone', 'time-tip-mode',
 	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
 	'label-makes', 'longest', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
@@ -1395,12 +1395,23 @@ nodes['help-close'].addEventListener('click', closeHelp)
 nodes['help-play'].addEventListener('click', closeHelp)
 
 const MUSIC_VOLUME = 0.135
-const SOUND_MODES = { all: 'On', effects: 'Music off', off: 'Off' }
+const SOUND_MODES = { all: 'On', effects: 'Effects only', off: 'Off' }
 const SOUND_MODE_KEY = 'iso-hoops:sound-mode'
 let soundMode = 'all'
 try {
 	const saved = localStorage.getItem(SOUND_MODE_KEY)
 	if (saved in SOUND_MODES) soundMode = saved
+} catch {}
+
+const MUSIC_KEY = 'iso-hoops:music'
+let musicChoice = { picks: {}, everywhere: null }
+try {
+	const saved = JSON.parse(localStorage.getItem(MUSIC_KEY))
+	const known = id => TRACKS.some(track => track.id === id)
+	if (saved) musicChoice = {
+		picks: Object.fromEntries(Object.entries(saved.picks ?? {}).filter(([court, track]) => court in COURTS && known(track))),
+		everywhere: known(saved.everywhere) ? saved.everywhere : null,
+	}
 } catch {}
 
 let audio
@@ -1439,7 +1450,8 @@ function ensureAudio() {
 // Crossfades to the current court's loop and echo; loops are rendered once and reused.
 function playCourtSound() {
 	echoGain.gain.setTargetAtTime(court.sound.echo, audio.currentTime, 0.05)
-	if (music?.courtId === courtId) return
+	const trackId = trackFor(courtId, musicChoice)
+	if (music?.trackId === trackId) return
 	const now = audio.currentTime
 	if (music) {
 		const { source, gain } = music
@@ -1448,14 +1460,14 @@ function playCourtSound() {
 		source.onended = () => { source.disconnect(); gain.disconnect() }
 	}
 	const source = audio.createBufferSource()
-	source.buffer = musicBuffers[courtId] ??= createMusicBuffer(audio, courtId)
+	source.buffer = musicBuffers[trackId] ??= createMusicBuffer(audio, trackId)
 	source.loop = true
 	const gain = audio.createGain()
 	gain.gain.setValueAtTime(music ? 0 : 1, now)
 	gain.gain.setTargetAtTime(1, now, 0.25)
 	source.connect(gain).connect(musicGain)
 	source.start(now)
-	music = { courtId, source, gain }
+	music = { trackId, source, gain }
 }
 
 function unlockAudio(event) {
@@ -1515,16 +1527,25 @@ function playSwish() {
 	source.start(now)
 	source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect() }
 }
-// A footer menu is a button that opens a list of radio options above it.
-function setupMenu(button, options, onPick) {
+// A button that opens a panel beside it; a press outside closes it.
+function setupPopover(button, panel) {
 	function setOpen(open) {
-		options.hidden = !open
+		panel.hidden = !open
 		button.setAttribute('aria-expanded', String(open))
 	}
 	button.addEventListener('click', () => {
-		setOpen(options.hidden)
-		if (!options.hidden) options.querySelector(':checked').focus()
+		setOpen(panel.hidden)
+		if (!panel.hidden) panel.querySelector(':checked, button:not([hidden])').focus()
 	})
+	addEventListener('pointerdown', event => {
+		if (!button.parentElement.contains(event.target)) setOpen(false)
+	})
+	return setOpen
+}
+
+// A menu is a button that opens a list of radio options.
+function setupMenu(button, options, onPick) {
+	const setOpen = setupPopover(button, options)
 	// A click or tap picks in one go, so the menu closes and Space shoots again; arrow keys keep browsing until Enter.
 	let pickedByPointer = false
 	options.addEventListener('pointerdown', () => { pickedByPointer = true })
@@ -1542,26 +1563,72 @@ function setupMenu(button, options, onPick) {
 		setOpen(false)
 		button.focus()
 	})
-	addEventListener('pointerdown', event => {
-		if (!button.parentElement.contains(event.target)) setOpen(false)
-	})
 }
 function checkOption(options, value) {
 	for (const radio of options.querySelectorAll('input')) radio.checked = radio.value === value
 }
 
+// Sound and music share one header panel. Unlike the footer menus it stays open while the player changes things.
+const setAudioOpen = setupPopover(nodes.sound, nodes['audio-options'])
+nodes['audio-options'].addEventListener('keydown', event => {
+	if (event.key !== 'Escape') return
+	setAudioOpen(false)
+	nodes.sound.focus()
+})
+nodes['track-dots'].append(...TRACKS.map(() => document.createElement('span')))
+
 function showSoundMode() {
-	nodes['sound-label'].textContent = SOUND_MODES[soundMode]
+	nodes.sound.dataset.sound = soundMode
+	nodes['audio-options'].dataset.sound = soundMode
 	checkOption(nodes['sound-options'], soundMode)
+	showMusic()
 }
-setupMenu(nodes.sound, nodes['sound-options'], mode => {
-	soundMode = mode
+nodes['sound-options'].addEventListener('change', event => {
+	soundMode = event.target.value
 	showSoundMode()
 	try { localStorage.setItem(SOUND_MODE_KEY, soundMode) } catch {}
 	ensureAudio()
 	if (!audio) return
 	masterGain.gain.setTargetAtTime(soundMode === 'off' ? 0 : 1, audio.currentTime, 0.025)
 	musicGain.gain.setTargetAtTime(soundMode === 'all' ? MUSIC_VOLUME : 0, audio.currentTime, 0.025)
+})
+
+function showMusic() {
+	const trackId = trackFor(courtId, musicChoice)
+	const index = TRACKS.findIndex(track => track.id === trackId)
+	const track = TRACKS[index]
+	const playing = soundMode === 'all'
+	nodes['sound-label'].textContent = playing ? `${SOUND_MODES[soundMode]}, ${track.name}` : SOUND_MODES[soundMode]
+	nodes['now-playing-label'].textContent = playing ? 'NOW PLAYING' : 'MUSIC · PAUSED'
+	nodes['track-name'].textContent = track.name
+	nodes['track-note'].textContent = !playing ? 'Plays when sound is On'
+		: musicChoice.everywhere ? `On every court · ${track.bpm} bpm`
+		: trackId === courtId ? `${court.name}'s own · ${track.bpm} bpm`
+		: `Picked for ${court.name} · ${track.bpm} bpm`
+	nodes['track-dots'].querySelectorAll('span').forEach((dot, i) => dot.classList.toggle('current', i === index))
+	nodes['track-own'].hidden = !musicChoice.everywhere && !(courtId in musicChoice.picks)
+	nodes['track-own-label'].textContent = musicChoice.everywhere ? "Use each court's own" : `Use ${court.name}'s own`
+	nodes['track-everywhere'].checked = Boolean(musicChoice.everywhere)
+}
+function chooseMusic(choice) {
+	musicChoice = choice
+	try { localStorage.setItem(MUSIC_KEY, JSON.stringify(musicChoice)) } catch {}
+	showMusic()
+	if (audio) playCourtSound()
+}
+function stepTrack(step) {
+	const index = TRACKS.findIndex(track => track.id === trackFor(courtId, musicChoice))
+	const next = TRACKS[(index + step + TRACKS.length) % TRACKS.length]
+	chooseMusic(pickTrack(musicChoice, courtId, next.id))
+}
+nodes['track-prev'].addEventListener('click', () => stepTrack(-1))
+nodes['track-next'].addEventListener('click', () => stepTrack(1))
+nodes['track-own'].addEventListener('click', () => {
+	chooseMusic(musicChoice.everywhere ? { picks: {}, everywhere: null } : pickTrack(musicChoice, courtId, courtId))
+	nodes['track-next'].focus()
+})
+nodes['track-everywhere'].addEventListener('change', event => {
+	chooseMusic({ ...musicChoice, everywhere: event.target.checked ? trackFor(courtId, musicChoice) : null })
 })
 showSoundMode()
 
@@ -1573,6 +1640,7 @@ setupMenu(nodes.court, nodes['court-options'], id => {
 	courtId = id
 	court = COURTS[id]
 	showCourt()
+	showMusic()
 	try { localStorage.setItem(COURT_KEY, courtId) } catch {}
 	applyPhase()
 	if (audio) playCourtSound()
@@ -1677,9 +1745,9 @@ setupMenu(nodes.mode, nodes['mode-options'], mode => {
 applyMode()
 // The page's default line is free shooting's, so a saved goal mode explains itself on load.
 if (state.mode !== 'free') setFeedback(MODE_INTROS[state.mode])
-// Keep the placeholders (footer menus, scoreboard and helper line) up for at least 300ms after navigation, so a fast load doesn't flash them.
+// Keep the placeholders (header buttons, footer menus, scoreboard and helper line) up for at least 300ms after navigation, so a fast load doesn't flash them.
 setTimeout(() => {
-	for (const node of document.querySelectorAll('.settings, .session-stats, .shoot-panel')) node.classList.add('ready')
+	for (const node of document.querySelectorAll('.header-actions, .settings, .session-stats, .shoot-panel')) node.classList.add('ready')
 }, Math.max(0, 300 - performance.now()))
 
 // Try immediately where autoplay is allowed; the first gesture unlocks other browsers.

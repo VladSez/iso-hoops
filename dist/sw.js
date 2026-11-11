@@ -4,19 +4,19 @@
 // test/offline.test.js checks this. Any edit to this file makes browsers install it again,
 // which downloads every file fresh, so bump VERSION when a file changes without its URL
 // changing (index.html, the icons).
-const VERSION = 33
+const VERSION = 34
 const FILES = [
 	'./',
-	'style.css?v=6e3a9c1d4f73',
+	'style.css?v=e4b8d7f9a6c2',
 	'engine.js?v=7c2d4e10',
-	'game.js?v=d3f7a9b1c8',
+	'game.js?v=f92c4d6a13',
 	'physics.js?v=3',
 	'free-throws.js?v=5',
 	'beat-the-clock.js?v=3',
 	'horse.js?v=3',
 	'three-point.js?v=1',
 	'results.js?v=3',
-	'music.js?v=2',
+	'music.js?v=3',
 	'courts.js?v=6',
 	'time-of-day.js?v=7',
 	'places.js?v=1',
