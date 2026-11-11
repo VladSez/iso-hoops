@@ -6,7 +6,8 @@ import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot,
 import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=3'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
-import { dunkBall, dunkPose, planDunk } from './dunks.js?v=1'
+import { dunkBall, dunkPose, planDunk } from './dunks.js?v=2'
+import { playSlam } from './slam.js?v=1'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
@@ -626,10 +627,11 @@ function startDunk(plan) {
 	if (STILL) {
 		state.ball = dunkBall()
 		state.phase = 'flight'
+		playDunkSound(plan.bend)
 		return
 	}
 	state.lastDunk = plan.id
-	state.dunk = { ...plan, start: state.time, grabbed: false }
+	state.dunk = { ...plan, start: state.time, grabbed: false, letGo: false }
 	state.yaw = plan.angle + Math.PI
 	state.phase = 'dunk'
 }
@@ -643,7 +645,11 @@ function updateDunk() {
 	state.yaw = dunk.angle + Math.PI + (pose.spin ?? 0)
 	if (!dunk.grabbed && t >= dunk.slamAt) {
 		dunk.grabbed = true
-		playSound('rim')
+		playDunkSound(dunk.bend)
+	}
+	if (!dunk.letGo && t >= dunk.releaseAt) {
+		dunk.letGo = true
+		playSound('spring')
 	}
 	if (!state.ball && t >= dunk.throughAt) state.ball = dunkBall()
 	if (t >= dunk.length) {
@@ -1561,6 +1567,8 @@ function playSound(kind) {
 		rim: [1050, 420, 0.13, 0.045, 'triangle'],
 		board: [240, 110, 0.09, 0.08, 'triangle'],
 		score: [540, 810, 0.2, 0.045, 'sine'],
+		// The rim snapping back up when a dunker lets go.
+		spring: [330, 190, 0.16, 0.035, 'triangle'],
 	}
 	const [from, to, duration, volume, type] = sounds[kind]
 	const { pitch, floor } = court.sound
@@ -1577,6 +1585,11 @@ function playSound(kind) {
 	oscillator.start(now)
 	oscillator.stop(now + duration + 0.01)
 	oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
+}
+
+function playDunkSound(weight) {
+	if (!audio || soundMode === 'off' || audio.state !== 'running') return
+	playSlam(audio, effectsBus, { pitch: court.sound.pitch, weight })
 }
 
 function playSwish() {
