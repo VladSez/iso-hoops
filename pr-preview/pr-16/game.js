@@ -6,8 +6,8 @@ import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot,
 import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=3'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
-import { dunkBall, dunkPose, planDunk } from './dunks.js?v=2'
-import { playSlam } from './slam.js?v=1'
+import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=3'
+import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
@@ -1004,6 +1004,11 @@ function update(delta) {
 	if (turn) {
 		state.pointer = undefined
 		state.yaw += turn * 1.4 * delta
+	}
+	const drive = state.phase === 'charging' && state.mode === 'free' && drivingDunk(state.player, state.moving, state.lastDunk)
+	if (drive) {
+		state.chargeSource = undefined
+		startDunk(drive)
 	}
 	if (state.phase === 'charging') {
 		state.charge = Math.min(1, state.charge + delta / 1.6)

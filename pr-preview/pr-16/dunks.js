@@ -2,14 +2,15 @@ import { HOOP, createShot } from './physics.js?v=3'
 
 // Running at the rim, a dunk starts from this far out; standing still or moving any other way, from closer in.
 export const RUN_RANGE = 4
-export const DUNK_RANGE = 2.5
+export const DUNK_RANGE = 3.2
 // Within this angle of straight at the rim counts as running at it.
 const TOWARD_RIM = 0.5
 // The player's walking speed in game.js, so the run-up carries on at the pace the player was moving.
 const RUN_SPEED = 4.4
 const GATHER_D = 1.9
-// Players dunk from the court side of the rim, so an approach from under or behind the board swings round to the front.
-const MAX_APPROACH = 1.2
+// Players dunk from the front or either side of the rim, out to the baseline; from under or behind the board they swing
+// round to the side.
+const MAX_APPROACH = 1.9
 const STAND = { crouch: 0, lean: 0.05, armR: 0.7, armL: 0.6 }
 
 // Times are seconds from the button press, `d` is metres from the hoop's centre along the approach, `z` lifts the feet.
@@ -91,18 +92,31 @@ const TURN = 2 * Math.PI
 
 /**
  * The dunk a press of Shoot starts, or undefined for an ordinary shot. `moving` is the unit direction the player is
- * walking in, if they are. The dunk is random; from beyond the gather point the player runs in to it first.
+ * walking in, if they are. The dunk is random. Running in from beyond the gather point, the player carries on running
+ * to it first; standing, they jump from where they are.
  */
 export function planDunk(player, moving, previous, random = Math.random) {
 	const { angle, d } = approachFrom(player)
-	const toward = moving ? -(moving.x * Math.cos(angle) + moving.y * Math.sin(angle)) : 0
-	const inReach = toward >= TOWARD_RIM ? d <= RUN_RANGE : d <= DUNK_RANGE
-	if (inReach) return plan(pickDunk(previous, random), angle, d, Math.max(0, (d - GATHER_D) / RUN_SPEED))
+	const running = isRunningAt(angle, moving)
+	if (d > (running ? RUN_RANGE : DUNK_RANGE)) return
+	const extra = Math.max(0, (d - GATHER_D) / RUN_SPEED)
+	return plan(pickDunk(previous, random), angle, d, running ? extra : 0, running ? 0 : extra)
 }
 
-function plan(id, angle, d, run) {
+/** The dunk a held charge turns into once the player, running at the rim, comes within reach. */
+export function drivingDunk(player, moving, previous, random = Math.random) {
+	if (isRunningAt(approachFrom(player).angle, moving)) return planDunk(player, moving, previous, random)
+}
+
+function isRunningAt(angle, moving) {
+	return !!moving && -(moving.x * Math.cos(angle) + moving.y * Math.sin(angle)) >= TOWARD_RIM
+}
+
+// `run` is the run-up before the gather; `leap` is how much longer a standing jump from beyond the gather point flies.
+function plan(id, angle, d, run, leap) {
 	const dunk = DUNKS[id]
-	return { id, angle, d, run, bend: dunk.bend, slamAt: run + dunk.slam.t, throughAt: run + dunk.slam.t + 0.01, releaseAt: run + dunk.release, length: run + dunk.length }
+	const start = run + leap
+	return { id, angle, d, run, leap, bend: dunk.bend, slamAt: start + dunk.slam.t, throughAt: start + dunk.slam.t + 0.01, releaseAt: start + dunk.release, length: start + dunk.length }
 }
 
 /** A random dunk, never the one just played. */
@@ -180,7 +194,17 @@ export function dunkPose(plan, t) {
 		pose.ball = ballInHand(plan.id, pose, 0)
 		return pose
 	}
-	return landedPose(plan.id, plan.run ? { d: Math.min(plan.d, GATHER_D), z: 0, ...RUNNING } : { d: plan.d, z: 0, ...STAND }, t - plan.run)
+	if (plan.run) return landedPose(plan.id, { d: Math.min(plan.d, GATHER_D), z: 0, ...RUNNING }, t - plan.run)
+	return landedPose(plan.id, { d: plan.d, z: 0, ...STAND }, leapTime(plan, t))
+}
+
+// Slows the take-off, from the gather to the first pose in the air, so a far standing jump covers its ground smoothly.
+function leapTime({ id, leap = 0 }, t) {
+	if (!leap || t <= GATHER_AT) return t
+	const dunk = DUNKS[id]
+	const flight = (dunk.air?.[0] ?? dunk.rise).t - GATHER_AT
+	if (t >= GATHER_AT + flight + leap) return t - leap
+	return GATHER_AT + (t - GATHER_AT) * flight / (flight + leap)
 }
 
 function landedPose(id, start, t) {
