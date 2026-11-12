@@ -3,7 +3,7 @@ import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './
 import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=6'
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
-import { clockResults, contestResults, courtOf, freeThrowResults, horseResults } from './results.js?v=9'
+import { clockResults, contestResults, courtOf, freeThrowResults, horseResults } from './results.js?v=10'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=3'
@@ -949,7 +949,7 @@ function courtChart(shots, zones) {
 	court.setAttribute('aria-label', `Shot chart: ${zones.map(zone => `${zone.label.toLowerCase()} ${zone.made} of ${zone.taken}`).join(', ')}`)
 	court.innerHTML = COURT_LINES
 	for (const shot of shots) {
-		const spot = el('span', `spot ${shot.made ? 'made' : 'missed'}${shot.three ? ' three' : ''}`)
+		const spot = shot.letter ? el('span', 'spot letter', shot.letter) : el('span', `spot ${shot.made ? 'made' : 'missed'}${shot.three ? ' three' : ''}`)
 		spot.style.left = `${(shot.across * 10 + COURT_W / 2) / COURT_W * 100}%`
 		spot.style.top = `${clamp((COURT_TOP - shot.out) * 10, 1, COURT_H - 1) / COURT_H * 100}%`
 		court.append(spot)
@@ -1050,14 +1050,16 @@ const CHARTS = {
 		})
 		return [row]
 	},
-	ladder({ rows }) {
-		return rows.map(row => {
-			const line = el('div', 'ladder-row')
-			const marks = el('div', 'ladder-marks')
-			marks.append(...row.marks.map(letter => (letter ? el('span', 'ball letter', letter) : ballMark(1, 'made'))))
-			line.append(el('span', '', row.name), el('span', 'ladder-range', row.range), marks)
-			return line
-		})
+	// Each miss shows the letter it earned where it was taken, so the court tells the whole game.
+	horse({ shots, zones }) {
+		const legend = el('div', 'results-legend')
+		legend.setAttribute('aria-hidden', 'true')
+		for (const [className, text, mark] of [['spot made', 'Made', ''], ['spot letter', 'Letter', 'H']]) {
+			const item = el('span')
+			item.append(el('span', className, mark), text)
+			legend.append(item)
+		}
+		return [courtChart(shots, zones), legend]
 	},
 }
 
@@ -1073,7 +1075,7 @@ function takeHorseShot(made) {
 	const before = state.horse
 	state.horse = recordHorseShot(state.horse, made)
 	const { made: makes, letters, best, isOver } = state.horse
-	state.log.push({ made, tier: TIERS.indexOf(tierOf(before.made)), letter: made ? '' : LETTERS[letters - 1], distance: state.ball.distance })
+	state.log.push({ ...shotSpot(state.ball, made), tier: TIERS.indexOf(tierOf(before.made)), letter: made ? '' : LETTERS[letters - 1] })
 	if (isOver) {
 		if (best > before.best) {
 			try { localStorage.setItem(HORSE_BEST_KEY, String(best)) } catch {}
@@ -1617,6 +1619,13 @@ function closeHelp() {
 nodes['help-open'].addEventListener('click', openHelp)
 nodes['help-close'].addEventListener('click', closeHelp)
 nodes['help-play'].addEventListener('click', closeHelp)
+// A click on the dimmed page around the dialog closes it. Such clicks land on the dialog element itself, outside its box.
+nodes.help.addEventListener('click', event => {
+	if (event.target !== nodes.help) return
+	const box = nodes.help.getBoundingClientRect()
+	const isOutside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom
+	if (isOutside) closeHelp()
+})
 
 const MUSIC_VOLUME = 0.135
 const SOUND_MODES = { all: 'On', effects: 'Effects only', off: 'Off' }

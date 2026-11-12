@@ -1,6 +1,6 @@
 import { zoneOf } from './beat-the-clock.js?v=6'
 import { ROUND_SHOTS } from './free-throws.js?v=5'
-import { LETTERS, TIERS } from './horse.js?v=4'
+import { LETTERS } from './horse.js?v=4'
 import { SHOTS, STATIONS, valueOf } from './three-point.js?v=1'
 
 // Each mode's round summary for the card shown when a round ends. These are plain data: game.js draws them. A round's
@@ -77,7 +77,7 @@ export function dunkSpots(dunks) {
 export function courtOf(log) {
 	const spots = dunkSpots(log.filter(shot => shot.dunk))
 	return {
-		shots: log.map(shot => ({ at: shot.at, points: shot.made ? shot.points : 0, out: shot.out, across: shot.across, ...spots.get(shot), made: shot.made, three: shot.points === 3 })),
+		shots: log.map(shot => ({ at: shot.at, points: shot.made ? shot.points : 0, out: shot.out, across: shot.across, ...spots.get(shot), made: shot.made, three: shot.points === 3, ...(shot.letter && { letter: shot.letter }) })),
 		zones: ZONES.map(([id, label]) => {
 			const shots = log.filter(shot => zoneOf(shot) === id)
 			return { id, label, made: count(shots, shot => shot.made), taken: shots.length }
@@ -138,11 +138,6 @@ const TIER_NAMES = ['Mid-range', 'Long two', 'Inside the arc', 'Threes']
 
 export function horseResults({ log, made, best, bestBefore }) {
 	const reached = Math.max(0, ...log.map(shot => shot.tier))
-	const rows = TIERS.slice(0, reached + 1).map((tier, index) => ({
-		name: TIER_NAMES[index],
-		range: `${tier.min}–${tier.max} m`,
-		marks: log.filter(shot => shot.tier === index).map(shot => (shot.made ? '' : shot.letter)),
-	}))
 	const firstMiss = log.find(shot => !shot.made)
 	return {
 		label: 'HORSE · GAME OVER',
@@ -150,7 +145,7 @@ export function horseResults({ log, made, best, bestBefore }) {
 		score: String(made),
 		scoreNote: joined('made', againstBest(made, best, bestBefore)),
 		stamp: newBest(best, bestBefore),
-		chart: { type: 'ladder', rows },
+		chart: { type: 'horse', ...courtOf(log) },
 		stats: [
 			{ value: made, of: log.length, label: 'MADE' },
 			{ ...metres(farthest(log)), label: 'FARTHEST MAKE' },
