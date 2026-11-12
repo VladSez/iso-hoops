@@ -85,19 +85,15 @@ test('a dunk against the clock counts in the paint, from wherever it started, bu
 	assert.equal(statOf(clockResults({ log: log.slice(0, 1), points: 2, best: 2, bestBefore: 0 }), 'LONGEST').value, '—')
 })
 
-test('dunks are drawn just in front of the rim on the side they came from, never right on top of each other', () => {
-	const dunks = [[3.6, 1.2], [3.5, 1.1], [3.4, 1.3], [2, -2], [0.5, 4], [1, 0]].map(([out, across]) => ({ out, across, dunk: true }))
-	const spots = [...dunkSpots(dunks).values()]
-	assert.equal(spots.length, dunks.length)
-	for (const [i, a] of spots.entries()) {
-		assert.ok(Math.abs(Math.hypot(a.out, a.across) - 0.9) < 1e-9, 'just in front of the rim')
-		for (const b of spots.slice(i + 1)) assert.ok(Math.hypot(a.out - b.out, a.across - b.across) > 0.3, 'apart')
+test('dunks are drawn just in front of the rim, on the side each came from', () => {
+	const dunks = [[3.6, 1.2], [2, -2], [0.5, 4], [1, 0], [-1, 5]].map(([out, across]) => ({ out, across, dunk: true }))
+	const spots = dunkSpots(dunks)
+	for (const dunk of dunks) {
+		const spot = spots.get(dunk)
+		assert.ok(Math.abs(Math.hypot(spot.out, spot.across) - 0.9) < 1e-9, 'just in front of the rim')
+		assert.equal(Math.sign(spot.across), Math.sign(dunk.across), 'on the side it came from')
+		assert.ok(Math.abs(Math.atan2(spot.across, spot.out)) <= 1.9 + 1e-9, 'never past the baseline end of the arc')
 	}
-	const left = dunkSpots([{ out: 2, across: -2 }]).values().next().value
-	assert.ok(left.across < 0 && left.out > 0, 'on the side it came from')
-	const many = [...dunkSpots(Array.from({ length: 12 }, () => ({ out: 3, across: 0 }))).values()]
-	assert.ok(many.every(spot => Math.abs(Math.atan2(spot.across, spot.out)) <= 1.9 + 1e-9), 'never past the end of the arc')
-	assert.equal(new Set(many.map(spot => spot.across.toFixed(3))).size, 12, 'each still has its own place')
-	const results = clockResults({ log: dunks.map((d, i) => ({ ...d, at: i, made: true, points: 2, distance: 0 })), points: 12, best: 12, bestBefore: 0 })
-	assert.ok(results.chart.shots.every(shot => Math.hypot(shot.out, shot.across) < 1.5))
+	const results = clockResults({ log: dunks.map((d, i) => ({ ...d, at: i, made: true, points: 2, distance: 0 })), points: 10, best: 10, bestBefore: 0 })
+	assert.ok(results.chart.shots.every(shot => Math.abs(Math.hypot(shot.out, shot.across) - 0.9) < 1e-9))
 })

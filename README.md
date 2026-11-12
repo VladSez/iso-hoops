@@ -47,7 +47,7 @@ In the 3PT contest you're moved from rack to rack and always face the rim, so th
 
 On phones and tablets, drag the stick in the bottom left to move. You keep facing the rim as you walk; tap or drag on the court to aim elsewhere, or hold the ↺ / ↻ buttons to turn a little. Tap near the rim to aim back at it. Hold the Shoot button to charge. Both portrait and landscape work.
 
-The ball comes back to you after every shot. Free shooting stats reset when you reload the page, except your longest basket. Your best free throw round, your best against the clock, your best HORSE game and your best 3PT contest are saved in your browser too.
+The ball comes back to you after every shot. In free shooting, click or tap the scoreboard to see the session on a court: every shot where you took it, and makes in the paint, mid-range and from three. Start over there clears the session. Free shooting stats also reset when you reload the page, except your longest basket. Your best free throw round, your best against the clock, your best HORSE game and your best 3PT contest are saved in your browser too.
 
 ## Play offline
 
@@ -58,7 +58,7 @@ Open the game once while online. Everything it needs is saved, and from then on 
 - **iPhone or iPad:** tap Share, then Add to Home Screen.
 - **Android:** open the browser menu and tap Install app or Add to Home screen.
 
-The installed game opens full screen, without the browser bars. The How to play dialog has the same steps.
+The installed game opens full screen, without the browser bars. The How to play dialog, behind the ? button, has the same steps.
 
 ## Sound
 
