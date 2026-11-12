@@ -390,6 +390,7 @@ dialog .dialog-note { font-size: 10px; }
 @media (max-width: 1080px) and (min-width: 751px) {
 	.session-stats { gap: 10px; }
 	.session-stats > div { width: 58px; }
+	.session-chevron { margin-left: -2px; }
 	.session-stats strong { font-size: 20px; }
 }
 @media (max-width: 750px) {
@@ -397,6 +398,11 @@ dialog .dialog-note { font-size: 10px; }
 	.session-stats { position: relative; top: auto; left: auto; grid-column: 1 / -1; justify-self: center; transform: none; gap: 8px; padding: 10px; }
 	.session-panel { top: calc(100% + 10px); }
 	.session-stats > div { width: 70px; }
+	/* The arrow gets its own room at the right edge, so it never sits on the last number. */
+	body[data-mode="free"] .session-stats { padding-right: 26px; }
+	/* Narrow phones shrink the four columns so the scoreboard stays on screen, 8 px in from each side. */
+	body[data-mode="free"] .session-stats > div { width: min(64px, calc((100vw - 104px) / 4)); }
+	.session-chevron { position: absolute; top: 50%; right: 9px; margin: -6px 0 0; }
 	#help-open { white-space: nowrap; }
 	#stage { inset: 135px 0 246px; }
 	.shoot-panel { bottom: 133px; width: 270px; }
@@ -484,6 +490,8 @@ dialog .dialog-note { font-size: 10px; }
 	.session-stats { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); gap: 8px; padding: 4px 10px; }
 	.session-panel { top: calc(50% + 30px); max-height: calc(100vh - 80px); overflow-y: auto; }
 	.session-stats > div { width: 62px; }
+	body[data-mode="free"] .session-stats { padding-right: 26px; }
+	.session-chevron { position: absolute; top: 50%; right: 9px; margin: -6px 0 0; }
 	.session-stats strong { font-size: 17px; }
 	.session-stats > div { gap: 4px; }
 	#stage { inset: 50px 0 58px; }
