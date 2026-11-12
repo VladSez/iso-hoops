@@ -19,7 +19,7 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=f9542c8249c8" />
+		<link rel="stylesheet" href="style.css?v=d2ead5fdfe27" />
 	</head>
 	<body>
 		<script>
@@ -83,6 +83,7 @@
 				<button id="help-open" class="text-button" type="button"><span class="help-text">How to play</span></button>
 			</div>
 			<div class="session-stats" aria-label="Session statistics">
+				<button id="session-open" type="button" aria-expanded="false" aria-controls="session-panel"><span class="visually-hidden">Court zones this session</span></button>
 				<div><strong id="makes">00</strong><span id="label-makes">MADE</span></div>
 				<span class="stat-divider" aria-hidden="true"></span>
 				<div><strong id="attempts">00</strong><span id="label-attempts">SHOTS</span></div>
@@ -90,7 +91,14 @@
 				<div><strong id="accuracy">—</strong><span id="label-accuracy">ACCURACY</span></div>
 				<span id="longest-divider" class="stat-divider" aria-hidden="true"></span>
 				<div id="longest-stat"><strong id="longest">—</strong><span>LONGEST</span></div>
+				<svg class="session-chevron" aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4" /></svg>
 			</div>
+			<section id="session-panel" class="session-panel" aria-label="This session" hidden>
+				<div class="session-panel-top"><span>THIS SESSION</span><span id="session-summary"></span></div>
+				<div id="session-court" class="session-court"></div>
+				<div id="session-zones" class="session-zones"></div>
+				<div class="session-panel-foot"><span>Since you opened the court</span><button id="session-reset" type="button">Start over</button></div>
+			</section>
 		</header>
 		<main>
 			<div id="stage"><canvas id="c" tabindex="0" aria-label="Basketball practice court. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot." aria-describedby="controls"></canvas></div>
@@ -157,7 +165,7 @@
 			<div class="dialog-top"><span>THE COURT IS YOURS</span><button id="help-close" class="text-button" type="button" aria-label="Close instructions">Close ×</button></div>
 			<h1>Just you.<br />And the basket.</h1>
 			<p>No clock, no opponent. Find your spot and let it fly.</p>
-			<dl><div><dt>01 / MOVE</dt><dd><span class="pointer-only">WASD or arrow keys move you around the court, in the direction you see on screen.</span><span class="touch-only">Drag the stick in the bottom left to move around the court, in the direction you see on screen.</span></dd></div><div><dt>02 / AIM</dt><dd><span class="pointer-only">Point the mouse toward the rim. Or hold Q / E to turn your aim.</span><span class="touch-only">You face the rim on your own, even as you move. Tap or drag on the court to aim somewhere else, or hold ↺ / ↻ to turn a little. Tap near the rim to aim back at it.</span> The dotted line shows your direction.</dd></div><div><dt>03 / SHOOT</dt><dd><span class="pointer-only">Hold Space, or the left mouse button on the court, to build power, then release. More power sends the ball farther. You can also hold the shoot button.</span><span class="touch-only">Hold the Shoot button to build power, then release. More power sends the ball farther.</span></dd></div></dl>
+			<dl><div><dt>01 / MOVE</dt><dd><span class="pointer-only">WASD or arrow keys move you around the court, in the direction you see on screen.</span><span class="touch-only">Drag the stick in the bottom left to move around the court, in the direction you see on screen.</span></dd></div><div><dt>02 / AIM</dt><dd><span class="pointer-only">Point the mouse toward the rim. Or hold Q / E to turn your aim.</span><span class="touch-only">You face the rim on your own, even as you move. Tap or drag on the court to aim somewhere else, or hold ↺ / ↻ to turn a little. Tap near the rim to aim back at it.</span> The dotted line shows your direction.</dd></div><div><dt>03 / SHOOT</dt><dd><span class="pointer-only">Hold Space, or the left mouse button on the court, to build power, then release. More power sends the ball farther. You can also hold the shoot button.</span><span class="touch-only">Hold the Shoot button to build power, then release. More power sends the ball farther.</span> In free shooting and beat the clock, run at the rim and press shoot to dunk, or press it standing close to the rim.</dd></div></dl>
 			<p class="dialog-note">Try 10 free throws from the Mode menu. Shoot ten from the line, release inside the dark band on the meter, and see how many you make. Each new round moves you a step back.</p>
 			<p class="dialog-note">Or pick Beat the clock: score as many points as you can in 60 seconds, shooting from anywhere. A basket is worth 2, or 3 from beyond the arc. The clock starts with your first shot, and a shot in the air at the buzzer still counts.</p>
 			<p class="dialog-note">Or play HORSE: a ring marks a spot on the court. Walk into it and make the shot. Every miss earns a letter of H-O-R-S-E, and spelling it ends the game. The spots start at mid-range and move back every three makes.</p>
@@ -168,7 +176,7 @@
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=7c2d4e10"></script>
-		<script type="module" src="game.js?v=0a3d5e7b24"></script>
+		<script type="module" src="game.js?v=8eac425b01"></script>
 		<script>
 			// Saves the game for offline play. Skipped when running locally, where edits
 			// would otherwise be hidden behind the saved copies.

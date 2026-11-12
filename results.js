@@ -1,5 +1,6 @@
+import { zoneOf } from './beat-the-clock.js?v=6'
 import { ROUND_SHOTS } from './free-throws.js?v=5'
-import { LETTERS, TIERS } from './horse.js?v=3'
+import { LETTERS } from './horse.js?v=4'
 import { SHOTS, STATIONS, valueOf } from './three-point.js?v=1'
 
 // Each mode's round summary for the card shown when a round ends. These are plain data: game.js draws them. A round's
@@ -58,19 +59,44 @@ export function contestResults({ log, moneyRack, points, best, bestBefore, secon
 	}
 }
 
+const ZONES = [['paint', 'PAINT'], ['mid', 'MID-RANGE'], ['three', 'THREES']]
+
+// Dunks are drawn just in front of the rim, on the side each one came from, out to the baseline on either side. Several from
+// the same side overlap, like any other shots taken from one spot.
+const RIM_RING = 0.9
+const ARC_END = 1.9
+
+export function dunkSpots(dunks) {
+	return new Map(dunks.map(shot => {
+		const angle = Math.max(-ARC_END, Math.min(ARC_END, Math.atan2(shot.across, shot.out)))
+		return [shot, { out: Math.cos(angle) * RIM_RING, across: Math.sin(angle) * RIM_RING }]
+	}))
+}
+
+/** Each shot where it goes on the court chart, and makes by zone. Used by beat the clock's card and free shooting's panel. */
+export function courtOf(log) {
+	const spots = dunkSpots(log.filter(shot => shot.dunk))
+	return {
+		shots: log.map(shot => ({ at: shot.at, points: shot.made ? shot.points : 0, out: shot.out, across: shot.across, ...spots.get(shot), made: shot.made, three: shot.points === 3, ...(shot.letter && { letter: shot.letter }) })),
+		zones: ZONES.map(([id, label]) => {
+			const shots = log.filter(shot => zoneOf(shot) === id)
+			return { id, label, made: count(shots, shot => shot.made), taken: shots.length }
+		}),
+	}
+}
+
 export function clockResults({ log, points, best, bestBefore }) {
 	const made = log.filter(shot => shot.made)
+	const { shots, zones } = courtOf(log)
 	return {
 		label: 'BEAT THE CLOCK · TIME!',
 		side: '',
 		score: String(points),
 		scoreNote: joined('points', againstBest(points, best, bestBefore)),
 		stamp: newBest(best, bestBefore),
-		chart: { type: 'timeline', shots: log.map(shot => ({ at: shot.at, points: shot.made ? shot.points : 0 })) },
+		chart: { type: 'clock', shots, zones },
 		stats: [
-			{ value: made.length, label: 'BASKETS' },
-			{ value: count(made, shot => shot.points === 3), label: 'THREES' },
-			{ value: count(made, shot => shot.points === 2), label: 'TWOS' },
+			...zones.map(zone => ({ value: zone.made, of: zone.taken, label: zone.label })),
 			{ value: percent(made.length, log.length), label: `${made.length} OF ${log.length}` },
 			{ ...metres(farthest(log)), label: 'LONGEST' },
 		],
@@ -112,11 +138,6 @@ const TIER_NAMES = ['Mid-range', 'Long two', 'Inside the arc', 'Threes']
 
 export function horseResults({ log, made, best, bestBefore }) {
 	const reached = Math.max(0, ...log.map(shot => shot.tier))
-	const rows = TIERS.slice(0, reached + 1).map((tier, index) => ({
-		name: TIER_NAMES[index],
-		range: `${tier.min}–${tier.max} m`,
-		marks: log.filter(shot => shot.tier === index).map(shot => (shot.made ? '' : shot.letter)),
-	}))
 	const firstMiss = log.find(shot => !shot.made)
 	return {
 		label: 'HORSE · GAME OVER',
@@ -124,7 +145,7 @@ export function horseResults({ log, made, best, bestBefore }) {
 		score: String(made),
 		scoreNote: joined('made', againstBest(made, best, bestBefore)),
 		stamp: newBest(best, bestBefore),
-		chart: { type: 'ladder', rows },
+		chart: { type: 'horse', ...courtOf(log) },
 		stats: [
 			{ value: made, of: log.length, label: 'MADE' },
 			{ ...metres(farthest(log)), label: 'FARTHEST MAKE' },

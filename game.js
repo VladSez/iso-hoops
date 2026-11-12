@@ -1,11 +1,13 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
-import { ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=3'
-import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=3'
+import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=6'
+import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
-import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=3'
+import { clockResults, contestResults, courtOf, freeThrowResults, horseResults } from './results.js?v=10'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
+import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=3'
+import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
@@ -32,7 +34,7 @@ const nodes = Object.fromEntries([
 	'label-makes', 'longest', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 	'results', 'results-label', 'results-side', 'results-score', 'results-note', 'results-stamp', 'results-stamp-text',
 	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
-	'results-action-detail',
+	'results-action-detail', 'session-open', 'session-panel', 'session-summary', 'session-court', 'session-zones', 'session-reset',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -41,10 +43,14 @@ const state = {
 	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
+	// Free shooting's shots since the page opened, or since Start over, for the session court.
+	session: [],
 	feedbackTime: 0, walking: false, scoredAt: undefined,
 	mode: 'free', round: startRound(0), clock: startClockRound(0), horse: startHorse(0), longest: 0,
 	// The contest lets the next ball go while earlier ones are still in the air, so its balls live in `flying`.
 	contest: startContest(0), flying: [], reloadAt: undefined,
+	// A dunk in progress, from planDunk plus when it started. The last one is never repeated. `moving` is the walking direction.
+	dunk: undefined, lastDunk: undefined, moving: undefined,
 	// The current round's shots, one entry each, for the results card at its end.
 	log: [],
 }
@@ -143,8 +149,8 @@ function groundColor(x, y, ix, iy, index) {
 		const nearBoundary = Math.abs(Math.abs(x) - 8.7) < 0.07 && Math.abs(y) < 6.75 || Math.abs(Math.abs(y) - 6.7) < 0.07 && Math.abs(x) < 8.75
 		const keyBoundary = Math.abs(x + 2.8) < 0.07 && Math.abs(y) < 2.6 || Math.abs(Math.abs(y) - 2.55) < 0.07 && x < -2.75 && x > -8.7
 		const freeThrow = Math.abs(Math.hypot(x + 2.8, y) - 2.1) < 0.07 && (x >= -2.8 || hash(Math.floor(x * 3), Math.floor(y * 3)) > 0.4)
-		const threePoint = Math.abs(Math.hypot(x - HOOP.x, y) - 6.7) < 0.07 && x > HOOP.x
-		const corner = x <= HOOP.x && Math.abs(Math.abs(y) - 6.7) < 0.07
+		const threePoint = Math.abs(Math.hypot(x - HOOP.x, y) - THREE_POINT_DISTANCE) < 0.07 && x - HOOP.x >= CORNER_REACH
+		const corner = Math.abs(Math.abs(y) - CORNER_LINE) < 0.07 && x - HOOP.x < CORNER_REACH && x > -8.75
 		const center = Math.abs(Math.hypot(x - 8.7, y) - 2.15) < 0.07
 		if (nearBoundary || keyBoundary || freeThrow || threePoint || corner || center) color = court.line
 		if (court.fallenLeaves && hash(ix * 5, iy * 3) < 0.012 + Math.max(0, Math.abs(y) - 5) * 0.03) color = court.leaf[hash(ix, iy * 7) * 3 | 0]
@@ -172,9 +178,10 @@ function line3D(from, to, radius, color) {
 	capsule(from, to, radius, radius, () => color, 'solid')
 }
 
+const RIM_COLOR = [192, 73, 36]
 function drawHoop() {
 	const board = [227, 225, 206]
-	const rim = [192, 73, 36]
+	const rim = RIM_COLOR
 	line3D([-8.9, 0, 0], [-8.9, 0, 4.05], 0.13, STEEL)
 	line3D([-8.9, 0, 4.05], [BACKBOARD_X, 0, 4.05], 0.1, STEEL)
 	box(BACKBOARD_X - 0.06, -1.35, 3, BACKBOARD_X + 0.06, 1.35, 4.9, board)
@@ -182,15 +189,21 @@ function drawHoop() {
 	for (const z of [3, 4.9]) line3D([BACKBOARD_X + 0.08, -1.35, z], [BACKBOARD_X + 0.08, 1.35, z], 0.045, STEEL)
 	for (const y of [-0.62, 0.62]) line3D([BACKBOARD_X + 0.1, y, 3.4], [BACKBOARD_X + 0.1, y, 4.2], 0.035, rim)
 	for (const z of [3.4, 4.2]) line3D([BACKBOARD_X + 0.1, -0.62, z], [BACKBOARD_X + 0.1, 0.62, z], 0.035, rim)
-	line3D([BACKBOARD_X, 0, HOOP.z], [HOOP.x - HOOP.radius, 0, HOOP.z], 0.07, rim)
-	for (let i = 0; i < 40; i++) {
-		const a = i / 40 * Math.PI * 2
-		const b = (i + 1) / 40 * Math.PI * 2
-		line3D([HOOP.x + Math.cos(a) * HOOP.radius, Math.sin(a) * HOOP.radius, HOOP.z], [HOOP.x + Math.cos(b) * HOOP.radius, Math.sin(b) * HOOP.radius, HOOP.z], 0.055, rim)
-	}
 }
 
-function drawNet() {
+// How far a dunk pulls the rim down at an angle round it: most at the front the player hangs on, none at the board.
+function rimDip(angle, bend, toward) {
+	return bend * ((1 + Math.cos(angle - toward)) / 2) ** 2
+}
+
+// Drawn every frame rather than baked, so a dunk can bend it.
+function drawRim(bend = 0, toward = 0) {
+	line3D([BACKBOARD_X, 0, HOOP.z], [HOOP.x - HOOP.radius, 0, HOOP.z], 0.07, RIM_COLOR)
+	const point = a => [HOOP.x + Math.cos(a) * HOOP.radius, Math.sin(a) * HOOP.radius, HOOP.z - rimDip(a, bend, toward)]
+	for (let i = 0; i < 40; i++) line3D(point(i / 40 * Math.PI * 2), point((i + 1) / 40 * Math.PI * 2), 0.055, RIM_COLOR)
+}
+
+function drawNet(bend = 0, toward = 0) {
 	const age = state.scoredAt === undefined ? 2 : state.time - state.scoredAt
 	const active = age < 1.3 && !STILL
 	const stretch = active ? Math.sin(Math.min(age / 0.32, 1) * Math.PI) * 0.35 : 0
@@ -202,7 +215,7 @@ function drawNet() {
 		return [
 			HOOP.x + Math.cos(angle) * radius + sway * t,
 			HOOP.y + Math.sin(angle) * radius,
-			HOOP.z - 0.05 - t * (0.95 + stretch),
+			HOOP.z - 0.05 - t * (0.95 + stretch) - rimDip(angle, bend, toward) * (1 - t * 0.6),
 		]
 	}
 	for (let row = 0; row < 4; row++) {
@@ -431,7 +444,11 @@ function bakeCourt() {
 	drawFence()
 	const beforeHoop = pix.slice()
 	drawHoop()
+	const withoutRim = [pix.slice(), zb.slice()]
+	drawRim()
 	for (let i = 0; i < pix.length; i++) hoopPixels[i] = pix[i] === beforeHoop[i] ? 0 : 1
+	pix.set(withoutRim[0])
+	zb.set(withoutRim[1])
 	PROPS[courtId]()
 	drawStreetlights()
 	drawFloodlight()
@@ -495,7 +512,7 @@ function updateMeter() {
 	nodes['power-meter'].setAttribute('aria-valuenow', String(percent))
 	document.body.classList.toggle('charging', state.phase === 'charging')
 	document.body.dataset.charge = state.phase === 'charging' ? state.chargeSource : ''
-	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.phase === 'flight' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
+	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.phase === 'flight' || state.phase === 'dunk' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
 }
 
 // Puts the player on this round's spot and the meter's band over its scoring range.
@@ -579,6 +596,9 @@ function beginCharge(source) {
 		}
 		if (state.clock.endsAt === undefined) state.clock = startClock(state.clock, state.time)
 	}
+	// A dunk needs no charge: it starts on the press, with no meter or aim guide.
+	const dunk = canDunk() && planDunk(state.player, state.moving, state.lastDunk)
+	if (dunk) return startDunk(dunk)
 	state.phase = 'charging'
 	state.chargeSource = source
 	state.charge = 0
@@ -591,6 +611,7 @@ function releaseShot(source) {
 	if (state.mode === 'three-point') return releaseContestBall()
 	state.ball = createShot(state.player, state.yaw, state.power)
 	state.ball.distance = shotDistance(state.player)
+	state.ball.from = { x: state.player.x, y: state.player.y }
 	// Scored from where the shot was released, since the player can walk while the ball is in the air.
 	state.ball.points = pointsFor(state.player)
 	state.ball.releasedAt = state.time
@@ -601,6 +622,51 @@ function releaseShot(source) {
 	setFeedback('Let it fly.')
 	updateStats()
 	playSound('shoot')
+}
+
+const canDunk = () => state.mode === 'free' || state.mode === 'clock'
+
+// Timed from the press, so in beat the clock a dunk started before the buzzer counts like a shot released before it.
+// It's a two from inside the arc, with no distance, so it never shows as a longest make.
+function dunkThrough(pressedAt, from) {
+	return { ...dunkBall(), releasedAt: pressedAt, points: 2, distance: 0, from }
+}
+
+function startDunk(plan) {
+	state.returnTime = undefined
+	// With reduced motion there is no jump: the ball just drops through the hoop.
+	if (STILL) {
+		state.ball = dunkThrough(state.time, { x: state.player.x, y: state.player.y })
+		state.phase = 'flight'
+		playDunkSound(plan.bend)
+		return
+	}
+	state.lastDunk = plan.id
+	state.dunk = { ...plan, start: state.time, from: { x: state.player.x, y: state.player.y }, grabbed: false, letGo: false }
+	state.yaw = plan.angle + Math.PI
+	state.phase = 'dunk'
+}
+
+function updateDunk() {
+	const dunk = state.dunk
+	const t = state.time - dunk.start
+	const pose = dunkPose(dunk, t)
+	state.player.x = HOOP.x + Math.cos(dunk.angle) * pose.d
+	state.player.y = HOOP.y + Math.sin(dunk.angle) * pose.d
+	state.yaw = dunk.angle + Math.PI + (pose.spin ?? 0)
+	if (!dunk.grabbed && t >= dunk.slamAt) {
+		dunk.grabbed = true
+		playDunkSound(dunk.bend)
+	}
+	if (!dunk.letGo && t >= dunk.releaseAt) {
+		dunk.letGo = true
+		playSound('spring')
+	}
+	if (!state.ball && t >= dunk.throughAt) state.ball = dunkThrough(dunk.start, dunk.from)
+	if (t >= dunk.length) {
+		state.dunk = undefined
+		state.phase = 'flight'
+	}
 }
 
 // The ball leaves the rack and the next one is picked up straight away, or after the walk to the next rack.
@@ -635,6 +701,7 @@ function cancelInput() {
 
 function returnBall() {
 	state.ball = undefined
+	state.dunk = undefined
 	state.phase = 'ready'
 	state.charge = 0
 	state.power = 0
@@ -658,7 +725,7 @@ function aimAtPointer(event) {
 function updateAim() {
 	// Touch screens have no hovering cursor to follow, so until the player taps somewhere else they keep facing the rim.
 	const target = state.pointer ?? (IS_TOUCH ? HOOP : undefined)
-	if (!target || state.mode === 'free-throws' || state.mode === 'three-point') return
+	if (!target || state.mode === 'free-throws' || state.mode === 'three-point' || state.phase === 'dunk') return
 	const dx = target.x - state.player.x
 	const dy = target.y - state.player.y
 	if (Math.hypot(dx, dy) > 0.3) state.yaw = Math.atan2(dy, dx)
@@ -703,9 +770,42 @@ function finishClock() {
 	showResults(clockResults({ log: state.log, points, best, bestBefore }))
 }
 
+// Where a shot was released from, for the court charts.
+function shotSpot(ball, made) {
+	const from = ball.from ?? HOOP
+	return { made, points: ball.points, distance: ball.distance, out: from.x - HOOP.x, across: from.y - HOOP.y, dunk: !!ball.dunk }
+}
+
 function logClockShot(made) {
 	const { ball, clock } = state
-	state.log.push({ at: ball.releasedAt - (clock.endsAt - ROUND_SECONDS), made, points: ball.points, distance: ball.distance })
+	state.log.push({ at: ball.releasedAt - (clock.endsAt - ROUND_SECONDS), ...shotSpot(ball, made) })
+}
+
+function logFreeShot(made) {
+	state.session.push(shotSpot(state.ball, made))
+	renderSession()
+}
+
+// Free shooting's header stats open a court of the session so far.
+function renderSession() {
+	if (nodes['session-panel'].hidden) return
+	const { shots, zones } = courtOf(state.session)
+	const made = state.session.filter(shot => shot.made).length
+	nodes['session-summary'].textContent = state.session.length ? `${made} of ${state.session.length} · ${Math.round(made / state.session.length * 100)}%` : 'No shots yet'
+	nodes['session-court'].replaceChildren(courtChart(shots, zones))
+	nodes['session-zones'].replaceChildren(...zones.map(zone => {
+		const value = el('strong', zone.id, String(zone.made))
+		value.append(el('small', '', `/${zone.taken}`))
+		const slot = el('div')
+		slot.append(value, el('span', '', zone.label))
+		return slot
+	}))
+}
+
+function setSessionOpen(open) {
+	nodes['session-panel'].hidden = !open
+	nodes['session-open'].setAttribute('aria-expanded', String(open))
+	renderSession()
 }
 
 function finishContest() {
@@ -786,6 +886,7 @@ const el = (tag, className = '', text = '') => Object.assign(document.createElem
 
 // The card shown when a round ends: see results.js for what each mode puts on it.
 function showResults(results) {
+	nodes.results.dataset.mode = state.mode
 	nodes['results-label'].textContent = results.label
 	nodes['results-side'].textContent = results.side
 	nodes['results-score'].replaceChildren(results.score, ...(results.scoreUnit ? [el('small', '', results.scoreUnit)] : []))
@@ -814,6 +915,55 @@ function showResults(results) {
 }
 
 const ballMark = (value, outcome) => el('span', `ball v${value} ${outcome}`)
+
+// The beat the clock card opens on the court, and remembers the tab picked last time.
+let clockView = 'court'
+
+function legendItems(view) {
+	return [[3, 'Three'], [2, 'Two'], [0, 'Miss']].map(([points, text]) => {
+		const item = el('span')
+		const mark = view === 'court' ? el('span', `spot${points ? ' made' : ' missed'}${points === 3 ? ' three' : ''}`) : el('span', `tick p${points}`)
+		item.append(mark, text)
+		return item
+	})
+}
+
+// The half court from above with the basket at the bottom, in decimetres: 6.7 m to each sideline, from the baseline
+// 1.7 m behind the hoop to 9.5 m out. Shots from farther out sit on the top edge.
+const COURT_W = 134
+const COURT_H = 112
+const COURT_TOP = 9.5
+const COURT_LINES = `<svg viewBox="0 0 ${COURT_W} ${COURT_H}" aria-hidden="true">
+	<path class="zone" d="M0 0H134V112H125V61.5A67 67 0 0 0 9 61.5V112H0Z" />
+	<rect class="zone paint" x="41.5" y="53" width="51" height="59" />
+	<path class="lines" d="M0.3 0V111.7H133.7V0M41.5 111.7V53H92.5V111.7M9 111.7V61.5A67 67 0 0 1 125 61.5V111.7M46 53A21 21 0 0 1 88 53" />
+	<path class="lines dashed" d="M46 53A21 21 0 0 0 88 53" />
+	<path class="board" d="M58 104H76" />
+	<circle class="rim" cx="67" cy="95" r="2.3" />
+</svg>`
+const ZONE_SPOTS = { paint: [50, 56], mid: [13, 62], three: [50, 10] }
+
+function courtChart(shots, zones) {
+	const court = el('div', 'court')
+	court.setAttribute('role', 'img')
+	court.setAttribute('aria-label', `Shot chart: ${zones.map(zone => `${zone.label.toLowerCase()} ${zone.made} of ${zone.taken}`).join(', ')}`)
+	court.innerHTML = COURT_LINES
+	for (const shot of shots) {
+		const spot = shot.letter ? el('span', 'spot letter', shot.letter) : el('span', `spot ${shot.made ? 'made' : 'missed'}${shot.three ? ' three' : ''}`)
+		spot.style.left = `${(shot.across * 10 + COURT_W / 2) / COURT_W * 100}%`
+		spot.style.top = `${clamp((COURT_TOP - shot.out) * 10, 1, COURT_H - 1) / COURT_H * 100}%`
+		court.append(spot)
+	}
+	for (const zone of zones) {
+		const tag = el('span', `zone-tag ${zone.id}`)
+		const [left, top] = ZONE_SPOTS[zone.id]
+		tag.style.left = `${left}%`
+		tag.style.top = `${top}%`
+		tag.append(el('strong', '', zone.taken ? `${zone.made}/${zone.taken}` : '—'), el('small', '', zone.label))
+		court.append(tag)
+	}
+	return court
+}
 
 const CHARTS = {
 	racks({ columns }) {
@@ -855,6 +1005,40 @@ const CHARTS = {
 		}
 		return [line, axis, legend]
 	},
+	clock({ shots, zones }) {
+		const court = el('div', 'court-view')
+		court.append(courtChart(shots, zones))
+		const timeline = el('div', 'timeline-view')
+		timeline.append(...CHARTS.timeline({ shots }).slice(0, 2))
+		const views = { court, timeline }
+		const tabs = el('div', 'chart-tabs')
+		tabs.setAttribute('role', 'tablist')
+		tabs.setAttribute('aria-label', 'Chart')
+		const buttons = Object.entries({ court: 'Court', timeline: 'Timeline' }).map(([id, text]) => {
+			const button = el('button', '', text)
+			button.type = 'button'
+			button.setAttribute('role', 'tab')
+			// A mouse click leaves focus on the court, so Space still starts the next round.
+			button.addEventListener('mousedown', event => event.preventDefault())
+			button.addEventListener('click', () => showView(id))
+			return button
+		})
+		tabs.append(...buttons)
+		const showView = id => {
+			clockView = id
+			buttons.forEach((button, i) => button.setAttribute('aria-selected', String(Object.keys(views)[i] === id)))
+			for (const [key, view] of Object.entries(views)) view.hidden = key !== id
+			legend.replaceChildren(...legendItems(id))
+		}
+		const stack = el('div', 'chart-views')
+		stack.append(court, timeline)
+		const legend = el('div', 'results-legend')
+		legend.setAttribute('aria-hidden', 'true')
+		const foot = el('div', 'chart-foot')
+		foot.append(legend, tabs)
+		showView(clockView)
+		return [stack, foot]
+	},
 	shots({ shots }) {
 		const row = el('ol', 'shot-row')
 		row.setAttribute('aria-label', 'Shot by shot')
@@ -866,14 +1050,16 @@ const CHARTS = {
 		})
 		return [row]
 	},
-	ladder({ rows }) {
-		return rows.map(row => {
-			const line = el('div', 'ladder-row')
-			const marks = el('div', 'ladder-marks')
-			marks.append(...row.marks.map(letter => (letter ? el('span', 'ball letter', letter) : ballMark(1, 'made'))))
-			line.append(el('span', '', row.name), el('span', 'ladder-range', row.range), marks)
-			return line
-		})
+	// Each miss shows the letter it earned where it was taken, so the court tells the whole game.
+	horse({ shots, zones }) {
+		const legend = el('div', 'results-legend')
+		legend.setAttribute('aria-hidden', 'true')
+		for (const [className, text, mark] of [['spot made', 'Made', ''], ['spot letter', 'Letter', 'H']]) {
+			const item = el('span')
+			item.append(el('span', className, mark), text)
+			legend.append(item)
+		}
+		return [courtChart(shots, zones), legend]
 	},
 }
 
@@ -889,7 +1075,7 @@ function takeHorseShot(made) {
 	const before = state.horse
 	state.horse = recordHorseShot(state.horse, made)
 	const { made: makes, letters, best, isOver } = state.horse
-	state.log.push({ made, tier: TIERS.indexOf(tierOf(before.made)), letter: made ? '' : LETTERS[letters - 1], distance: state.ball.distance })
+	state.log.push({ ...shotSpot(state.ball, made), tier: TIERS.indexOf(tierOf(before.made)), letter: made ? '' : LETTERS[letters - 1] })
 	if (isOver) {
 		if (best > before.best) {
 			try { localStorage.setItem(HORSE_BEST_KEY, String(best)) } catch {}
@@ -930,22 +1116,29 @@ function update(delta) {
 	const horse = state.mode === 'horse'
 	// In HORSE you plant your feet once you start charging, so a shot is always released from inside the ring.
 	const isPlanted = horse && state.phase === 'charging'
-	const isFixed = freeThrows || contest
+	const isFixed = freeThrows || contest || state.phase === 'dunk'
 	state.walking = length > 0 && !isFixed && !isPlanted
+	state.moving = undefined
 	if (state.walking) {
 		// Keys always walk at full speed; a partly pushed stick walks slower, for small adjustments.
 		if (length > 1) {
 			screenX /= length
 			screenY /= length
 		}
+		state.moving = { x: (screenX + screenY) / Math.hypot(screenX, screenY) / R2, y: (screenY - screenX) / Math.hypot(screenX, screenY) / R2 }
 		state.player.x = clamp(state.player.x + (screenX + screenY) / R2 * 4.4 * delta, -8.25, 8.3)
-		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.3, 6.3)
+		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.5, 6.5)
 		updateAim()
 	}
 	const turn = isFixed ? 0 : Number(keys.has('KeyE')) - Number(keys.has('KeyQ'))
 	if (turn) {
 		state.pointer = undefined
 		state.yaw += turn * 1.4 * delta
+	}
+	const drive = state.phase === 'charging' && canDunk() && drivingDunk(state.player, state.moving, state.lastDunk)
+	if (drive) {
+		state.chargeSource = undefined
+		startDunk(drive)
 	}
 	if (state.phase === 'charging') {
 		state.charge = Math.min(1, state.charge + delta / 1.6)
@@ -954,16 +1147,37 @@ function update(delta) {
 		if (contest) level = STATIONS[nextShot(state.contest).station]
 		state.power = level ? clamp(state.charge + wobble(state.time, level), 0, 1) : state.charge
 	}
+	if (state.dunk) updateDunk()
 	if (state.ball) {
 		const events = stepBall(state.ball, delta)
 		for (const event of events) {
 			playSound(event)
 			if (event === 'board') state.ball.banked = true
+			if (event === 'score' && state.ball.dunk && clock) {
+				showCallout('DUNK!', '+2 PT')
+				state.clock = recordMake(state.clock, 2)
+				logClockShot(true)
+				setFeedback(`Dunk! ${state.clock.points} points.`, true)
+				state.returnTime = state.time + RETURN_AFTER_MAKE
+				updateStats()
+				continue
+			}
+			if (event === 'score' && state.ball.dunk) {
+				showCallout('DUNK!', '+1 MADE')
+				logFreeShot(true)
+				state.attempts++
+				state.makes++
+				state.streak++
+				setFeedback(state.streak > 1 ? `Dunk! ${state.streak} in a row.` : 'Dunk!', true)
+				state.returnTime = state.time + 1.5
+				updateStats()
+				continue
+			}
 			if (event === 'score') {
 				const distance = `${state.ball.distance.toFixed(1)} M`
 				let detail = `+1 MADE · ${distance}`
 				if (freeThrows) detail = '+1 MADE'
-				if (clock) detail = `+${state.ball.points} · ${distance}`
+				if (clock) detail = `+${state.ball.points} PT · ${distance}`
 				const banked = state.ball.banked
 				showCallout(banked ? 'BANK SHOT!' : 'BASKET!', detail)
 				if (freeThrows) {
@@ -976,6 +1190,7 @@ function update(delta) {
 					const shot = state.ball.points === 3 ? 'Three!' : 'Basket!'
 					setFeedback(`${shot} ${state.clock.points} points.`, true)
 				} else {
+					logFreeShot(true)
 					state.attempts++
 					state.makes++
 					state.streak++
@@ -1013,12 +1228,13 @@ function update(delta) {
 				logClockShot(false)
 				setFeedback('Next one, quick.')
 			} else {
+				logFreeShot(false)
 				state.attempts++
 				setFeedback('Another one. The court isn’t going anywhere.')
 				updateStats()
 			}
 		}
-		if (state.returnTime !== undefined && state.time >= state.returnTime) returnBall()
+		if (state.returnTime !== undefined && state.time >= state.returnTime && state.phase !== 'dunk') returnBall()
 	}
 	if (contest) updateContest(delta)
 	if (clock && !state.clock.isOver && isTimeUp(state.clock, state.time)) {
@@ -1059,7 +1275,7 @@ function drawBasketball(x, y, z, time, color = BALL_COLOR) {
 }
 
 function drawAimGuide() {
-	if (state.phase === 'flight' || state.mode === 'free-throws') return
+	if (state.phase === 'flight' || state.phase === 'dunk' || state.mode === 'free-throws') return
 	const direction = { x: Math.cos(state.yaw), y: Math.sin(state.yaw) }
 	const dots = []
 	for (let d = 0.8; d < 4.2; d += 0.3) {
@@ -1151,17 +1367,27 @@ function draw() {
 	if (state.mode === 'horse' && !state.horse.isOver) drawSpotMarker()
 	const contest = state.mode === 'three-point'
 	if (contest) drawRacks()
-	figure(state.player.x, state.player.y, state.yaw, {
+	const dunk = state.dunk && dunkPose(state.dunk, state.time - state.dunk.start)
+	drawRim(dunk?.bend, state.dunk?.angle)
+	figure(state.player.x, state.player.y, state.yaw, dunk ?? {
 		crouch: charging ? state.power * 0.45 : 0,
 		stance: 0.12 + walkCycle * 0.18,
 		armR: armAngle, armL: shotPose ? armAngle : 0.6,
 		z: state.walking ? Math.abs(walkCycle) * 0.04 : 0,
 	}, PALETTE, dynamicAdd)
+	if (dunk?.ball) {
+		const { along, across, z } = dunk.ball
+		// `across` is measured facing the rim, before any spin.
+		const x = HOOP.x + Math.cos(state.dunk.angle) * along + Math.sin(state.dunk.angle) * across
+		const y = HOOP.y + Math.sin(state.dunk.angle) * along - Math.cos(state.dunk.angle) * across
+		drawBasketball(x, y, z, state.time)
+		castShadow(x, y, z, BALL_RADIUS, 1, 0)
+	}
 	for (const ball of state.ball ? [state.ball, ...state.flying] : state.flying) {
 		drawBasketball(ball.x, ball.y, ball.z, state.time, BALL_COLORS[ball.value ?? 1])
 		castShadow(ball.x, ball.y, ball.z, BALL_RADIUS, 1, 0)
 	}
-	const inHand = contest ? state.phase !== 'flight' && nextShot(state.contest) : !state.ball
+	const inHand = contest ? state.phase !== 'flight' && nextShot(state.contest) : !state.ball && !state.dunk
 	if (inHand) {
 		const held = contest ? 1.3 : BALL_RADIUS + Math.abs(Math.sin(state.time * DRIBBLE_SPEED)) * 0.99
 		const color = contest ? BALL_COLORS[valueOf(nextShot(state.contest), state.contest.moneyRack)] : BALL_COLOR
@@ -1172,7 +1398,7 @@ function draw() {
 	flushShadows()
 	applyShadows(bakedZ)
 	shadeEdges()
-	drawNet()
+	drawNet(dunk?.bend, state.dunk?.angle)
 	drawAimGuide()
 	gradeFrame()
 	ctx.putImageData(image, 0, 0)
@@ -1393,6 +1619,13 @@ function closeHelp() {
 nodes['help-open'].addEventListener('click', openHelp)
 nodes['help-close'].addEventListener('click', closeHelp)
 nodes['help-play'].addEventListener('click', closeHelp)
+// A click on the dimmed page around the dialog closes it. Such clicks land on the dialog element itself, outside its box.
+nodes.help.addEventListener('click', event => {
+	if (event.target !== nodes.help) return
+	const box = nodes.help.getBoundingClientRect()
+	const isOutside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom
+	if (isOutside) closeHelp()
+})
 
 const MUSIC_VOLUME = 0.135
 const SOUND_MODES = { all: 'On', effects: 'Effects only', off: 'Off' }
@@ -1488,6 +1721,8 @@ function playSound(kind) {
 		rim: [1050, 420, 0.13, 0.045, 'triangle'],
 		board: [240, 110, 0.09, 0.08, 'triangle'],
 		score: [540, 810, 0.2, 0.045, 'sine'],
+		// The rim snapping back up when a dunker lets go.
+		spring: [330, 190, 0.16, 0.035, 'triangle'],
 	}
 	const [from, to, duration, volume, type] = sounds[kind]
 	const { pitch, floor } = court.sound
@@ -1504,6 +1739,11 @@ function playSound(kind) {
 	oscillator.start(now)
 	oscillator.stop(now + duration + 0.01)
 	oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
+}
+
+function playDunkSound(weight) {
+	if (!audio || soundMode === 'off' || audio.state !== 'running') return
+	playSlam(audio, effectsBus, { pitch: court.sound.pitch, weight })
 }
 
 function playSwish() {
@@ -1581,6 +1821,27 @@ function setupMenu(button, options, onPick) {
 function checkOption(options, value) {
 	for (const radio of options.querySelectorAll('input')) radio.checked = radio.value === value
 }
+
+// A mouse click on these leaves focus on the court, so Space still shoots instead of pressing them again.
+for (const button of [nodes['session-open'], nodes['session-reset']]) button.addEventListener('mousedown', event => event.preventDefault())
+nodes['session-open'].addEventListener('click', () => setSessionOpen(nodes['session-panel'].hidden))
+nodes['session-reset'].addEventListener('click', () => {
+	state.session = []
+	state.attempts = 0
+	state.makes = 0
+	state.streak = 0
+	updateStats()
+	renderSession()
+})
+// A press outside closes the session court, and one on the court only closes it, like the header menus.
+addEventListener('pointerdown', event => {
+	const panel = nodes['session-panel']
+	if (panel.hidden || panel.contains(event.target) || nodes['session-open'].contains(event.target)) return
+	setSessionOpen(false)
+	if (event.target !== canvas) return
+	event.stopPropagation()
+	dismissingPointer = event.pointerId
+}, { capture: true })
 
 // Sound and music share one header panel. Unlike the footer menus it stays open while the player changes things.
 const setAudioOpen = setupPopover(nodes.sound, nodes['audio-options'])
@@ -1716,6 +1977,7 @@ const MODE_INTROS = {
 }
 
 function applyMode() {
+	setSessionOpen(false)
 	const freeThrows = state.mode === 'free-throws'
 	const clock = state.mode === 'clock'
 	const contest = state.mode === 'three-point'
