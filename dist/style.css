@@ -137,12 +137,6 @@ body:not([data-mode="free"]) :is(#session-open, .session-chevron, .session-panel
 .session-court { padding: 10px 8px 8px; border-radius: 10px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--line); }
 .session-court .court { max-width: 280px; }
 .session-court .spot { width: 8px; height: 8px; margin: -4px 0 0 -4px; }
-.session-zones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); text-align: center; }
-.session-zones div { display: grid; gap: 5px; }
-.session-zones strong { font-size: 16px; font-weight: 400; font-variant-numeric: tabular-nums; }
-.session-zones strong.three { color: var(--orange); }
-.session-zones small { color: var(--label); font-size: 11px; }
-.session-zones span { color: var(--label); font-size: 7px; letter-spacing: 1.4px; }
 .session-panel-foot { padding-top: 10px; border-top: 1px solid var(--line); font-size: 9px; }
 #session-reset { min-height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--hover); color: var(--soft); font: inherit; font-size: 10px; box-shadow: 0 0 0 1px var(--edge); cursor: pointer; }
 #session-reset:hover { color: var(--orange); }
@@ -226,7 +220,7 @@ body:not([data-mode="free"]) :is(#session-open, .session-chevron, .session-panel
 .chart-views > [hidden] { display: block; visibility: hidden; }
 .timeline-view { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
 .timeline-view[hidden] { display: flex; }
-.court { position: relative; width: 100%; max-width: 300px; margin: 0 auto; aspect-ratio: 134 / 112; }
+.court { position: relative; width: 100%; max-width: 300px; margin: 0 auto; aspect-ratio: 134 / 137; }
 .court svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .court .zone { fill: var(--orange); opacity: 0.08; }
 .court .zone.paint { fill: var(--ink); opacity: 0.06; }
@@ -241,10 +235,18 @@ body:not([data-mode="free"]) :is(#session-open, .session-chevron, .session-panel
 .spot.missed { border: 2px solid var(--faint); }
 .spot.letter { display: grid; place-items: center; width: 15px; height: 15px; border: 2px solid #c0492b; background: var(--panel); color: #c0492b; font-size: 9px; font-weight: 700; line-height: 1; }
 .court .spot.letter { width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; }
-.zone-tag { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 7px 3px; border-radius: 4px; background: color-mix(in srgb, var(--panel) 90%, transparent); box-shadow: 0 0 0 1px var(--edge); white-space: nowrap; pointer-events: none; }
-.zone-tag strong { font-size: 12px; font-weight: 700; }
-.zone-tag.three strong { color: var(--orange); }
-.zone-tag small { color: var(--label); font-size: 7px; letter-spacing: 1.2px; }
+.zone-tallies { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+#results-chart .zone-tallies { box-sizing: border-box; width: 100%; max-width: 340px; margin: 0 auto; padding: 0 4px; }
+.zone-tallies > div { display: grid; gap: 6px; min-width: 0; }
+.zone-tally-top { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
+.zone-tally-top strong { font-size: 15px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.zone-tallies .three strong { color: var(--orange); }
+.zone-tally-top small { color: var(--label); font-size: 10px; }
+.zone-tally-top span { color: var(--label); font-size: 10px; font-variant-numeric: tabular-nums; }
+.zone-bar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.zone-bar i { display: block; height: 100%; border-radius: inherit; background: var(--ink); }
+.zone-tallies .three .zone-bar i { background: var(--orange); }
+.zone-name { color: var(--label); font-size: 7px; letter-spacing: 1.4px; white-space: nowrap; }
 .shot-row { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 2px 0; list-style: none; }
 .shot-row li { display: flex; flex-direction: column; align-items: center; gap: 7px; color: var(--label); font-size: 9px; }
 #results-chart .shot-row .ball { width: 20px; height: 20px; }
@@ -282,7 +284,9 @@ body:not([data-mode="free"]) :is(#session-open, .session-chevron, .session-panel
 	#results:is([data-mode="clock"], [data-mode="horse"]) #results-foot-note { grid-area: note; padding: 0; }
 	#results:is([data-mode="clock"], [data-mode="horse"]) #results-foot-note:empty { display: none; }
 	/* The court shrinks on shorter windows, so the whole card fits without a scrollbar. */
-	#results:is([data-mode="clock"], [data-mode="horse"]) .court { max-width: clamp(160px, calc((100svh - 560px) * 1.19), 300px); }
+	#results:is([data-mode="clock"], [data-mode="horse"]) .court { max-width: clamp(160px, calc((100svh - 560px) * 0.98), 300px); }
+	/* HORSE's card also has the zone row under its court. */
+	#results[data-mode="horse"] .court { max-width: clamp(130px, calc((100svh - 600px) * 0.98), 300px); }
 }
 }
 @media (max-width: 600px) { .rack-label { letter-spacing: 0.3px; } }
@@ -546,7 +550,8 @@ dialog .dialog-note { font-size: 10px; }
 	.rack-label { letter-spacing: 0.4px; }
 	.rack-balls { height: 76px; gap: 4px; }
 	#results-chart .rack .ball { width: 12px; height: 12px; }
-	.court { max-width: 340px; }
+	/* Shorter phones get a smaller court, so the results card fits without scrolling. */
+	.court { max-width: clamp(180px, calc((100svh - 370px) * 0.98), 340px); }
 	.court .spot { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; }
 	.chart-tabs { margin: 0 auto; }
 	.results-legend, .rack-tag { display: none; }
@@ -563,7 +568,7 @@ dialog .dialog-note { font-size: 10px; }
 	.results-top, .results-score { grid-column: 1 / -1; }
 	#results-score { font-size: 36px; }
 	#results-chart { grid-row: span 2; }
-	.court { max-width: 216px; }
+	.court { max-width: clamp(140px, calc((100svh - 195px) * 0.98), 216px); }
 	#results-stats { align-self: start; }
 }
 /* Where the music button sits mid-header, the panel lines up with the header's right edge so it stays on screen. */
