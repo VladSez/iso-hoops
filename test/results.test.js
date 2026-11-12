@@ -63,14 +63,18 @@ test('the free throw card counts the longest run and names the next distance', (
 	assert.equal(results.actionDetail, 'FROM 6 M')
 })
 
-test('the HORSE card lists the spots reached, with each letter where it was earned', () => {
+test('the HORSE card puts every shot on the court, each miss with the letter it earned', () => {
+	const at = (out, across) => ({ out, across, points: 2 })
 	const log = [
-		{ tier: 0, made: true, distance: 4.2 }, { tier: 0, made: true, distance: 4.8 }, { tier: 0, made: false, letter: 'H' },
-		{ tier: 0, made: true, distance: 4.5 }, { tier: 1, made: false, letter: 'O' }, { tier: 1, made: false, letter: 'R' },
-		{ tier: 1, made: false, letter: 'S' }, { tier: 1, made: true, distance: 5.9 }, { tier: 1, made: false, letter: 'E' },
+		{ ...at(4.2, 0), tier: 0, made: true, distance: 4.2 }, { ...at(4, 2.4), tier: 0, made: true, distance: 4.8 }, { ...at(4.4, -1.6), tier: 0, made: false, letter: 'H' },
+		{ ...at(4.5, 0.2), tier: 0, made: true, distance: 4.5 }, { ...at(5.4, -2.5), tier: 1, made: false, letter: 'O' }, { ...at(5.9, 1), tier: 1, made: false, letter: 'R' },
+		{ ...at(4.6, 3.6), tier: 1, made: false, letter: 'S' }, { ...at(5.8, -1.2), tier: 1, made: true, distance: 5.9 }, { ...at(4.9, -3.7), tier: 1, made: false, letter: 'E' },
 	]
 	const results = horseResults({ log, made: 4, best: 4, bestBefore: 0 })
-	assert.deepEqual(results.chart.rows.map(row => row.marks), [['', '', 'H', ''], ['O', 'R', 'S', '', 'E']])
+	assert.equal(results.chart.type, 'horse')
+	assert.deepEqual(results.chart.shots.map(shot => shot.letter ?? ''), ['', '', 'H', '', 'O', 'R', 'S', '', 'E'])
+	assert.deepEqual(results.chart.shots[2], { out: 4.4, across: -1.6, points: 0, made: false, three: false, letter: 'H', at: undefined })
+	assert.deepEqual(results.chart.zones.map(zone => [zone.id, zone.made, zone.taken]), [['paint', 1, 1], ['mid', 3, 8], ['three', 0, 0]])
 	assert.equal(statOf(results, 'FARTHEST MAKE').value, '5.9')
 	assert.equal(statOf(results, 'REACHED').value, 'Long two')
 	assert.equal(results.note, 'First letter at the mid-range')

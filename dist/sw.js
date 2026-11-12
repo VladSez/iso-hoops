@@ -7,9 +7,9 @@
 const VERSION = 42
 const FILES = [
 	'./',
-	'style.css?v=37d937e1c530',
+	'style.css?v=d2ead5fdfe27',
 	'engine.js?v=7c2d4e10',
-	'game.js?v=61f63b6403',
+	'game.js?v=8eac425b01',
 	'physics.js?v=3',
 	'dunks.js?v=3',
 	'slam.js?v=3',
@@ -17,7 +17,7 @@ const FILES = [
 	'beat-the-clock.js?v=6',
 	'horse.js?v=4',
 	'three-point.js?v=1',
-	'results.js?v=9',
+	'results.js?v=10',
 	'music.js?v=3',
 	'courts.js?v=6',
 	'time-of-day.js?v=7',
