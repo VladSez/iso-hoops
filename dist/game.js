@@ -793,13 +793,7 @@ function renderSession() {
 	const made = state.session.filter(shot => shot.made).length
 	nodes['session-summary'].textContent = state.session.length ? `${made} of ${state.session.length} · ${Math.round(made / state.session.length * 100)}%` : 'No shots yet'
 	nodes['session-court'].replaceChildren(courtChart(shots, zones))
-	nodes['session-zones'].replaceChildren(...zones.map(zone => {
-		const value = el('strong', zone.id, String(zone.made))
-		value.append(el('small', '', `/${zone.taken}`))
-		const slot = el('div')
-		slot.append(value, el('span', '', zone.label))
-		return slot
-	}))
+	nodes['session-zones'].replaceChildren(zoneTallies(zones))
 }
 
 function setSessionOpen(open) {
@@ -929,19 +923,19 @@ function legendItems(view) {
 }
 
 // The half court from above with the basket at the bottom, in decimetres: 6.7 m to each sideline, from the baseline
-// 1.7 m behind the hoop to 9.5 m out. Shots from farther out sit on the top edge.
+// 1.7 m behind the hoop to 12 m out, so the arc sits about as far up the chart as it does on the game's court.
+// Shots from farther out sit on the top edge.
 const COURT_W = 134
-const COURT_H = 112
-const COURT_TOP = 9.5
+const COURT_H = 137
+const COURT_TOP = 12
 const COURT_LINES = `<svg viewBox="0 0 ${COURT_W} ${COURT_H}" aria-hidden="true">
-	<path class="zone" d="M0 0H134V112H125V61.5A67 67 0 0 0 9 61.5V112H0Z" />
-	<rect class="zone paint" x="41.5" y="53" width="51" height="59" />
-	<path class="lines" d="M0.3 0V111.7H133.7V0M41.5 111.7V53H92.5V111.7M9 111.7V61.5A67 67 0 0 1 125 61.5V111.7M46 53A21 21 0 0 1 88 53" />
-	<path class="lines dashed" d="M46 53A21 21 0 0 0 88 53" />
-	<path class="board" d="M58 104H76" />
-	<circle class="rim" cx="67" cy="95" r="2.3" />
+	<path class="zone" d="M0 0H134V137H125V86.5A67 67 0 0 0 9 86.5V137H0Z" />
+	<rect class="zone paint" x="41.5" y="78" width="51" height="59" />
+	<path class="lines" d="M0.3 0V136.7H133.7V0M41.5 136.7V78H92.5V136.7M9 136.7V86.5A67 67 0 0 1 125 86.5V136.7M46 78A21 21 0 0 1 88 78" />
+	<path class="lines dashed" d="M46 78A21 21 0 0 0 88 78" />
+	<path class="board" d="M58 129H76" />
+	<circle class="rim" cx="67" cy="120" r="2.3" />
 </svg>`
-const ZONE_SPOTS = { paint: [50, 56], mid: [13, 62], three: [50, 10] }
 
 function courtChart(shots, zones) {
 	const court = el('div', 'court')
@@ -954,15 +948,28 @@ function courtChart(shots, zones) {
 		spot.style.top = `${clamp((COURT_TOP - shot.out) * 10, 1, COURT_H - 1) / COURT_H * 100}%`
 		court.append(spot)
 	}
-	for (const zone of zones) {
-		const tag = el('span', `zone-tag ${zone.id}`)
-		const [left, top] = ZONE_SPOTS[zone.id]
-		tag.style.left = `${left}%`
-		tag.style.top = `${top}%`
-		tag.append(el('strong', '', zone.taken ? `${zone.made}/${zone.taken}` : '—'), el('small', '', zone.label))
-		court.append(tag)
-	}
 	return court
+}
+
+// Makes by zone with the make rate, kept under the court so nothing covers the shots.
+function zoneTallies(zones) {
+	const row = el('div', 'zone-tallies')
+	row.setAttribute('aria-hidden', 'true')
+	row.append(...zones.map(zone => {
+		const rate = zone.taken ? Math.round(zone.made / zone.taken * 100) : 0
+		const value = el('strong', '', String(zone.made))
+		value.append(el('small', '', `/${zone.taken}`))
+		const top = el('div', 'zone-tally-top')
+		top.append(value, el('span', '', zone.taken ? `${rate}%` : '—'))
+		const fill = el('i')
+		fill.style.width = `${rate}%`
+		const bar = el('div', 'zone-bar')
+		bar.append(fill)
+		const slot = el('div', zone.id)
+		slot.append(top, bar, el('span', 'zone-name', zone.label))
+		return slot
+	}))
+	return row
 }
 
 const CHARTS = {
@@ -1059,7 +1066,7 @@ const CHARTS = {
 			item.append(el('span', className, mark), text)
 			legend.append(item)
 		}
-		return [courtChart(shots, zones), legend]
+		return [courtChart(shots, zones), zoneTallies(zones), legend]
 	},
 }
 
