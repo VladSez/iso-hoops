@@ -1,3 +1,4 @@
+import { THREE_POINT_DISTANCE, isBeyondArc } from './beat-the-clock.js?v=6'
 import { HOOP } from './physics.js?v=3'
 
 export const LETTERS = ['H', 'O', 'R', 'S', 'E']
@@ -30,7 +31,9 @@ function randomSpot({ min, max }, random) {
 		const angle = (random() * 2 - 1) * MAX_ANGLE
 		const spot = { x: HOOP.x + Math.cos(angle) * distance, y: HOOP.y + Math.sin(angle) * distance }
 		const isWalkable = spot.x >= WALKABLE.minX && spot.x <= WALKABLE.maxX && Math.abs(spot.y) <= WALKABLE.maxY
-		if (isWalkable) return spot
+		// A tier inside the arc keeps clear of the corner threes, where the line runs straight.
+		const isRightSide = max > THREE_POINT_DISTANCE || !isBeyondArc(spot)
+		if (isWalkable && isRightSide) return spot
 	}
 }
 

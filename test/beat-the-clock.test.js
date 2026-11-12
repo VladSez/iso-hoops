@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HOOP } from '../dist/physics.js'
-import { ROUND_SECONDS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from '../dist/beat-the-clock.js'
+import { CORNER_LINE, CORNER_REACH, KEY_HALF_WIDTH, KEY_LENGTH, ROUND_SECONDS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound, zoneOf } from '../dist/beat-the-clock.js'
 
 test('the clock waits for the first shot', () => {
 	const round = startClockRound(0)
@@ -23,8 +23,17 @@ test('makes beyond the three-point line are worth 3, on or inside it 2', () => {
 	assert.equal(pointsFor({ x: HOOP.x + THREE_POINT_DISTANCE, y: 0 }), 2)
 	assert.equal(pointsFor({ x: HOOP.x + THREE_POINT_DISTANCE + 0.05, y: 0 }), 3)
 	assert.equal(pointsFor({ x: 0, y: 3 }), 3)
-	// The far corner behind the hoop is the farthest the player can stand there, and it is still inside the arc.
-	assert.equal(pointsFor({ x: -8.25, y: 6.3 }), 2)
+})
+
+test('in the corners the line runs straight, so a three is possible inside the sidelines', () => {
+	assert.equal(pointsFor({ x: HOOP.x + 1, y: CORNER_LINE + 0.1 }), 3)
+	assert.equal(pointsFor({ x: HOOP.x + 1, y: -(CORNER_LINE + 0.1) }), 3)
+	assert.equal(pointsFor({ x: HOOP.x + 1, y: CORNER_LINE - 0.1 }), 2)
+	// Behind the hoop the corner line still runs to the baseline.
+	assert.equal(pointsFor({ x: -8.25, y: 6.3 }), 3)
+	// Where the straight line meets the arc, the two agree.
+	assert.equal(pointsFor({ x: HOOP.x + CORNER_REACH + 0.01, y: CORNER_LINE - 0.05 }), 2)
+	assert.equal(pointsFor({ x: HOOP.x + CORNER_REACH + 0.01, y: CORNER_LINE + 0.05 }), 3)
 })
 
 test('points add up until the round is finished, including a shot in the air at the buzzer', () => {
@@ -51,4 +60,13 @@ test('the clock stops when the round ends early', () => {
 	round = finishRound(round, 43.4)
 	assert.equal(secondsLeft(round, 43.4), 26.6)
 	assert.equal(secondsLeft(round, 60), 26.6)
+})
+
+test('a two inside the key is in the paint, any other two is mid-range, and a three is a three', () => {
+	assert.equal(zoneOf({ out: 0, across: 0, points: 2 }), 'paint')
+	assert.equal(zoneOf({ out: KEY_LENGTH - 0.1, across: KEY_HALF_WIDTH - 0.1, points: 2 }), 'paint')
+	assert.equal(zoneOf({ out: KEY_LENGTH + 0.1, across: 0, points: 2 }), 'mid')
+	assert.equal(zoneOf({ out: 1, across: KEY_HALF_WIDTH + 0.1, points: 2 }), 'mid')
+	assert.equal(zoneOf({ out: 7, across: 0, points: 3 }), 'three')
+	assert.equal(zoneOf({ out: 3.9, across: 3, points: 2, dunk: true }), 'paint')
 })
