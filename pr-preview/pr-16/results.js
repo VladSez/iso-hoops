@@ -61,38 +61,40 @@ export function contestResults({ log, moneyRack, points, best, bestBefore, secon
 
 const ZONES = [['paint', 'PAINT'], ['mid', 'MID-RANGE'], ['three', 'THREES']]
 
-// Dunks are drawn just in front of the rim, on the side each one came from, out to the baseline on either side. Ones that
-// would sit on top of each other are pushed along the arc, closer together when there are many, so they may overlap a little.
+// Dunks are drawn just in front of the rim, on the side each one came from, out to the baseline on either side. Several from
+// the same side overlap, like any other shots taken from one spot.
 const RIM_RING = 0.9
-const DUNK_SPACING = 0.35
 const ARC_END = 1.9
 
 export function dunkSpots(dunks) {
-	const order = dunks.map(shot => ({ shot, angle: Math.max(-ARC_END, Math.min(ARC_END, Math.atan2(shot.across, shot.out))) })).sort((a, b) => a.angle - b.angle)
-	const step = Math.min(DUNK_SPACING / RIM_RING, 2 * ARC_END / Math.max(1, order.length - 1))
-	order.forEach((spot, i) => { if (i) spot.angle = Math.max(spot.angle, order[i - 1].angle + step) })
-	const spill = Math.max(0, (order.at(-1)?.angle ?? 0) - ARC_END)
-	return new Map(order.map(({ shot, angle }) => [shot, { out: Math.cos(angle - spill) * RIM_RING, across: Math.sin(angle - spill) * RIM_RING }]))
+	return new Map(dunks.map(shot => {
+		const angle = Math.max(-ARC_END, Math.min(ARC_END, Math.atan2(shot.across, shot.out)))
+		return [shot, { out: Math.cos(angle) * RIM_RING, across: Math.sin(angle) * RIM_RING }]
+	}))
+}
+
+/** Each shot where it goes on the court chart, and makes by zone. Used by beat the clock's card and free shooting's panel. */
+export function courtOf(log) {
+	const spots = dunkSpots(log.filter(shot => shot.dunk))
+	return {
+		shots: log.map(shot => ({ at: shot.at, points: shot.made ? shot.points : 0, out: shot.out, across: shot.across, ...spots.get(shot), made: shot.made, three: shot.points === 3 })),
+		zones: ZONES.map(([id, label]) => {
+			const shots = log.filter(shot => zoneOf(shot) === id)
+			return { id, label, made: count(shots, shot => shot.made), taken: shots.length }
+		}),
+	}
 }
 
 export function clockResults({ log, points, best, bestBefore }) {
 	const made = log.filter(shot => shot.made)
-	const zones = ZONES.map(([id, label]) => {
-		const shots = log.filter(shot => zoneOf(shot) === id)
-		return { id, label, made: count(shots, shot => shot.made), taken: shots.length }
-	})
-	const spots = dunkSpots(log.filter(shot => shot.dunk))
+	const { shots, zones } = courtOf(log)
 	return {
 		label: 'BEAT THE CLOCK · TIME!',
 		side: '',
 		score: String(points),
 		scoreNote: joined('points', againstBest(points, best, bestBefore)),
 		stamp: newBest(best, bestBefore),
-		chart: {
-			type: 'clock',
-			shots: log.map(shot => ({ at: shot.at, points: shot.made ? shot.points : 0, out: shot.out, across: shot.across, ...spots.get(shot), made: shot.made, three: shot.points === 3 })),
-			zones,
-		},
+		chart: { type: 'clock', shots, zones },
 		stats: [
 			...zones.map(zone => ({ value: zone.made, of: zone.taken, label: zone.label })),
 			{ value: percent(made.length, log.length), label: `${made.length} OF ${log.length}` },

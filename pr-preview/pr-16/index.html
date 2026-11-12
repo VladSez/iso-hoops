@@ -19,7 +19,7 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=43984a7dc9e6" />
+		<link rel="stylesheet" href="style.css?v=5ac5ca896c0b" />
 	</head>
 	<body>
 		<script>
@@ -83,6 +83,7 @@
 				<button id="help-open" class="text-button" type="button"><span class="help-text">How to play</span></button>
 			</div>
 			<div class="session-stats" aria-label="Session statistics">
+				<button id="session-open" type="button" aria-expanded="false" aria-controls="session-panel"><span class="visually-hidden">Court zones this session</span></button>
 				<div><strong id="makes">00</strong><span id="label-makes">MADE</span></div>
 				<span class="stat-divider" aria-hidden="true"></span>
 				<div><strong id="attempts">00</strong><span id="label-attempts">SHOTS</span></div>
@@ -90,7 +91,14 @@
 				<div><strong id="accuracy">—</strong><span id="label-accuracy">ACCURACY</span></div>
 				<span id="longest-divider" class="stat-divider" aria-hidden="true"></span>
 				<div id="longest-stat"><strong id="longest">—</strong><span>LONGEST</span></div>
+				<svg class="session-chevron" aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4" /></svg>
 			</div>
+			<section id="session-panel" class="session-panel" aria-label="This session" hidden>
+				<div class="session-panel-top"><span>THIS SESSION</span><span id="session-summary"></span></div>
+				<div id="session-court" class="session-court"></div>
+				<div id="session-zones" class="session-zones"></div>
+				<div class="session-panel-foot"><span>Since you opened the court</span><button id="session-reset" type="button">Start over</button></div>
+			</section>
 		</header>
 		<main>
 			<div id="stage"><canvas id="c" tabindex="0" aria-label="Basketball practice court. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot." aria-describedby="controls"></canvas></div>
@@ -168,7 +176,7 @@
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=7c2d4e10"></script>
-		<script type="module" src="game.js?v=530255b327"></script>
+		<script type="module" src="game.js?v=61f63b6403"></script>
 		<script>
 			// Saves the game for offline play. Skipped when running locally, where edits
 			// would otherwise be hidden behind the saved copies.

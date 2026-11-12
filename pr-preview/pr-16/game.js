@@ -3,7 +3,7 @@ import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './
 import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=6'
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
-import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=7'
+import { clockResults, contestResults, courtOf, freeThrowResults, horseResults } from './results.js?v=9'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=3'
@@ -34,7 +34,7 @@ const nodes = Object.fromEntries([
 	'label-makes', 'longest', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 	'results', 'results-label', 'results-side', 'results-score', 'results-note', 'results-stamp', 'results-stamp-text',
 	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
-	'results-action-detail',
+	'results-action-detail', 'session-open', 'session-panel', 'session-summary', 'session-court', 'session-zones', 'session-reset',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -43,6 +43,8 @@ const state = {
 	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
+	// Free shooting's shots since the page opened, or since Start over, for the session court.
+	session: [],
 	feedbackTime: 0, walking: false, scoredAt: undefined,
 	mode: 'free', round: startRound(0), clock: startClockRound(0), horse: startHorse(0), longest: 0,
 	// The contest lets the next ball go while earlier ones are still in the air, so its balls live in `flying`.
@@ -768,10 +770,42 @@ function finishClock() {
 	showResults(clockResults({ log: state.log, points, best, bestBefore }))
 }
 
+// Where a shot was released from, for the court charts.
+function shotSpot(ball, made) {
+	const from = ball.from ?? HOOP
+	return { made, points: ball.points, distance: ball.distance, out: from.x - HOOP.x, across: from.y - HOOP.y, dunk: !!ball.dunk }
+}
+
 function logClockShot(made) {
 	const { ball, clock } = state
-	const from = ball.from ?? HOOP
-	state.log.push({ at: ball.releasedAt - (clock.endsAt - ROUND_SECONDS), made, points: ball.points, distance: ball.distance, out: from.x - HOOP.x, across: from.y - HOOP.y, dunk: !!ball.dunk })
+	state.log.push({ at: ball.releasedAt - (clock.endsAt - ROUND_SECONDS), ...shotSpot(ball, made) })
+}
+
+function logFreeShot(made) {
+	state.session.push(shotSpot(state.ball, made))
+	renderSession()
+}
+
+// Free shooting's header stats open a court of the session so far.
+function renderSession() {
+	if (nodes['session-panel'].hidden) return
+	const { shots, zones } = courtOf(state.session)
+	const made = state.session.filter(shot => shot.made).length
+	nodes['session-summary'].textContent = state.session.length ? `${made} of ${state.session.length} · ${Math.round(made / state.session.length * 100)}%` : 'No shots yet'
+	nodes['session-court'].replaceChildren(courtChart(shots, zones))
+	nodes['session-zones'].replaceChildren(...zones.map(zone => {
+		const value = el('strong', zone.id, String(zone.made))
+		value.append(el('small', '', `/${zone.taken}`))
+		const slot = el('div')
+		slot.append(value, el('span', '', zone.label))
+		return slot
+	}))
+}
+
+function setSessionOpen(open) {
+	nodes['session-panel'].hidden = !open
+	nodes['session-open'].setAttribute('aria-expanded', String(open))
+	renderSession()
 }
 
 function finishContest() {
@@ -1128,6 +1162,7 @@ function update(delta) {
 			}
 			if (event === 'score' && state.ball.dunk) {
 				showCallout('DUNK!', '+1 MADE')
+				logFreeShot(true)
 				state.attempts++
 				state.makes++
 				state.streak++
@@ -1153,6 +1188,7 @@ function update(delta) {
 					const shot = state.ball.points === 3 ? 'Three!' : 'Basket!'
 					setFeedback(`${shot} ${state.clock.points} points.`, true)
 				} else {
+					logFreeShot(true)
 					state.attempts++
 					state.makes++
 					state.streak++
@@ -1190,6 +1226,7 @@ function update(delta) {
 				logClockShot(false)
 				setFeedback('Next one, quick.')
 			} else {
+				logFreeShot(false)
 				state.attempts++
 				setFeedback('Another one. The court isn’t going anywhere.')
 				updateStats()
@@ -1776,6 +1813,27 @@ function checkOption(options, value) {
 	for (const radio of options.querySelectorAll('input')) radio.checked = radio.value === value
 }
 
+// A mouse click on these leaves focus on the court, so Space still shoots instead of pressing them again.
+for (const button of [nodes['session-open'], nodes['session-reset']]) button.addEventListener('mousedown', event => event.preventDefault())
+nodes['session-open'].addEventListener('click', () => setSessionOpen(nodes['session-panel'].hidden))
+nodes['session-reset'].addEventListener('click', () => {
+	state.session = []
+	state.attempts = 0
+	state.makes = 0
+	state.streak = 0
+	updateStats()
+	renderSession()
+})
+// A press outside closes the session court, and one on the court only closes it, like the header menus.
+addEventListener('pointerdown', event => {
+	const panel = nodes['session-panel']
+	if (panel.hidden || panel.contains(event.target) || nodes['session-open'].contains(event.target)) return
+	setSessionOpen(false)
+	if (event.target !== canvas) return
+	event.stopPropagation()
+	dismissingPointer = event.pointerId
+}, { capture: true })
+
 // Sound and music share one header panel. Unlike the footer menus it stays open while the player changes things.
 const setAudioOpen = setupPopover(nodes.sound, nodes['audio-options'])
 nodes['audio-options'].addEventListener('keydown', event => {
@@ -1910,6 +1968,7 @@ const MODE_INTROS = {
 }
 
 function applyMode() {
+	setSessionOpen(false)
 	const freeThrows = state.mode === 'free-throws'
 	const clock = state.mode === 'clock'
 	const contest = state.mode === 'three-point'
