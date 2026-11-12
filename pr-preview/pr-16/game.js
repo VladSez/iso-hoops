@@ -1,9 +1,9 @@
 import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
-import { ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=3'
-import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=3'
+import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=6'
+import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
-import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=3'
+import { clockResults, contestResults, freeThrowResults, horseResults } from './results.js?v=7'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=3'
@@ -147,8 +147,8 @@ function groundColor(x, y, ix, iy, index) {
 		const nearBoundary = Math.abs(Math.abs(x) - 8.7) < 0.07 && Math.abs(y) < 6.75 || Math.abs(Math.abs(y) - 6.7) < 0.07 && Math.abs(x) < 8.75
 		const keyBoundary = Math.abs(x + 2.8) < 0.07 && Math.abs(y) < 2.6 || Math.abs(Math.abs(y) - 2.55) < 0.07 && x < -2.75 && x > -8.7
 		const freeThrow = Math.abs(Math.hypot(x + 2.8, y) - 2.1) < 0.07 && (x >= -2.8 || hash(Math.floor(x * 3), Math.floor(y * 3)) > 0.4)
-		const threePoint = Math.abs(Math.hypot(x - HOOP.x, y) - 6.7) < 0.07 && x > HOOP.x
-		const corner = x <= HOOP.x && Math.abs(Math.abs(y) - 6.7) < 0.07
+		const threePoint = Math.abs(Math.hypot(x - HOOP.x, y) - THREE_POINT_DISTANCE) < 0.07 && x - HOOP.x >= CORNER_REACH
+		const corner = Math.abs(Math.abs(y) - CORNER_LINE) < 0.07 && x - HOOP.x < CORNER_REACH && x > -8.75
 		const center = Math.abs(Math.hypot(x - 8.7, y) - 2.15) < 0.07
 		if (nearBoundary || keyBoundary || freeThrow || threePoint || corner || center) color = court.line
 		if (court.fallenLeaves && hash(ix * 5, iy * 3) < 0.012 + Math.max(0, Math.abs(y) - 5) * 0.03) color = court.leaf[hash(ix, iy * 7) * 3 | 0]
@@ -609,6 +609,7 @@ function releaseShot(source) {
 	if (state.mode === 'three-point') return releaseContestBall()
 	state.ball = createShot(state.player, state.yaw, state.power)
 	state.ball.distance = shotDistance(state.player)
+	state.ball.from = { x: state.player.x, y: state.player.y }
 	// Scored from where the shot was released, since the player can walk while the ball is in the air.
 	state.ball.points = pointsFor(state.player)
 	state.ball.releasedAt = state.time
@@ -625,21 +626,21 @@ const canDunk = () => state.mode === 'free' || state.mode === 'clock'
 
 // Timed from the press, so in beat the clock a dunk started before the buzzer counts like a shot released before it.
 // It's a two from inside the arc, with no distance, so it never shows as a longest make.
-function dunkThrough(pressedAt) {
-	return { ...dunkBall(), releasedAt: pressedAt, points: 2, distance: 0 }
+function dunkThrough(pressedAt, from) {
+	return { ...dunkBall(), releasedAt: pressedAt, points: 2, distance: 0, from }
 }
 
 function startDunk(plan) {
 	state.returnTime = undefined
 	// With reduced motion there is no jump: the ball just drops through the hoop.
 	if (STILL) {
-		state.ball = dunkThrough(state.time)
+		state.ball = dunkThrough(state.time, { x: state.player.x, y: state.player.y })
 		state.phase = 'flight'
 		playDunkSound(plan.bend)
 		return
 	}
 	state.lastDunk = plan.id
-	state.dunk = { ...plan, start: state.time, grabbed: false, letGo: false }
+	state.dunk = { ...plan, start: state.time, from: { x: state.player.x, y: state.player.y }, grabbed: false, letGo: false }
 	state.yaw = plan.angle + Math.PI
 	state.phase = 'dunk'
 }
@@ -659,7 +660,7 @@ function updateDunk() {
 		dunk.letGo = true
 		playSound('spring')
 	}
-	if (!state.ball && t >= dunk.throughAt) state.ball = dunkThrough(dunk.start)
+	if (!state.ball && t >= dunk.throughAt) state.ball = dunkThrough(dunk.start, dunk.from)
 	if (t >= dunk.length) {
 		state.dunk = undefined
 		state.phase = 'flight'
@@ -769,7 +770,8 @@ function finishClock() {
 
 function logClockShot(made) {
 	const { ball, clock } = state
-	state.log.push({ at: ball.releasedAt - (clock.endsAt - ROUND_SECONDS), made, points: ball.points, distance: ball.distance })
+	const from = ball.from ?? HOOP
+	state.log.push({ at: ball.releasedAt - (clock.endsAt - ROUND_SECONDS), made, points: ball.points, distance: ball.distance, out: from.x - HOOP.x, across: from.y - HOOP.y, dunk: !!ball.dunk })
 }
 
 function finishContest() {
@@ -850,6 +852,7 @@ const el = (tag, className = '', text = '') => Object.assign(document.createElem
 
 // The card shown when a round ends: see results.js for what each mode puts on it.
 function showResults(results) {
+	nodes.results.dataset.mode = state.mode
 	nodes['results-label'].textContent = results.label
 	nodes['results-side'].textContent = results.side
 	nodes['results-score'].replaceChildren(results.score, ...(results.scoreUnit ? [el('small', '', results.scoreUnit)] : []))
@@ -878,6 +881,55 @@ function showResults(results) {
 }
 
 const ballMark = (value, outcome) => el('span', `ball v${value} ${outcome}`)
+
+// The beat the clock card opens on the court, and remembers the tab picked last time.
+let clockView = 'court'
+
+function legendItems(view) {
+	return [[3, 'Three'], [2, 'Two'], [0, 'Miss']].map(([points, text]) => {
+		const item = el('span')
+		const mark = view === 'court' ? el('span', `spot${points ? ' made' : ' missed'}${points === 3 ? ' three' : ''}`) : el('span', `tick p${points}`)
+		item.append(mark, text)
+		return item
+	})
+}
+
+// The half court from above with the basket at the bottom, in decimetres: 6.7 m to each sideline, from the baseline
+// 1.7 m behind the hoop to 9.5 m out. Shots from farther out sit on the top edge.
+const COURT_W = 134
+const COURT_H = 112
+const COURT_TOP = 9.5
+const COURT_LINES = `<svg viewBox="0 0 ${COURT_W} ${COURT_H}" aria-hidden="true">
+	<path class="zone" d="M0 0H134V112H125V61.5A67 67 0 0 0 9 61.5V112H0Z" />
+	<rect class="zone paint" x="41.5" y="53" width="51" height="59" />
+	<path class="lines" d="M0.3 0V111.7H133.7V0M41.5 111.7V53H92.5V111.7M9 111.7V61.5A67 67 0 0 1 125 61.5V111.7M46 53A21 21 0 0 1 88 53" />
+	<path class="lines dashed" d="M46 53A21 21 0 0 0 88 53" />
+	<path class="board" d="M58 104H76" />
+	<circle class="rim" cx="67" cy="95" r="2.3" />
+</svg>`
+const ZONE_SPOTS = { paint: [50, 56], mid: [13, 62], three: [50, 10] }
+
+function courtChart(shots, zones) {
+	const court = el('div', 'court')
+	court.setAttribute('role', 'img')
+	court.setAttribute('aria-label', `Shot chart: ${zones.map(zone => `${zone.label.toLowerCase()} ${zone.made} of ${zone.taken}`).join(', ')}`)
+	court.innerHTML = COURT_LINES
+	for (const shot of shots) {
+		const spot = el('span', `spot ${shot.made ? 'made' : 'missed'}${shot.three ? ' three' : ''}`)
+		spot.style.left = `${(shot.across * 10 + COURT_W / 2) / COURT_W * 100}%`
+		spot.style.top = `${clamp((COURT_TOP - shot.out) * 10, 1, COURT_H - 1) / COURT_H * 100}%`
+		court.append(spot)
+	}
+	for (const zone of zones) {
+		const tag = el('span', `zone-tag ${zone.id}`)
+		const [left, top] = ZONE_SPOTS[zone.id]
+		tag.style.left = `${left}%`
+		tag.style.top = `${top}%`
+		tag.append(el('strong', '', zone.taken ? `${zone.made}/${zone.taken}` : '—'), el('small', '', zone.label))
+		court.append(tag)
+	}
+	return court
+}
 
 const CHARTS = {
 	racks({ columns }) {
@@ -918,6 +970,40 @@ const CHARTS = {
 			legend.append(item)
 		}
 		return [line, axis, legend]
+	},
+	clock({ shots, zones }) {
+		const court = el('div', 'court-view')
+		court.append(courtChart(shots, zones))
+		const timeline = el('div', 'timeline-view')
+		timeline.append(...CHARTS.timeline({ shots }).slice(0, 2))
+		const views = { court, timeline }
+		const tabs = el('div', 'chart-tabs')
+		tabs.setAttribute('role', 'tablist')
+		tabs.setAttribute('aria-label', 'Chart')
+		const buttons = Object.entries({ court: 'Court', timeline: 'Timeline' }).map(([id, text]) => {
+			const button = el('button', '', text)
+			button.type = 'button'
+			button.setAttribute('role', 'tab')
+			// A mouse click leaves focus on the court, so Space still starts the next round.
+			button.addEventListener('mousedown', event => event.preventDefault())
+			button.addEventListener('click', () => showView(id))
+			return button
+		})
+		tabs.append(...buttons)
+		const showView = id => {
+			clockView = id
+			buttons.forEach((button, i) => button.setAttribute('aria-selected', String(Object.keys(views)[i] === id)))
+			for (const [key, view] of Object.entries(views)) view.hidden = key !== id
+			legend.replaceChildren(...legendItems(id))
+		}
+		const stack = el('div', 'chart-views')
+		stack.append(court, timeline)
+		const legend = el('div', 'results-legend')
+		legend.setAttribute('aria-hidden', 'true')
+		const foot = el('div', 'chart-foot')
+		foot.append(legend, tabs)
+		showView(clockView)
+		return [stack, foot]
 	},
 	shots({ shots }) {
 		const row = el('ol', 'shot-row')
@@ -1005,7 +1091,7 @@ function update(delta) {
 		}
 		state.moving = { x: (screenX + screenY) / Math.hypot(screenX, screenY) / R2, y: (screenY - screenX) / Math.hypot(screenX, screenY) / R2 }
 		state.player.x = clamp(state.player.x + (screenX + screenY) / R2 * 4.4 * delta, -8.25, 8.3)
-		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.3, 6.3)
+		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.5, 6.5)
 		updateAim()
 	}
 	const turn = isFixed ? 0 : Number(keys.has('KeyE')) - Number(keys.has('KeyQ'))
@@ -1032,7 +1118,7 @@ function update(delta) {
 			playSound(event)
 			if (event === 'board') state.ball.banked = true
 			if (event === 'score' && state.ball.dunk && clock) {
-				showCallout('DUNK!', '+2')
+				showCallout('DUNK!', '+2 PT')
 				state.clock = recordMake(state.clock, 2)
 				logClockShot(true)
 				setFeedback(`Dunk! ${state.clock.points} points.`, true)
@@ -1054,7 +1140,7 @@ function update(delta) {
 				const distance = `${state.ball.distance.toFixed(1)} M`
 				let detail = `+1 MADE · ${distance}`
 				if (freeThrows) detail = '+1 MADE'
-				if (clock) detail = `+${state.ball.points} · ${distance}`
+				if (clock) detail = `+${state.ball.points} PT · ${distance}`
 				const banked = state.ball.banked
 				showCallout(banked ? 'BANK SHOT!' : 'BASKET!', detail)
 				if (freeThrows) {
