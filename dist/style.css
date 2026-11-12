@@ -181,6 +181,35 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .tick.p2 { height: 15px; background: var(--ink); }
 .tick.p0 { height: 6px; background: var(--faint); }
 .timeline-axis { display: flex; justify-content: space-between; color: var(--label); font-size: 9px; }
+.chart-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }
+.chart-tabs { margin-left: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; padding: 3px; border-radius: 10px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
+.chart-tabs button { min-width: 96px; min-height: 32px; padding: 0 14px; border: 0; border-radius: 8px; background: none; color: var(--label); font: inherit; font-size: 11px; cursor: pointer; }
+.chart-tabs button:hover { color: var(--ink); }
+.chart-tabs button[aria-selected="true"] { background: var(--hover); color: var(--orange); box-shadow: 0 0 0 1px var(--edge); }
+.chart-tabs button:focus-visible { outline-offset: 1px; }
+/* Both views share one cell, so the card keeps the court's height on the timeline tab. */
+.chart-views { display: grid; }
+.chart-views > div { grid-area: 1 / 1; min-width: 0; }
+.chart-views > [hidden] { display: block; visibility: hidden; }
+.timeline-view { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.timeline-view[hidden] { display: flex; }
+.court { position: relative; width: 100%; max-width: 300px; margin: 0 auto; aspect-ratio: 134 / 112; }
+.court svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.court .zone { fill: var(--orange); opacity: 0.08; }
+.court .zone.paint { fill: var(--ink); opacity: 0.06; }
+.court .lines { fill: none; stroke: var(--edge); stroke-width: 0.6; }
+.court .lines.dashed { stroke-dasharray: 1.6 1.6; }
+.court .board { stroke: var(--faint); stroke-width: 0.9; }
+.court .rim { fill: none; stroke: var(--orange); stroke-width: 0.7; }
+.spot { display: block; width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; }
+.court .spot { position: absolute; margin: -5px 0 0 -5px; }
+.spot.made { background: var(--ink); box-shadow: 0 0 0 1.5px var(--hover); }
+.spot.made.three { background: var(--orange); }
+.spot.missed { border: 2px solid var(--faint); }
+.zone-tag { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 7px 3px; border-radius: 4px; background: color-mix(in srgb, var(--panel) 90%, transparent); box-shadow: 0 0 0 1px var(--edge); white-space: nowrap; pointer-events: none; }
+.zone-tag strong { font-size: 12px; font-weight: 700; }
+.zone-tag.three strong { color: var(--orange); }
+.zone-tag small { color: var(--label); font-size: 7px; letter-spacing: 1.2px; }
 .shot-row { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 2px 0; list-style: none; }
 .shot-row li { display: flex; flex-direction: column; align-items: center; gap: 7px; color: var(--label); font-size: 9px; }
 #results-chart .shot-row .ball { width: 20px; height: 20px; }
@@ -206,6 +235,20 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 /* Lined up with the middle of the 52px button, not the button and its hint together. */
 .results-foot { align-items: flex-start; }
 #results-foot-note { padding-top: 20px; }
+/* With a mouse, beat the clock's Play again sits beside the score, so it's there without scrolling past the chart and any
+   new best stamp moves up beside the title. Touch screens keep it at the bottom, under the thumb. */
+@media not all and (pointer: coarse) {
+	#results[data-mode="clock"] { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "top stamp" "score go" "chart chart" "stats stats"; align-items: center; gap: 18px 16px; }
+	#results[data-mode="clock"][hidden] { display: none; }
+	#results[data-mode="clock"] .results-score, #results[data-mode="clock"] .results-foot { display: contents; }
+	#results[data-mode="clock"] .results-top { grid-area: top; }
+	#results[data-mode="clock"] .results-score p { grid-area: score; }
+	#results[data-mode="clock"] #results-stamp { grid-area: stamp; flex-direction: row; align-items: center; padding: 0; }
+	#results[data-mode="clock"] #results-chart { grid-area: chart; }
+	#results[data-mode="clock"] #results-stats { grid-area: stats; }
+	#results[data-mode="clock"] .results-go { grid-area: go; margin: 0; }
+	#results[data-mode="clock"] #results-foot-note { display: none; }
+}
 @media (max-width: 600px) { .rack-label { letter-spacing: 0.3px; } }
 /* HORSE letters: all five show, and the earned ones light up. */
 .session-stats .letter { color: #d9d4ca; font-size: inherit; letter-spacing: 0; }
@@ -463,6 +506,9 @@ dialog .dialog-note { font-size: 10px; }
 	.rack-label { letter-spacing: 0.4px; }
 	.rack-balls { height: 76px; gap: 4px; }
 	#results-chart .rack .ball { width: 12px; height: 12px; }
+	.court { max-width: 340px; }
+	.court .spot { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; }
+	.chart-tabs { margin: 0 auto; }
 	.results-legend, .rack-tag { display: none; }
 	#results-stats strong { font-size: 18px; }
 	.results-foot { flex-direction: column; align-items: stretch; }
@@ -477,6 +523,7 @@ dialog .dialog-note { font-size: 10px; }
 	.results-top, .results-score { grid-column: 1 / -1; }
 	#results-score { font-size: 36px; }
 	#results-chart { grid-row: span 2; }
+	.court { max-width: 216px; }
 	#results-stats { align-self: start; }
 }
 /* Where the music button sits mid-header, the panel lines up with the header's right edge so it stays on screen. */

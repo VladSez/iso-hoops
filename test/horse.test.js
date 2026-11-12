@@ -108,3 +108,10 @@ test('each called spot is well away from the last two, in every tier', () => {
 	assert.ok(closest >= 2, `two spots ${closest.toFixed(2)} m apart`)
 	assert.ok(tooClose / calls < 0.01, `${tooClose} of ${calls} spots closer than ${MIN_GAP} m`)
 })
+
+test('spots meant to be inside the arc stay out of the corner threes, where the line runs straight', async () => {
+	const { isBeyondArc } = await import('../dist/beat-the-clock.js')
+	const random = seeded(11)
+	const insideTier = TIERS.findIndex(tier => tier.max <= 6.7 && tier.min >= 6)
+	for (let i = 0; i < 400; i++) assert.equal(isBeyondArc(pickSpot(insideTier * MAKES_PER_TIER, random)), false)
+})

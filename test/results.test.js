@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { clockResults, contestResults, freeThrowResults, horseResults, longestRun } from '../dist/results.js'
+import { clockResults, contestResults, dunkSpots, freeThrowResults, horseResults, longestRun } from '../dist/results.js'
 import { SHOT_COUNT } from '../dist/three-point.js'
 
 const statOf = (results, label) => results.stats.find(stat => stat.label === label)
@@ -36,15 +36,20 @@ test('a first round sets the bar without a stamp, and later rounds say how far o
 	assert.equal(clockResults({ log: [], points: 34, best: 34, bestBefore: 34 }).scoreNote, 'points · ties your best')
 })
 
-test('the clock card splits baskets into threes and twos and finds the longest', () => {
+test('the clock card counts makes by zone, plots each shot and finds the longest', () => {
 	const log = [
-		{ at: 2, made: true, points: 3, distance: 7.4 },
-		{ at: 5, made: false, points: 2, distance: 3 },
-		{ at: 9, made: true, points: 2, distance: 4.1 },
+		{ at: 2, made: true, points: 3, distance: 7.4, out: 7.3, across: 1.2 },
+		{ at: 5, made: false, points: 2, distance: 3, out: 3, across: 0.2 },
+		{ at: 9, made: true, points: 2, distance: 4.1, out: 2.2, across: 3.5 },
 	]
 	const results = clockResults({ log, points: 5, best: 5, bestBefore: 0 })
-	assert.deepEqual(results.stats.map(stat => stat.value), [2, 1, 1, '67%', '7.4'])
-	assert.deepEqual(results.chart.shots, [{ at: 2, points: 3 }, { at: 5, points: 0 }, { at: 9, points: 2 }])
+	assert.deepEqual(results.stats.map(stat => [stat.label, stat.value, stat.of]), [['PAINT', 0, 1], ['MID-RANGE', 1, 1], ['THREES', 1, 1], ['2 OF 3', '67%', undefined], ['LONGEST', '7.4', undefined]])
+	assert.deepEqual(results.chart.shots, [
+		{ at: 2, points: 3, out: 7.3, across: 1.2, made: true, three: true },
+		{ at: 5, points: 0, out: 3, across: 0.2, made: false, three: false },
+		{ at: 9, points: 2, out: 2.2, across: 3.5, made: true, three: false },
+	])
+	assert.deepEqual(results.chart.zones.map(zone => [zone.id, zone.made, zone.taken]), [['paint', 0, 1], ['mid', 1, 1], ['three', 1, 1]])
 })
 
 test('the free throw card counts the longest run and names the next distance', () => {
@@ -71,10 +76,28 @@ test('the HORSE card lists the spots reached, with each letter where it was earn
 	assert.equal(results.note, 'First letter at the mid-range')
 })
 
-test('a dunk against the clock counts as a two but never as the longest make', () => {
-	const log = [{ at: 3, made: true, points: 2, distance: 0 }, { at: 9, made: true, points: 2, distance: 4.2 }]
-	const stats = Object.fromEntries(clockResults({ log, points: 4, best: 4, bestBefore: 0 }).stats.map(stat => [stat.label, stat]))
-	assert.equal(stats.TWOS.value, 2)
-	assert.equal(stats.LONGEST.value, '4.2')
-	assert.equal(clockResults({ log: log.slice(0, 1), points: 2, best: 2, bestBefore: 0 }).stats.find(stat => stat.label === 'LONGEST').value, '—')
+test('a dunk against the clock counts in the paint, from wherever it started, but never as the longest make', () => {
+	const log = [{ at: 3, made: true, points: 2, distance: 0, out: 3.8, across: 2.9, dunk: true }, { at: 9, made: true, points: 2, distance: 4.2, out: 4.6, across: 1 }]
+	const results = clockResults({ log, points: 4, best: 4, bestBefore: 0 })
+	assert.deepEqual(statOf(results, 'PAINT'), { value: 1, of: 1, label: 'PAINT' })
+	assert.deepEqual(statOf(results, 'MID-RANGE'), { value: 1, of: 1, label: 'MID-RANGE' })
+	assert.equal(statOf(results, 'LONGEST').value, '4.2')
+	assert.equal(statOf(clockResults({ log: log.slice(0, 1), points: 2, best: 2, bestBefore: 0 }), 'LONGEST').value, '—')
+})
+
+test('dunks are drawn just in front of the rim on the side they came from, never right on top of each other', () => {
+	const dunks = [[3.6, 1.2], [3.5, 1.1], [3.4, 1.3], [2, -2], [0.5, 4], [1, 0]].map(([out, across]) => ({ out, across, dunk: true }))
+	const spots = [...dunkSpots(dunks).values()]
+	assert.equal(spots.length, dunks.length)
+	for (const [i, a] of spots.entries()) {
+		assert.ok(Math.abs(Math.hypot(a.out, a.across) - 0.9) < 1e-9, 'just in front of the rim')
+		for (const b of spots.slice(i + 1)) assert.ok(Math.hypot(a.out - b.out, a.across - b.across) > 0.3, 'apart')
+	}
+	const left = dunkSpots([{ out: 2, across: -2 }]).values().next().value
+	assert.ok(left.across < 0 && left.out > 0, 'on the side it came from')
+	const many = [...dunkSpots(Array.from({ length: 12 }, () => ({ out: 3, across: 0 }))).values()]
+	assert.ok(many.every(spot => Math.abs(Math.atan2(spot.across, spot.out)) <= 1.9 + 1e-9), 'never past the end of the arc')
+	assert.equal(new Set(many.map(spot => spot.across.toFixed(3))).size, 12, 'each still has its own place')
+	const results = clockResults({ log: dunks.map((d, i) => ({ ...d, at: i, made: true, points: 2, distance: 0 })), points: 12, best: 12, bestBefore: 0 })
+	assert.ok(results.chart.shots.every(shot => Math.hypot(shot.out, shot.across) < 1.5))
 })
