@@ -224,6 +224,7 @@ A before scenario runs against the old code, so it can't wait for selectors or s
 - The viewport is set once per scenario, so a phone shot needs its own scenario file with `"viewport": [375, 812]`, which also switches on mobile emulation. Add one whenever layout changed.
 - Free throws: holding `Space` for about 620ms from the free throw spot lands near the middle of the target band, and a 60ms tap misses. Use these to stage a make or a miss on purpose.
 - Keep clips to 3–6 seconds of the one action that matters. The script prints each file's size and warns over GitHub's 10 MB limit. If you get the warning, shorten the clip, or lower `gifWidth` and `gifFps` on the record step (defaults 720 and 12).
+- When motion is the point of a clip, such as a shot arc, a dunk or a bounce, add `--recorder native`. Chrome then records a steady 60 fps instead of about 30, but only at 1x, so keep the default recorder for menus and layout, where sharp text matters more. If Chrome lacks the recording call, the script warns and uses the default recorder.
 
 **Look at every image before using it.** Open the PNGs, and pull a few frames from each MP4 into `$MEDIA/checks/`, for example `ffmpeg -ss 1 -i "$MEDIA/clip.mp4" -frames:v 1 "$MEDIA/checks/clip-1s.png"`. A screenshot of the wrong state is worse than none. Anything odd you spot is a finding for the user (step 5).
 

@@ -18,10 +18,11 @@ const { values: args } = parseArgs({
 		scenario: { type: 'string' },
 		out: { type: 'string' },
 		chrome: { type: 'string' },
+		recorder: { type: 'string', default: 'screencast' },
 	},
 })
-if (!args.dir || !args.scenario || !args.out) {
-	console.error('usage: node capture.mjs --dir <static folder> --scenario <scenario.json> --out <media folder>')
+if (!args.dir || !args.scenario || !args.out || !['screencast', 'native'].includes(args.recorder)) {
+	console.error('usage: node capture.mjs --dir <static folder> --scenario <scenario.json> --out <media folder> [--recorder screencast|native]')
 	process.exit(2)
 }
 
@@ -132,7 +133,41 @@ async function screenshot({ screenshot: name, selector, pad = 16 }) {
 
 // Screencast frames arrive only when the page repaints, so each frame is held until the next one's
 // timestamp. Chrome can send a stray frame at another size first, which would set the video's size.
-async function record({ record: name, steps, gifWidth = 720, gifFps = 12 }) {
+async function record(step) {
+	return args.recorder === 'native' ? recordNative(step) : recordScreencast(step)
+}
+
+// Page.startScreenRecording (Chrome 153+, experimental) encodes AV1 inside Chrome at a steady frame
+// rate, but only at 1x whatever the device scale. AV1 doesn't play on older Safari, so it is
+// re-encoded to H.264 like the screencast path.
+async function recordNative(step) {
+	const { record: name, steps, gifWidth = 720, gifFps = 12, frameRate = 60 } = step
+	try {
+		await page.send('Page.startScreenRecording', { maxWidth: width * scale, maxHeight: height * scale, frameRate })
+	} catch (error) {
+		console.warn(`Native recording unavailable (${error.message}); using screencast for "${name}"`)
+		return recordScreencast(step)
+	}
+	await runSteps(steps)
+	const { stream } = await page.send('Page.stopScreenRecording')
+	const chunks = []
+	for (;;) {
+		const { data, eof, base64Encoded } = await page.send('IO.read', { handle: stream, size: 1 << 20 })
+		chunks.push(Buffer.from(data, base64Encoded ? 'base64' : 'utf8'))
+		if (eof) break
+	}
+	await page.send('IO.close', { handle: stream })
+	const raw = path.join(out, `${name}.av1.mp4`)
+	await writeFile(raw, Buffer.concat(chunks))
+	const mp4 = path.join(out, `${name}.mp4`)
+	const gif = path.join(out, `${name}.gif`)
+	ffmpeg(['-i', raw, '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-crf', '20', '-movflags', '+faststart', mp4])
+	ffmpeg(['-i', mp4, '-vf', `fps=${gifFps},scale=${gifWidth}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4`, gif])
+	written.push(mp4, gif)
+	await rm(raw)
+}
+
+async function recordScreencast({ record: name, steps, gifWidth = 720, gifFps = 12 }) {
 	const framesDir = await mkdtemp(path.join(tmpdir(), 'pr-capture-frames-'))
 	const frames = []
 	const off = page.on('Page.screencastFrame', async ({ data, metadata, sessionId }) => {
