@@ -3,7 +3,10 @@ import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './
 import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=6'
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
-import { clockResults, contestResults, courtOf, freeThrowResults, horseResults } from './results.js?v=10'
+import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=12'
+import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=3'
+import { aimShot, chooseSpot, yawTo } from './cpu.js?v=3'
+import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=3'
@@ -35,6 +38,8 @@ const nodes = Object.fromEntries([
 	'results', 'results-label', 'results-side', 'results-score', 'results-note', 'results-stamp', 'results-stamp-text',
 	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
 	'results-action-detail', 'session-open', 'session-panel', 'session-summary', 'session-court', 'session-zones', 'session-reset',
+	'opponent', 'opponent-label', 'opponent-options', 'cpu-characters', 'cpu-character-name', 'coin', 'coin-call', 'coin-versus', 'call-heads', 'call-tails', 'opponent-play', 'opponent-play-label', 'opponent-play-detail',
+	'switch-warn', 'warn-versus', 'warn-body', 'warn-you', 'warn-cpu', 'warn-cpu-name', 'warn-keep', 'warn-confirm', 'warn-confirm-label',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -53,6 +58,13 @@ const state = {
 	dunk: undefined, lastDunk: undefined, moving: undefined,
 	// The current round's shots, one entry each, for the results card at its end.
 	log: [],
+	// HORSE against the CPU: the game (see horse-duel.js), the CPU player on the court, and where you walk to on your own
+	// when the CPU needs the spot you are standing on.
+	duel: null,
+	// The opening coin flip: waiting for your call, then in the air until `lands`.
+	coin: null,
+	cpu: { x: -2.2, y: 5.6, yaw: Math.PI, task: 'idle', until: 0, target: undefined, aim: undefined, chargeStart: 0, followThrough: 0, walking: false, rest: { x: -2.2, y: 5.6 } },
+	stepAside: undefined,
 }
 
 const COURT_KEY = 'iso-hoops:court'
@@ -89,6 +101,28 @@ try {
 	state.contest = startContest(Math.max(0, Number.parseInt(localStorage.getItem(THREE_POINT_BEST_KEY), 10) || 0))
 	state.longest = Math.max(0, Number.parseFloat(localStorage.getItem(LONGEST_KEY)) || 0)
 } catch {}
+
+// Who you play HORSE against.
+const OPPONENT_KEY = 'iso-hoops:opponent'
+const CPU_LEVEL_KEY = 'iso-hoops:cpu-level'
+const CPU_CHARACTER_KEY = 'iso-hoops:cpu-character'
+const CPU_RECORD_KEY = 'iso-hoops:horse-cpu-record'
+// The game under way, so a reload carries on instead of flipping the coin again.
+const CPU_GAME_KEY = 'iso-hoops:horse-cpu-game'
+const cpuSetup = { opponent: 'solo', level: 'medium', character: CHARACTERS[0].id }
+let cpuRecord = emptyRecord()
+try {
+	if (localStorage.getItem(OPPONENT_KEY) === 'cpu') cpuSetup.opponent = 'cpu'
+	const level = localStorage.getItem(CPU_LEVEL_KEY)
+	if (CPU_LEVELS.includes(level)) cpuSetup.level = level
+	cpuSetup.character = characterOf(localStorage.getItem(CPU_CHARACTER_KEY)).id
+	cpuRecord = parseRecord(localStorage.getItem(CPU_RECORD_KEY))
+} catch {}
+const isDuel = () => state.mode === 'horse' && cpuSetup.opponent === 'cpu'
+const cpuCharacter = () => characterOf(cpuSetup.character)
+const cpuJersey = () => kitOf(cpuCharacter())
+const cpuName = () => cpuCharacter().name
+const LEVEL_NAMES = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
 
 // The ground fades out in dithered pixels once `reach` passes 1, like a vignette.
 const fadesOut = (reach, ix, iy) => reach > 1.04 || (reach > 0.91 && hash(ix, iy) < (reach - 0.91) / 0.13)
@@ -480,6 +514,27 @@ function updateStats() {
 		nodes.attempts.classList.toggle('hurry', isHurrying)
 		return
 	}
+	if (isDuel()) {
+		// Your letters on the left, the CPU's on the right, and in the middle what the next shot is and whose ball it is.
+		const duel = state.duel ?? { letters: { you: 0, cpu: 0 } }
+		const name = cpuName().toUpperCase()
+		const letters = count => LETTERS.map((letter, i) => `<span class="letter${i < count ? ' earned' : ''}">${letter}</span>`).join('')
+		nodes.makes.innerHTML = letters(duel.letters.you)
+		nodes.accuracy.innerHTML = letters(duel.letters.cpu)
+		nodes['label-makes'].textContent = 'YOU'
+		nodes['label-accuracy'].textContent = name
+		if (state.coin) {
+			nodes.attempts.textContent = 'TOSS'
+			nodes['label-attempts'].textContent = state.coin.phase === 'call' ? 'CALL IT' : 'IN THE AIR'
+		} else if (duel.winner) {
+			nodes.attempts.textContent = duel.winner === 'you' ? 'WIN' : 'LOSS'
+			nodes['label-attempts'].textContent = 'GAME OVER'
+		} else {
+			nodes.attempts.textContent = duel.phase === 'match' ? 'MATCH' : 'SET'
+			nodes['label-attempts'].textContent = turnOf(duel) === 'you' ? 'YOUR BALL' : `${name}’S BALL`
+		}
+		return
+	}
 	if (state.mode === 'horse') {
 		nodes.makes.textContent = pad(state.horse.made)
 		// All five letters show, with the earned ones lit, so you can see how many misses are left.
@@ -512,7 +567,7 @@ function updateMeter() {
 	nodes['power-meter'].setAttribute('aria-valuenow', String(percent))
 	document.body.classList.toggle('charging', state.phase === 'charging')
 	document.body.dataset.charge = state.phase === 'charging' ? state.chargeSource : ''
-	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.phase === 'flight' || state.phase === 'dunk' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
+	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.ball?.by === 'cpu' ? 'Watch the shot…' : state.phase === 'flight' || state.phase === 'dunk' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
 }
 
 // Puts the player on this round's spot and the meter's band over its scoring range.
@@ -571,7 +626,20 @@ function beginCharge(source) {
 		updateStats()
 		return
 	}
-	if (state.mode === 'horse') {
+	if (isDuel()) {
+		if (!state.duel) return
+		// Like a new free throw round, this press only starts a new game, which opens with the coin flip.
+		// A rematch skips the coin: the loser of the last game shoots first.
+		if (state.duel.winner) return startNewDuel(other(state.duel.winner))
+		if (turnOf(state.duel) !== 'you') {
+			setFeedback(`${cpuName()}’s ball.`)
+			return
+		}
+		if (state.duel.phase === 'match' && !isOnSpot(state.player, state.duel.spot)) {
+			setFeedback('Step into the ring to match the shot.')
+			return
+		}
+	} else if (state.mode === 'horse') {
 		// Like a new free throw round, this press only starts a new game, so the player sees the first spot first.
 		if (state.horse.isOver) {
 			state.horse = startHorse(state.horse.best)
@@ -612,6 +680,7 @@ function releaseShot(source) {
 	state.ball = createShot(state.player, state.yaw, state.power)
 	state.ball.distance = shotDistance(state.player)
 	state.ball.from = { x: state.player.x, y: state.player.y }
+	state.ball.by = 'you'
 	// Scored from where the shot was released, since the player can walk while the ball is in the air.
 	state.ball.points = pointsFor(state.player)
 	state.ball.releasedAt = state.time
@@ -868,7 +937,8 @@ function showCallout(title, detail) {
 	nodes['callout-detail'].textContent = detail
 	nodes['basket-callout'].hidden = false
 	replayAnimation(nodes['basket-callout'], 'celebrate')
-	replayAnimation(nodes.makes.closest('.session-stats'), 'scored')
+	// Against the CPU that slot holds your letters, so a basket there would read as a letter; letters pop on their own.
+	if (!isDuel()) replayAnimation(nodes.makes.closest('.session-stats'), 'scored')
 }
 
 function startLog() {
@@ -1068,6 +1138,35 @@ const CHARTS = {
 		}
 		return [courtChart(shots, zones), zoneTallies(zones), legend]
 	},
+	// Every shot that was set, in the setter's colour, with the letter the other player took where they missed the match.
+	duel({ sets, letters, name }) {
+		const mine = sets.filter(set => set.by === 'you').length
+		const court = el('div', 'court')
+		court.setAttribute('role', 'img')
+		court.setAttribute('aria-label', `Shot chart: you set ${mine} shots and ${name} set ${sets.length - mine}`)
+		court.innerHTML = COURT_LINES
+		for (const set of sets) {
+			const spot = el('span', `spot set ${set.by}${set.letter ? ' letter' : ''}`, set.letter)
+			spot.style.left = `${(set.across * 10 + COURT_W / 2) / COURT_W * 100}%`
+			spot.style.top = `${clamp((COURT_TOP - set.out) * 10, 1, COURT_H - 1) / COURT_H * 100}%`
+			court.append(spot)
+		}
+		const rows = el('div', 'duel-letters')
+		for (const [who, label] of [['you', 'YOU'], ['cpu', name.toUpperCase()]]) {
+			const row = el('div', 'duel-row')
+			row.setAttribute('aria-label', `${label}: ${letters[who] ? LETTERS.slice(0, letters[who]).join('-') : 'no letters'}`)
+			row.append(el('span', `duel-name ${who}`, label), ...LETTERS.map((letter, i) => el('span', `letter${i < letters[who] ? ' earned' : ''}`, letter)))
+			rows.append(row)
+		}
+		const legend = el('div', 'results-legend')
+		legend.setAttribute('aria-hidden', 'true')
+		for (const [className, text, mark] of [['spot set you', 'You set', ''], ['spot set cpu', `${name} set`, ''], ['spot letter', 'Missed match', 'H']]) {
+			const item = el('span')
+			item.append(el('span', className, mark), text)
+			legend.append(item)
+		}
+		return [court, rows, legend]
+	},
 }
 
 // A make can land while the last one's popup is still showing, so the class is already on and the animation would not
@@ -1103,6 +1202,224 @@ function takeHorseShot(made) {
 	setFeedback(movedBack ? `${makes} made. The spots move back.` : `${makes} made. Next spot.`, true)
 }
 
+// The CPU walks to its spot, settles, charges for a moment like a held Space, and lets it go.
+const CPU_SPEED = 3.4
+const CPU_SETTLE = 0.5
+const CPU_CHARGE = 0.9
+// Between turns it waits on the sideline, across from you.
+const restSpot = () => ({ x: -2.2, y: state.player.y > 0 ? -5.6 : 5.6 })
+
+function saveDuel() {
+	try { localStorage.setItem(CPU_GAME_KEY, JSON.stringify({ duel: state.duel, log: state.log })) } catch {}
+}
+function forgetDuel() {
+	try { localStorage.removeItem(CPU_GAME_KEY) } catch {}
+}
+
+// Picks a saved game back up if it is against this level. A finished one goes straight to the rematch.
+function resumeDuel() {
+	let saved
+	try { saved = parseDuel(JSON.parse(localStorage.getItem(CPU_GAME_KEY))) } catch {}
+	if (!saved || saved.duel.level !== cpuSetup.level) return false
+	if (saved.duel.winner) {
+		startNewDuel(other(saved.duel.winner))
+		return true
+	}
+	state.coin = null
+	state.duel = saved.duel
+	state.log = saved.log
+	state.stepAside = undefined
+	Object.assign(state.cpu, { task: 'idle', until: state.time + 1.2, followThrough: 0, rest: restSpot() })
+	const name = cpuName()
+	const { duel } = state
+	if (turnOf(duel) === 'cpu') setFeedback(`Welcome back. ${name}’s ball.`)
+	else setFeedback(duel.phase === 'match' ? 'Welcome back. Match the shot from the ring.' : 'Welcome back. Your ball. Shoot from anywhere.')
+	updateStats()
+	return true
+}
+
+// A new matchup opens with the coin flip; a rematch passes `first`, whoever lost the last game.
+function startNewDuel(first) {
+	startLog()
+	state.stepAside = undefined
+	Object.assign(state.cpu, { task: 'idle', until: 0, followThrough: 0, rest: restSpot() })
+	if (first) {
+		state.coin = null
+		state.duel = startDuel(cpuSetup.level, first)
+		state.cpu.until = state.time + 1.2
+		const name = cpuName()
+		saveDuel()
+		showCallout('REMATCH', first === 'you' ? 'YOU START' : `${name.toUpperCase()} STARTS`)
+		setFeedback(first === 'you' ? 'Rematch. You lost the last one, so you start. Make a shot from anywhere to set it.' : `Rematch. ${name} lost the last one, so ${name} starts.`)
+		updateStats()
+		return
+	}
+	state.duel = null
+	state.coin = { phase: 'call' }
+	forgetDuel()
+	nodes['coin-versus'].textContent = `VS ${cpuName().toUpperCase()} · ${LEVEL_NAMES[cpuSetup.level].toUpperCase()}`
+	nodes['coin-call'].hidden = false
+	nodes.coin.hidden = true
+	setFeedback('Heads or tails? Call it to start the game.')
+	updateStats()
+}
+
+const COIN_FLIGHT = 1.55
+const menuIsOpen = () => Boolean(document.querySelector('.menu-options:not([hidden]), .audio-panel:not([hidden])'))
+function callCoin(called) {
+	if (!isDuel() || state.coin?.phase !== 'call' || menuIsOpen()) return
+	const landed = tossCoin()
+	state.coin = { phase: 'flip', called, landed, lands: state.time + COIN_FLIGHT }
+	nodes['coin-call'].hidden = true
+	// The face it lands on is the front, so the spin ends showing it.
+	const [front, back] = nodes.coin.querySelectorAll('canvas')
+	paintCoin(front, landed)
+	paintCoin(back, landed === 'heads' ? 'tails' : 'heads')
+	nodes.coin.hidden = false
+	replayAnimation(nodes.coin, 'tossing')
+	canvas.focus({ preventScroll: true })
+	setFeedback(`You called ${called}…`)
+	updateStats()
+}
+
+function landCoin() {
+	const { called, landed } = state.coin
+	const first = firstShooter(called, landed)
+	state.coin = null
+	state.duel = startDuel(cpuSetup.level, first)
+	saveDuel()
+	state.cpu.until = state.time + 1.2
+	const name = cpuName()
+	showCallout(landed.toUpperCase(), first === 'you' ? 'YOU CALLED IT · YOUR BALL' : `YOU CALLED ${called.toUpperCase()} · ${name.toUpperCase()} STARTS`)
+	setFeedback(first === 'you' ? 'You called it. Make a shot from anywhere to set it.' : `It’s ${landed}. ${name} sets the first shot.`, first === 'you')
+	updateStats()
+}
+
+// The coin's faces, 16 pixels across: a basketball on heads, a hoop and net on tails.
+function paintCoin(target, side) {
+	const pixels = new Uint32Array(16 * 16)
+	for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+		const dx = x - 7.5, dy = y - 7.5, d = Math.hypot(dx, dy)
+		if (d > 7.7) continue
+		let color = d > 6.6 ? [138, 106, 28] : [232, 186, 58]
+		if (d > 5.6 && d <= 6.6 && dx + dy < -4) color = [248, 227, 160]
+		if (side === 'heads' && d <= 3.6) color = x === 7 || y === 7 || (d > 2.4 && d < 3.4 && Math.abs(dx) > 2.2) ? [74, 38, 20] : [192, 96, 47]
+		if (side === 'tails' && y === 4 && x >= 4 && x <= 11) color = [191, 91, 50]
+		if (side === 'tails' && y >= 5 && y <= 10 && Math.abs(dx) <= 4 - Math.floor((y - 5) * 0.6) && (x + y) % 2 === 0) color = [255, 250, 240]
+		pixels[y * 16 + x] = rgb(...color)
+	}
+	target.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(pixels.buffer), 16, 16), 0, 0)
+}
+
+function takeDuelShot(made) {
+	const { ball } = state
+	const by = ball.by ?? 'you'
+	const before = state.duel
+	state.duel = recordDuelShot(before, { by, made, from: ball.from })
+	const { duel } = state
+	const missedMatch = before.phase === 'match' && !made
+	state.log.push({ ...shotSpot(ball, made), by, phase: before.phase, letter: missedMatch ? LETTERS[duel.letters[by] - 1] : '' })
+	saveDuel()
+	if (missedMatch) {
+		updateStats()
+		replayAnimation(by === 'you' ? nodes.makes : nodes.accuracy, 'letter-pop')
+	}
+	if (duel.winner) return finishDuel()
+	const name = cpuName()
+	const spelled = count => LETTERS.slice(0, count).join('-')
+	const lastTry = duel.phase === 'match' && duel.letters[turnOf(duel)] === LETTERS.length - 1
+	if (before.phase === 'set' && made && by === 'you') {
+		setFeedback(`Set from ${ball.distance.toFixed(1)} m. ${name} has to make it from there.`, true)
+	} else if (before.phase === 'set' && made) {
+		setFeedback(`${name} made it from ${ball.distance.toFixed(1)} m. ${lastTry ? 'Make it from the ring, or that’s E.' : 'Match it from the ring.'}`)
+	} else if (before.phase === 'set') {
+		setFeedback(by === 'you' ? `Missed. ${name}’s ball.` : `${name} missed. Your ball. Shoot from anywhere.`)
+	} else if (made) {
+		setFeedback(by === 'you' ? `Matched. ${name}’s ball again.` : `${name} matched it. Your ball again.`, by === 'you')
+	} else {
+		setFeedback(by === 'you' ? `Missed. That’s ${spelled(duel.letters.you)}. ${name}’s ball.` : `${name} missed. That’s ${spelled(duel.letters.cpu)} for ${name}. Your ball.`, by === 'cpu')
+	}
+}
+
+function finishDuel() {
+	const { duel } = state
+	const won = duel.winner === 'you'
+	const recordBefore = cpuRecord
+	cpuRecord = recordResult(cpuRecord, duel.level, won)
+	try { localStorage.setItem(CPU_RECORD_KEY, JSON.stringify(cpuRecord)) } catch {}
+	showRecord()
+	const name = cpuName()
+	const { won: wins, lost } = cpuRecord[duel.level]
+	setFeedback(`${won ? `HORSE for ${name}. You win.` : `HORSE. ${name} wins.`} ${wins}–${lost} on ${LEVEL_NAMES[duel.level]}. ${IS_TOUCH ? 'Tap Shoot' : 'Press Space'} to play again.`, won)
+	updateStats()
+	nodes.results.style.setProperty('--cpu', `rgb(${cpuJersey().shirt.join(' ')})`)
+	showResults(duelResults({ log: state.log, duel, name, level: duel.level, record: cpuRecord, recordBefore }))
+}
+
+// You can stand where the CPU needs to shoot from, so you step out of its way on your own.
+function stepAsideFrom(spot) {
+	const away = { x: state.player.x - spot.x, y: state.player.y - spot.y }
+	const gap = Math.hypot(away.x, away.y)
+	if (gap > 1.5) return
+	const direction = gap > 0.1 ? { x: away.x / gap, y: away.y / gap } : { x: 0, y: spot.y > 0 ? -1 : 1 }
+	state.stepAside = { x: clamp(spot.x + direction.x * 2.6, -8.25, 8.3), y: clamp(spot.y + direction.y * 2.6, -6.5, 6.5) }
+}
+
+function walkToward(actor, target, speed, delta) {
+	const dx = target.x - actor.x, dy = target.y - actor.y
+	const gap = Math.hypot(dx, dy)
+	const step = Math.min(gap, speed * delta)
+	if (gap > 0) {
+		actor.x += dx / gap * step
+		actor.y += dy / gap * step
+	}
+	return gap - step < 0.02
+}
+
+function updateCpu(delta) {
+	const { cpu, duel } = state
+	cpu.followThrough = Math.max(0, cpu.followThrough - delta)
+	cpu.walking = false
+	const canAct = !duel.winner && turnOf(duel) === 'cpu' && !state.ball && state.phase === 'ready' && nodes.results.hidden
+	if (cpu.task === 'idle' && canAct && state.time >= cpu.until) {
+		cpu.target = duel.phase === 'match' ? duel.spot : chooseSpot(duel)
+		cpu.task = 'walk'
+		stepAsideFrom(cpu.target)
+	}
+	if (cpu.task === 'walk') {
+		cpu.walking = true
+		cpu.yaw = Math.atan2(cpu.target.y - cpu.y, cpu.target.x - cpu.x)
+		if (walkToward(cpu, cpu.target, CPU_SPEED, delta)) {
+			cpu.task = 'settle'
+			cpu.yaw = yawTo(cpu)
+			cpu.until = state.time + CPU_SETTLE
+		}
+	} else if (cpu.task === 'settle' && state.time >= cpu.until) {
+		cpu.aim = aimShot(cpu, duel.level)
+		cpu.yaw = cpu.aim.yaw
+		cpu.task = 'charge'
+		cpu.chargeStart = state.time
+	} else if (cpu.task === 'charge' && state.time - cpu.chargeStart >= CPU_CHARGE) {
+		state.ball = createShot(cpu, cpu.aim.yaw, cpu.aim.power)
+		state.ball.distance = shotDistance(cpu)
+		state.ball.from = { x: cpu.x, y: cpu.y }
+		state.ball.by = 'cpu'
+		state.ball.points = pointsFor(cpu)
+		state.ball.releasedAt = state.time
+		state.returnTime = undefined
+		state.phase = 'flight'
+		cpu.task = 'idle'
+		cpu.followThrough = 0.65
+		cpu.until = state.time + 0.9
+		cpu.rest = restSpot()
+		playSound('shoot')
+	} else if (cpu.task === 'idle' && !canAct && !(state.ball?.by === 'cpu')) {
+		// Off the ball, it waits on the sideline facing the play.
+		cpu.walking = !walkToward(cpu, cpu.rest, CPU_SPEED, delta)
+		cpu.yaw = cpu.walking ? Math.atan2(cpu.rest.y - cpu.y, cpu.rest.x - cpu.x) : Math.atan2(state.player.y - cpu.y, state.player.x - cpu.x)
+	}
+}
+
 function update(delta) {
 	if (state.paused || nodes.help.open) return
 	const previousDribble = Math.floor(state.time * DRIBBLE_SPEED / Math.PI)
@@ -1136,7 +1453,14 @@ function update(delta) {
 		state.player.x = clamp(state.player.x + (screenX + screenY) / R2 * 4.4 * delta, -8.25, 8.3)
 		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.5, 6.5)
 		updateAim()
+		state.stepAside = undefined
+	} else if (state.stepAside && state.phase !== 'charging') {
+		state.walking = true
+		if (walkToward(state.player, state.stepAside, 3.5, delta)) state.stepAside = undefined
+		updateAim()
 	}
+	if (state.coin?.phase === 'flip' && state.time >= state.coin.lands) landCoin()
+	if (isDuel() && state.duel) updateCpu(delta)
 	const turn = isFixed ? 0 : Number(keys.has('KeyE')) - Number(keys.has('KeyQ'))
 	if (turn) {
 		state.pointer = undefined
@@ -1185,10 +1509,13 @@ function update(delta) {
 				let detail = `+1 MADE · ${distance}`
 				if (freeThrows) detail = '+1 MADE'
 				if (clock) detail = `+${state.ball.points} PT · ${distance}`
+				if (horse && isDuel()) detail = state.ball.by === 'cpu' ? `${cpuName().toUpperCase()} · ${distance}` : distance
 				const banked = state.ball.banked
 				showCallout(banked ? 'BANK SHOT!' : 'BASKET!', detail)
 				if (freeThrows) {
 					takeFreeThrow(true)
+				} else if (horse && isDuel()) {
+					takeDuelShot(true)
 				} else if (horse) {
 					takeHorseShot(true)
 				} else if (clock) {
@@ -1229,7 +1556,8 @@ function update(delta) {
 				takeFreeThrow(false)
 				updateStats()
 			} else if (horse) {
-				takeHorseShot(false)
+				if (isDuel()) takeDuelShot(false)
+				else takeHorseShot(false)
 				updateStats()
 			} else if (clock) {
 				logClockShot(false)
@@ -1255,6 +1583,7 @@ function update(delta) {
 	if (state.scoredAt !== undefined && state.time - state.scoredAt >= 1.8) {
 		nodes['basket-callout'].hidden = true
 		nodes['basket-callout'].classList.remove('celebrate')
+		if (!state.coin) nodes.coin.hidden = true
 		nodes.makes.closest('.session-stats').classList.remove('scored')
 		state.scoredAt = undefined
 	}
@@ -1309,9 +1638,8 @@ function drawAimGuide() {
 // so it reads on every court, including the terracotta key and the snow. It's drawn before the player, so the depth
 // test lets the player stand in front of it. It turns white once the player is inside and can shoot.
 const MARKER_OUTLINE = [52, 38, 48]
-function drawSpotMarker() {
-	const { spot } = state.horse
-	const bright = isOnSpot(state.player, spot) ? rgb(...NET_COLOR) : rgb(...ARC_COLOR)
+function drawSpotMarker(spot, yours = true) {
+	const bright = yours && isOnSpot(state.player, spot) ? rgb(...NET_COLOR) : rgb(...ARC_COLOR)
 	const dark = rgb(...MARKER_OUTLINE)
 	const rings = [
 		[SPOT_RADIUS + 0.07, dark],
@@ -1356,6 +1684,64 @@ function drawRacks() {
 	})
 }
 
+// The extra hair shapes go round the head figure() draws, so this follows its head placement for an upright pose.
+function drawHair(px, py, yaw, pose, character, add) {
+	const k = pose.scale || 1, base = pose.z || 0, crouch = pose.crouch || 0
+	const fx = Math.cos(yaw), fy = Math.sin(yaw)
+	const along = -crouch * 0.15, up = 1.28 - crouch * 0.4 + 0.95 + 0.36
+	const at = ([a, b, c]) => [px + (fx * (along + a) - fy * b) * k, py + (fy * (along + a) + fx * b) * k, (up + c) * k + base]
+	for (const shape of HAIRSTYLES[character.style]) {
+		const color = colorOf(character, shape.color)
+		const [from, to] = shape.ball ? [at(shape.ball), at(shape.ball)] : shape.strand.map(at)
+		add(from, to, (shape.r ?? shape.r0) * k, (shape.r ?? shape.r1) * k, () => color)
+	}
+}
+
+function cpuPose() {
+	const { cpu } = state
+	const charging = cpu.task === 'charge'
+	const power = charging ? clamp((state.time - cpu.chargeStart) / CPU_CHARGE, 0, 1) * cpu.aim.power : 0
+	const arm = charging ? 2.25 + power * 0.25 : cpu.followThrough > 0 ? 2.85 : 0.7
+	const walk = cpu.walking ? Math.sin(state.time * 13) : 0
+	return {
+		crouch: charging ? power * 0.45 : 0,
+		stance: 0.12 + walk * 0.18,
+		armR: arm, armL: charging || cpu.followThrough > 0 ? arm : 0.6,
+		z: cpu.walking ? Math.abs(walk) * 0.04 : 0,
+	}
+}
+
+function drawCpu() {
+	const { cpu } = state
+	const character = cpuCharacter()
+	const pose = cpuPose()
+	figure(cpu.x, cpu.y, cpu.yaw, pose, paletteOf(character, cpuJersey()), dynamicAdd)
+	drawHair(cpu.x, cpu.y, cpu.yaw, pose, character, dynamicAdd)
+}
+
+// A character standing in its kit, drawn by the engine into the canvas's buffers and copied out, for the picker.
+// The court's frame is put back straight after, so nothing on screen changes.
+const PORTRAIT = { w: 18, h: 32 }
+function drawPortrait(target, character) {
+	const savedPix = pix.slice(), savedZ = zb.slice()
+	pix.fill(0)
+	zb.fill(-1e9)
+	const yaw = Math.PI / 4 - 0.35
+	const pose = { stance: 0.14, armR: 0.7, armL: 0.6 }
+	const solid = (a, b, r0, r1, f) => capsule(a, b, r0, r1, f, 'solid')
+	figure(0, 0, yaw, pose, paletteOf(character, kitOf(character)), solid)
+	drawHair(0, 0, yaw, pose, character, solid)
+	const feet = project(0, 0, 0)
+	const left = Math.round(feet.sx) - 8, top = Math.round(feet.sy) - 29
+	const cropped = new Uint32Array(PORTRAIT.w * PORTRAIT.h)
+	for (let y = 0; y < PORTRAIT.h; y++) cropped.set(pix.subarray((top + y) * W + left, (top + y) * W + left + PORTRAIT.w), y * PORTRAIT.w)
+	pix.set(savedPix)
+	zb.set(savedZ)
+	target.width = PORTRAIT.w
+	target.height = PORTRAIT.h
+	target.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(cropped.buffer), PORTRAIT.w, PORTRAIT.h), 0, 0)
+}
+
 function putPixel(sx, sy, color) {
 	const ix = sx | 0, iy = sy | 0
 	if (ix >= 0 && iy >= 0 && ix < W && iy < H) pix[iy * W + ix] = color
@@ -1371,7 +1757,13 @@ function draw() {
 	const shotPose = charging || state.followThrough > 0
 	const armAngle = charging ? 2.25 + state.power * 0.25 : state.followThrough > 0 ? 2.85 : 0.7
 	const walkCycle = state.walking ? Math.sin(state.time * 13) : 0
-	if (state.mode === 'horse' && !state.horse.isOver) drawSpotMarker()
+	const duel = isDuel() && state.duel
+	const cpuHasBall = duel && !duel.winner && turnOf(duel) === 'cpu'
+	if (isDuel()) {
+		// The ring only marks a set shot waiting to be matched; setting one is from anywhere.
+		if (duel && duel.phase === 'match' && !duel.winner) drawSpotMarker(duel.spot, turnOf(duel) === 'you')
+		drawCpu()
+	} else if (state.mode === 'horse' && !state.horse.isOver) drawSpotMarker(state.horse.spot)
 	const contest = state.mode === 'three-point'
 	if (contest) drawRacks()
 	const dunk = state.dunk && dunkPose(state.dunk, state.time - state.dunk.start)
@@ -1395,7 +1787,11 @@ function draw() {
 		castShadow(ball.x, ball.y, ball.z, BALL_RADIUS, 1, 0)
 	}
 	const inHand = contest ? state.phase !== 'flight' && nextShot(state.contest) : !state.ball && !state.dunk
-	if (inHand) {
+	if (inHand && cpuHasBall) {
+		const { cpu } = state
+		const held = cpu.task === 'charge' ? 2.5 : BALL_RADIUS + Math.abs(Math.sin(state.time * DRIBBLE_SPEED)) * 0.99
+		drawBasketball(cpu.x + Math.cos(cpu.yaw) * 0.55, cpu.y + Math.sin(cpu.yaw) * 0.55, held, state.time)
+	} else if (inHand) {
 		const held = contest ? 1.3 : BALL_RADIUS + Math.abs(Math.sin(state.time * DRIBBLE_SPEED)) * 0.99
 		const color = contest ? BALL_COLORS[valueOf(nextShot(state.contest), state.contest.moneyRack)] : BALL_COLOR
 		drawBasketball(state.player.x + Math.cos(state.yaw) * 0.55, state.player.y + Math.sin(state.yaw) * 0.55, charging ? 2.5 : held, state.time, color)
@@ -1458,6 +1854,10 @@ function resizeCanvas() {
 	const hoop = project(HOOP.x, HOOP.y, HOOP.z)
 	nodes['basket-callout'].style.left = `${canvasRect.left + hoop.sx / W * canvasRect.width}px`
 	nodes['basket-callout'].style.top = `${canvasRect.top + (hoop.sy - 14) / H * canvasRect.height}px`
+	// Tossed over open floor behind where you start, clear of you, the CPU on the sideline and the streetlight.
+	const toss = project(3.6, -0.7, 0.6)
+	nodes.coin.style.left = `${canvasRect.left + toss.sx / W * canvasRect.width}px`
+	nodes.coin.style.top = `${canvasRect.top + toss.sy / H * canvasRect.height}px`
 }
 
 const MOVEMENT_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'KeyQ', 'KeyE', 'Space']
@@ -1470,6 +1870,14 @@ addEventListener('keydown', event => {
 		state.paused = !state.paused
 		cancelInput()
 		setFeedback(state.paused ? 'Taking a breather. Press Esc to resume.' : 'Welcome back to the court.')
+		return
+	}
+	if (state.coin?.phase === 'call') {
+		const side = { KeyH: 'heads', ArrowLeft: 'heads', KeyT: 'tails', ArrowRight: 'tails' }[event.code]
+		if (side) {
+			event.preventDefault()
+			callCoin(side)
+		}
 		return
 	}
 	const rackKey = /^Digit([1-5])$/.exec(event.code)
@@ -2007,8 +2415,14 @@ function applyMode() {
 		placeForRound()
 	}
 	if (clock) state.clock = startClockRound(state.clock.best)
+	document.body.dataset.opponent = cpuSetup.opponent
+	state.duel = null
+	state.coin = null
+	nodes['coin-call'].hidden = true
+	nodes.coin.hidden = true
 	if (state.mode === 'horse') state.horse = startHorse(state.horse.best)
 	startLog()
+	if (isDuel() && !resumeDuel()) startNewDuel()
 	state.flying = []
 	state.reloadAt = undefined
 	if (contest) {
@@ -2023,11 +2437,147 @@ setupMenu(nodes.mode, nodes['mode-options'], mode => {
 	cancelInput()
 	returnBall()
 	applyMode()
-	setFeedback(MODE_INTROS[mode])
+	if (!isDuel()) setFeedback(MODE_INTROS[mode])
 })
+
+// The Opponent menu shows in HORSE only. It stays open while you change things, like the sound panel.
+for (const side of ['heads', 'tails']) {
+	const button = nodes[`call-${side}`]
+	paintCoin(button.querySelector('canvas'), side)
+	button.addEventListener('click', () => callCoin(side))
+}
+
+const setOpponentOpen = setupPopover(nodes.opponent, nodes['opponent-options'])
+// Play, or Enter anywhere in the menu, closes it and starts: against the CPU that brings up the coin flip.
+function playFromMenu() {
+	setOpponentOpen(false)
+	canvas.focus({ preventScroll: true })
+}
+nodes['opponent-play'].addEventListener('click', playFromMenu)
+nodes.opponent.addEventListener('click', () => showOpponent())
+nodes['opponent-options'].addEventListener('keydown', event => {
+	if (event.key === 'Enter') {
+		event.preventDefault()
+		return playFromMenu()
+	}
+	if (event.key !== 'Escape') return
+	setOpponentOpen(false)
+	nodes.opponent.focus()
+})
+for (const character of CHARACTERS) {
+	const option = el('label', 'cpu-character')
+	const radio = Object.assign(document.createElement('input'), { type: 'radio', name: 'cpu-character', value: character.id })
+	radio.setAttribute('aria-label', `${character.name}, ${character.hair.toLowerCase()}`)
+	const portrait = el('canvas')
+	portrait.setAttribute('aria-hidden', 'true')
+	drawPortrait(portrait, character)
+	option.append(radio, portrait)
+	nodes['cpu-characters'].append(option)
+}
+
+function showRecord() {
+	for (const slot of nodes['opponent-options'].querySelectorAll('[data-record]')) {
+		const { won, lost } = cpuRecord[slot.dataset.record]
+		slot.textContent = `${won}–${lost}`
+	}
+}
+
+function showOpponent() {
+	const character = cpuCharacter()
+	nodes['opponent-label'].textContent = cpuSetup.opponent === 'cpu' ? `vs ${character.name} · ${LEVEL_NAMES[cpuSetup.level]}` : 'Solo'
+	nodes['opponent-play-label'].textContent = cpuSetup.opponent === 'cpu' ? `Play vs ${character.name} · ${LEVEL_NAMES[cpuSetup.level]}` : 'Play HORSE'
+	// A rematch already in progress keeps going, so only a fresh game promises the coin flip.
+	nodes['opponent-play-detail'].hidden = cpuSetup.opponent !== 'cpu' || state.coin?.phase !== 'call'
+	nodes['opponent-options'].dataset.opponent = cpuSetup.opponent
+	checkOption(nodes['opponent-options'].querySelector('.opponent-switch'), cpuSetup.opponent)
+	checkOption(nodes['opponent-options'].querySelector('.level-switch'), cpuSetup.level)
+	checkOption(nodes['cpu-characters'], character.id)
+	nodes['cpu-character-name'].textContent = `${character.name} · ${character.hair}`
+	showRecord()
+}
+
+function applyOpponentChange(name, value) {
+	if (name === 'opponent' || name === 'cpu-level') forgetDuel()
+	const save = (key, saved) => { try { localStorage.setItem(key, saved) } catch {} }
+	if (name === 'opponent') {
+		cpuSetup.opponent = value
+		save(OPPONENT_KEY, value)
+	} else if (name === 'cpu-level') {
+		cpuSetup.level = value
+		save(CPU_LEVEL_KEY, value)
+	} else if (name === 'cpu-character') {
+		cpuSetup.character = value
+		save(CPU_CHARACTER_KEY, value)
+	}
+	showOpponent()
+	// A new opponent or level is a new game; a new character only changes who you play.
+	if (name === 'opponent' || name === 'cpu-level') {
+		cancelInput()
+		returnBall()
+		applyMode()
+		showOpponent()
+		if (!isDuel()) setFeedback(MODE_INTROS.horse)
+	} else {
+		updateStats()
+	}
+}
+
+// A new opponent or level throws away a game under way, so that asks first. A new character only redraws the CPU.
+const gameInProgress = () => isDuel() && state.duel && !state.duel.winner && state.log.length > 0
+let pendingSwitch
+nodes['opponent-options'].addEventListener('change', event => {
+	const { name, value } = event.target
+	if ((name === 'opponent' || name === 'cpu-level') && gameInProgress()) {
+		// The radios go back to the current choice until you confirm.
+		showOpponent()
+		return askToSwitch(name, value)
+	}
+	applyOpponentChange(name, value)
+})
+
+function askToSwitch(name, value) {
+	pendingSwitch = { name, value }
+	const cpu = cpuName()
+	const toSolo = name === 'opponent' && value === 'solo'
+	const target = toSolo ? 'Solo' : LEVEL_NAMES[value]
+	nodes['warn-versus'].textContent = `VS ${cpu.toUpperCase()} · ${LEVEL_NAMES[cpuSetup.level].toUpperCase()}`
+	nodes['warn-body'].textContent = toSolo
+		? `Switching to Solo ends this game against ${cpu}. It won’t count toward your record.`
+		: `Switching to ${target} starts a new game against ${cpu}. This one won’t count toward your record.`
+	const letters = count => LETTERS.map((letter, i) => `<span class="letter${i < count ? ' earned' : ''}">${letter}</span>`).join('')
+	nodes['warn-you'].innerHTML = letters(state.duel.letters.you)
+	nodes['warn-cpu'].innerHTML = letters(state.duel.letters.cpu)
+	nodes['warn-cpu-name'].textContent = cpu.toUpperCase()
+	nodes['warn-confirm-label'].textContent = toSolo ? 'End game, play Solo' : `New game on ${target}`
+	nodes['switch-warn'].hidden = false
+	nodes['warn-confirm'].focus()
+}
+
+function closeSwitchWarning() {
+	nodes['switch-warn'].hidden = true
+	pendingSwitch = undefined
+}
+
+nodes['warn-keep'].addEventListener('click', () => {
+	closeSwitchWarning()
+	nodes['opponent-options'].querySelector('.level-switch :checked')?.focus()
+})
+nodes['warn-confirm'].addEventListener('click', () => {
+	const { name, value } = pendingSwitch
+	closeSwitchWarning()
+	applyOpponentChange(name, value)
+	playFromMenu()
+})
+nodes['switch-warn'].addEventListener('keydown', event => {
+	if (event.key !== 'Escape') return
+	event.preventDefault()
+	nodes['warn-keep'].click()
+})
+
 applyMode()
+showOpponent()
 // The page's default line is free shooting's, so a saved goal mode explains itself on load.
-if (state.mode !== 'free') setFeedback(MODE_INTROS[state.mode])
+if (state.mode !== 'free' && !isDuel()) setFeedback(MODE_INTROS[state.mode])
 // Keep the placeholders (header buttons, footer menus, scoreboard and helper line) up for at least 300ms after navigation, so a fast load doesn't flash them.
 setTimeout(() => {
 	for (const node of document.querySelectorAll('.header-actions, .settings, .session-stats, .shoot-panel')) node.classList.add('ready')

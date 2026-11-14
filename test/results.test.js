@@ -101,3 +101,27 @@ test('dunks are drawn just in front of the rim, on the side each came from', () 
 	const results = clockResults({ log: dunks.map((d, i) => ({ ...d, at: i, made: true, points: 2, distance: 0 })), points: 10, best: 10, bestBefore: 0 })
 	assert.ok(results.chart.shots.every(shot => Math.abs(Math.hypot(shot.out, shot.across) - 0.9) < 1e-9))
 })
+
+test('the HORSE vs CPU card tells who won, keeps the record and puts each missed match on the court', async () => {
+	const { duelResults } = await import('../dist/results.js')
+	const shot = (by, phase, made, letter = '') => ({ by, phase, made, letter, out: 5, across: 1, distance: 5.1 })
+	const log = [
+		shot('you', 'set', true), shot('cpu', 'match', false, 'H'),
+		shot('you', 'set', true), shot('cpu', 'match', true),
+		shot('you', 'set', false),
+		shot('cpu', 'set', true), shot('you', 'match', false, 'H'),
+		shot('cpu', 'set', false),
+	]
+	const duel = { level: 'hard', letters: { you: 1, cpu: 5 }, winner: 'you' }
+	const results = duelResults({
+		log, duel, name: 'Rae', level: 'hard',
+		record: { hard: { won: 5, lost: 7 } }, recordBefore: { hard: { won: 4, lost: 7 } },
+	})
+	assert.equal(results.score, 'YOU WIN')
+	assert.equal(results.scoreNote, 'Rae spelled HORSE. You finished on H.')
+	assert.deepEqual(results.stamp, { text: 'VS HARD 5–7', detail: 'was 4–7' })
+	assert.deepEqual(results.chart.sets.map(set => [set.by, set.letter]), [['you', 'H'], ['you', ''], ['cpu', 'H']])
+	assert.equal(statOf(results, 'SHOTS YOU SET').value, 2)
+	assert.deepEqual([statOf(results, 'YOU MATCHED').value, statOf(results, 'YOU MATCHED').of], [0, 1])
+	assert.equal(results.actionDetail, 'RAE STARTS')
+})

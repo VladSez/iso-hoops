@@ -155,3 +155,39 @@ export function horseResults({ log, made, best, bestBefore }) {
 		action: 'New game',
 	}
 }
+
+const lettersOf = count => (count ? LETTERS.slice(0, count).join('-') : 'no letters')
+
+/**
+ * The card after a game of HORSE against the CPU. The court shows every shot that was set, coloured by who set it,
+ * with the letter the other player took when they missed the match.
+ */
+export function duelResults({ log, duel, name, level, record, recordBefore }) {
+	const won = duel.winner === 'you'
+	const loser = won ? 'cpu' : 'you'
+	const sets = []
+	log.forEach((shot, i) => {
+		if (shot.phase !== 'set' || !shot.made) return
+		const match = log[i + 1]
+		sets.push({ by: shot.by, out: shot.out, across: shot.across, letter: match && !match.made ? match.letter : '' })
+	})
+	const matches = log.filter(shot => shot.by === 'you' && shot.phase === 'match')
+	const yours = log.filter(shot => shot.by === 'you')
+	const tally = r => `${r.won}–${r.lost}`
+	return {
+		label: `HORSE · VS ${name.toUpperCase()} · ${level.toUpperCase()}`,
+		side: '',
+		score: won ? 'YOU WIN' : `${name.toUpperCase()} WINS`,
+		scoreNote: `${won ? name : 'You'} spelled HORSE. ${won ? 'You' : name} finished on ${lettersOf(duel.letters[won ? 'you' : 'cpu'])}.`,
+		stamp: { text: `VS ${level.toUpperCase()} ${tally(record[level])}`, detail: `was ${tally(recordBefore[level])}` },
+		chart: { type: 'duel', sets, letters: duel.letters, name, loser },
+		stats: [
+			{ value: count(sets, set => set.by === 'you'), label: 'SHOTS YOU SET' },
+			{ value: count(matches, shot => shot.made), of: matches.length, label: 'YOU MATCHED' },
+			{ ...metres(farthest(yours)), label: 'FARTHEST MAKE' },
+		],
+		note: '',
+		action: 'Play again',
+		actionDetail: won ? `${name.toUpperCase()} STARTS` : 'YOU START',
+	}
+}
