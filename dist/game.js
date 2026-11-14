@@ -935,7 +935,8 @@ function showCallout(title, detail) {
 	nodes['callout-detail'].textContent = detail
 	nodes['basket-callout'].hidden = false
 	replayAnimation(nodes['basket-callout'], 'celebrate')
-	replayAnimation(nodes.makes.closest('.session-stats'), 'scored')
+	// Against the CPU that slot holds your letters, so a basket there would read as a letter; letters pop on their own.
+	if (!isDuel()) replayAnimation(nodes.makes.closest('.session-stats'), 'scored')
 }
 
 function startLog() {
@@ -1284,6 +1285,10 @@ function takeDuelShot(made) {
 	const { duel } = state
 	const missedMatch = before.phase === 'match' && !made
 	state.log.push({ ...shotSpot(ball, made), by, phase: before.phase, letter: missedMatch ? LETTERS[duel.letters[by] - 1] : '' })
+	if (missedMatch) {
+		updateStats()
+		replayAnimation(by === 'you' ? nodes.makes : nodes.accuracy, 'letter-pop')
+	}
 	if (duel.winner) return finishDuel()
 	const name = cpuName()
 	const spelled = count => LETTERS.slice(0, count).join('-')

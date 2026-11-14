@@ -158,6 +158,8 @@ body:not([data-mode="free"]) :is(#session-open, .session-chevron, .session-panel
 #basket-callout span { margin-top: -2px; padding: 4px 9px 3px; border-radius: 3px; background: var(--orange); color: var(--panel); font-size: 9px; font-weight: 700; letter-spacing: 1.2px; box-shadow: 2px 2px 0 var(--stamp, var(--ink)), 0 6px 10px color-mix(in srgb, var(--shade) 25%, transparent); }
 #basket-callout.celebrate { animation: basket-pop 1.8s both; }
 .session-stats.scored #makes { animation: score-pop 0.5s ease-out; }
+/* Against the CPU, the letters of whoever just took one pop instead. */
+.session-stats .letter-pop { animation: score-pop 0.5s ease-out; }
 .session-stats #attempts.hurry { color: #c0492b; }
 /* The card at the end of a round, a raised panel like the scoreboard over the middle of the court. The ball colours match
    the court's: plain, money (blue) and deep (gold); a missed ball is only an outline. */
@@ -340,7 +342,7 @@ body[data-mode="horse"][data-opponent="cpu"] .session-stats span { white-space: 
 }
 @keyframes score-pop { 35% { transform: scale(1.4); } }
 @media (prefers-reduced-motion: reduce) {
-	#basket-callout.celebrate, .session-stats.scored #makes { animation: none; }
+	#basket-callout.celebrate, .session-stats.scored #makes, .session-stats .letter-pop { animation: none; }
 }
 #stage { position: absolute; inset: 0 0 70px; display: grid; place-items: center; }
 /* The court is drawn on a transparent backdrop, so the shadow follows its edge and it floats off the page. */
