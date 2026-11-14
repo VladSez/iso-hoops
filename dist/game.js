@@ -4,7 +4,7 @@ import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFT
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
 import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
 import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=12'
-import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=2'
+import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=3'
 import { aimShot, chooseSpot, yawTo } from './cpu.js?v=3'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
@@ -107,6 +107,8 @@ const OPPONENT_KEY = 'iso-hoops:opponent'
 const CPU_LEVEL_KEY = 'iso-hoops:cpu-level'
 const CPU_CHARACTER_KEY = 'iso-hoops:cpu-character'
 const CPU_RECORD_KEY = 'iso-hoops:horse-cpu-record'
+// The game under way, so a reload carries on instead of flipping the coin again.
+const CPU_GAME_KEY = 'iso-hoops:horse-cpu-game'
 const cpuSetup = { opponent: 'solo', level: 'medium', character: CHARACTERS[0].id }
 let cpuRecord = emptyRecord()
 try {
@@ -1207,6 +1209,35 @@ const CPU_CHARGE = 0.9
 // Between turns it waits on the sideline, across from you.
 const restSpot = () => ({ x: -2.2, y: state.player.y > 0 ? -5.6 : 5.6 })
 
+function saveDuel() {
+	try { localStorage.setItem(CPU_GAME_KEY, JSON.stringify({ duel: state.duel, log: state.log })) } catch {}
+}
+function forgetDuel() {
+	try { localStorage.removeItem(CPU_GAME_KEY) } catch {}
+}
+
+// Picks a saved game back up if it is against this level. A finished one goes straight to the rematch.
+function resumeDuel() {
+	let saved
+	try { saved = parseDuel(JSON.parse(localStorage.getItem(CPU_GAME_KEY))) } catch {}
+	if (!saved || saved.duel.level !== cpuSetup.level) return false
+	if (saved.duel.winner) {
+		startNewDuel(other(saved.duel.winner))
+		return true
+	}
+	state.coin = null
+	state.duel = saved.duel
+	state.log = saved.log
+	state.stepAside = undefined
+	Object.assign(state.cpu, { task: 'idle', until: state.time + 1.2, followThrough: 0, rest: restSpot() })
+	const name = cpuName()
+	const { duel } = state
+	if (turnOf(duel) === 'cpu') setFeedback(`Welcome back. ${name}’s ball.`)
+	else setFeedback(duel.phase === 'match' ? 'Welcome back. Match the shot from the ring.' : 'Welcome back. Your ball. Shoot from anywhere.')
+	updateStats()
+	return true
+}
+
 // A new matchup opens with the coin flip; a rematch passes `first`, whoever lost the last game.
 function startNewDuel(first) {
 	startLog()
@@ -1217,6 +1248,7 @@ function startNewDuel(first) {
 		state.duel = startDuel(cpuSetup.level, first)
 		state.cpu.until = state.time + 1.2
 		const name = cpuName()
+		saveDuel()
 		showCallout('REMATCH', first === 'you' ? 'YOU START' : `${name.toUpperCase()} STARTS`)
 		setFeedback(first === 'you' ? 'Rematch. You lost the last one, so you start. Make a shot from anywhere to set it.' : `Rematch. ${name} lost the last one, so ${name} starts.`)
 		updateStats()
@@ -1224,6 +1256,7 @@ function startNewDuel(first) {
 	}
 	state.duel = null
 	state.coin = { phase: 'call' }
+	forgetDuel()
 	nodes['coin-versus'].textContent = `VS ${cpuName().toUpperCase()} · ${LEVEL_NAMES[cpuSetup.level].toUpperCase()}`
 	nodes['coin-call'].hidden = false
 	nodes.coin.hidden = true
@@ -1254,6 +1287,7 @@ function landCoin() {
 	const first = firstShooter(called, landed)
 	state.coin = null
 	state.duel = startDuel(cpuSetup.level, first)
+	saveDuel()
 	state.cpu.until = state.time + 1.2
 	const name = cpuName()
 	showCallout(landed.toUpperCase(), first === 'you' ? 'YOU CALLED IT · YOUR BALL' : `YOU CALLED ${called.toUpperCase()} · ${name.toUpperCase()} STARTS`)
@@ -1285,6 +1319,7 @@ function takeDuelShot(made) {
 	const { duel } = state
 	const missedMatch = before.phase === 'match' && !made
 	state.log.push({ ...shotSpot(ball, made), by, phase: before.phase, letter: missedMatch ? LETTERS[duel.letters[by] - 1] : '' })
+	saveDuel()
 	if (missedMatch) {
 		updateStats()
 		replayAnimation(by === 'you' ? nodes.makes : nodes.accuracy, 'letter-pop')
@@ -2387,7 +2422,7 @@ function applyMode() {
 	nodes.coin.hidden = true
 	if (state.mode === 'horse') state.horse = startHorse(state.horse.best)
 	startLog()
-	if (isDuel()) startNewDuel()
+	if (isDuel() && !resumeDuel()) startNewDuel()
 	state.flying = []
 	state.reloadAt = undefined
 	if (contest) {
@@ -2462,6 +2497,7 @@ function showOpponent() {
 }
 
 function applyOpponentChange(name, value) {
+	if (name === 'opponent' || name === 'cpu-level') forgetDuel()
 	const save = (key, saved) => { try { localStorage.setItem(key, saved) } catch {} }
 	if (name === 'opponent') {
 		cpuSetup.opponent = value

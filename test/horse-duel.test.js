@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { emptyRecord, firstShooter, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from '../dist/horse-duel.js'
+import { emptyRecord, firstShooter, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from '../dist/horse-duel.js'
 
 const spot = { x: 0, y: 2 }
 const shot = (by, made, from = spot) => ({ by, made, from })
@@ -82,4 +82,17 @@ test('the record counts wins and losses per level and ignores anything it does n
 	assert.deepEqual(parseRecord(JSON.stringify(record)), record)
 	assert.deepEqual(parseRecord('not json'), emptyRecord())
 	assert.deepEqual(parseRecord('{"hard":{"won":-3,"lost":"x"},"extra":1}'), emptyRecord())
+})
+
+test('a saved game comes back as it was, and anything else is turned away', () => {
+	let duel = startDuel('medium', 'you')
+	duel = recordDuelShot(duel, shot('you', true, { x: 1, y: -2 }))
+	const log = [{ by: 'you', made: true, phase: 'set', out: 8, across: -2, distance: 8.2, letter: '' }]
+	const saved = JSON.parse(JSON.stringify({ duel, log }))
+	assert.deepEqual(parseDuel(saved), { duel, log })
+	assert.equal(parseDuel(null), null)
+	assert.equal(parseDuel({ duel: { ...duel, level: 'impossible' } }), null)
+	assert.equal(parseDuel({ duel: { ...duel, spot: null } }), null)
+	assert.equal(parseDuel({ duel: { ...duel, letters: { you: 9, cpu: 0 } } }), null)
+	assert.deepEqual(parseDuel({ duel, log: 'not a log' }).log, [])
 })

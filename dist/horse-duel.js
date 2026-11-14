@@ -42,6 +42,24 @@ export function recordDuelShot(duel, { by, made, from }) {
 	return { ...cleared, letters, winner }
 }
 
+const isSpot = spot => Number.isFinite(spot?.x) && Number.isFinite(spot?.y)
+const isLetters = count => Number.isInteger(count) && count >= 0 && count <= LETTERS.length
+
+/** Reads a saved game, or gives null when it isn't a game this version can continue. */
+export function parseDuel(saved) {
+	const duel = saved?.duel
+	if (!LEVELS.includes(duel?.level) || !PLAYERS.includes(duel.shooter)) return null
+	if (!isLetters(duel.letters?.you) || !isLetters(duel.letters?.cpu)) return null
+	if (duel.phase !== 'set' && duel.phase !== 'match') return null
+	if (duel.phase === 'match' ? !isSpot(duel.spot) : duel.spot !== null) return null
+	if (duel.winner !== null && !PLAYERS.includes(duel.winner)) return null
+	const log = Array.isArray(saved.log) ? saved.log.filter(shot => PLAYERS.includes(shot?.by)) : []
+	return {
+		duel: { level: duel.level, letters: { you: duel.letters.you, cpu: duel.letters.cpu }, shooter: duel.shooter, phase: duel.phase, spot: duel.phase === 'match' ? { x: duel.spot.x, y: duel.spot.y } : null, winner: duel.winner },
+		log,
+	}
+}
+
 export const emptyRecord = () => Object.fromEntries(LEVELS.map(level => [level, { won: 0, lost: 0 }]))
 
 /** Reads a saved win-loss record, keeping only counts it recognises. */
