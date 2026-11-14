@@ -164,6 +164,32 @@ body:not([data-mode="free"]) :is(#session-open, .session-chevron, .session-panel
 :root { --ball-1: #d26f2b; --ball-2: #3a68c4; --ball-3: #e8ba3a; }
 #results { position: absolute; left: 50%; top: calc(50% - 30px); transform: translate(-50%, -50%); z-index: 3; width: min(560px, calc(100% - 32px)); max-height: calc(100% - 200px); overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 24px 28px 22px; border-radius: 16px; background: linear-gradient(var(--panel), color-mix(in srgb, var(--panel) 97%, var(--shade))); box-shadow: var(--raised), 0 24px 48px -16px color-mix(in srgb, var(--shade) 28%, transparent); }
 #results[hidden] { display: none; }
+/* HORSE against the CPU opens with a coin flip: you call it, then watch the coin land. */
+#coin-call { position: absolute; left: 50%; top: calc(50% - 30px); transform: translate(-50%, -50%); z-index: 3; width: min(340px, calc(100% - 32px)); display: grid; gap: 16px; padding: 20px 22px 18px; border-radius: 16px; background: linear-gradient(var(--panel), color-mix(in srgb, var(--panel) 97%, var(--shade))); box-shadow: var(--raised), 0 24px 48px -16px color-mix(in srgb, var(--shade) 28%, transparent); }
+#coin-call[hidden] { display: none; }
+/* While a menu or the sound panel is open the call waits, so it never covers what you are choosing. */
+body:has(.menu-options:not([hidden]), .audio-panel:not([hidden])) #coin-call { display: none; }
+.coin-call-title { display: grid; gap: 6px; }
+.coin-call-title h2 { margin: 0; color: var(--orange); font-size: 30px; line-height: 1; font-weight: 800; text-shadow: 2px 2px 0 var(--stamp, var(--ink)); }
+.coin-call-title p { margin: 0; color: var(--label); font-size: 11px; line-height: 1.5; }
+.coin-calls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.coin-calls button { display: grid; justify-items: center; gap: 8px; padding: 14px 0 12px; border: 0; border-radius: 12px; background: var(--hover); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow 0.15s, transform 0.12s; }
+.coin-calls button:hover { box-shadow: 0 0 0 2px var(--orange); }
+.coin-calls button:active { transform: scale(0.97); }
+.coin-calls button:focus-visible { outline-offset: 2px; }
+.coin-calls canvas { width: 48px; height: 48px; image-rendering: pixelated; }
+.coin-calls span { font-size: 13px; font-weight: 700; }
+.coin-calls kbd { padding: 2px 7px; border-radius: 4px; font: inherit; font-size: 9px; color: var(--kbd); background: var(--panel); box-shadow: 0 0 0 1px var(--edge); }
+#coin { position: absolute; z-index: 2; width: 64px; height: 64px; margin: -32px 0 0 -32px; perspective: 500px; pointer-events: none; }
+#coin[hidden] { display: none; }
+.coin-lift, .coin-turn { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.coin-face { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; backface-visibility: hidden; }
+.coin-face.back { transform: rotateX(180deg); }
+#coin.tossing .coin-lift { animation: coin-toss 1.5s cubic-bezier(0.3, 0, 0.6, 1) both; }
+#coin.tossing .coin-turn { animation: coin-spin 1.25s cubic-bezier(0.2, 0.4, 0.4, 1) both; }
+@keyframes coin-toss { 0% { transform: translateY(0); } 48% { transform: translateY(-190px); } 82% { transform: translateY(0); } 90% { transform: translateY(-12px); } 100% { transform: translateY(0); } }
+@keyframes coin-spin { from { transform: rotateX(0deg); } to { transform: rotateX(1800deg); } }
+@media (prefers-reduced-motion: reduce) { #coin.tossing :is(.coin-lift, .coin-turn) { animation: none; } }
 .results-top { display: flex; justify-content: space-between; gap: 12px; color: var(--label); font-size: 9px; letter-spacing: 1.8px; }
 .results-score { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
 .results-score p { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0; }
@@ -235,6 +261,17 @@ body:not([data-mode="free"]) :is(#session-open, .session-chevron, .session-panel
 .spot.missed { border: 2px solid var(--faint); }
 .spot.letter { display: grid; place-items: center; width: 15px; height: 15px; border: 2px solid #c0492b; background: var(--panel); color: #c0492b; font-size: 9px; font-weight: 700; line-height: 1; }
 .court .spot.letter { width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; }
+/* HORSE against the CPU: shots set by you in orange, by the CPU in its jersey, and the letter wherever a match was missed. */
+.spot.set.you { background: var(--orange); box-shadow: 0 0 0 1.5px var(--hover); }
+.spot.set.cpu { background: var(--cpu, var(--ink)); box-shadow: 0 0 0 1.5px var(--hover), inset 0 0 0 1px color-mix(in srgb, var(--ink) 30%, transparent); }
+.spot.set.letter { background: var(--panel); }
+.spot.set.you.letter { border-color: var(--orange); color: var(--orange); }
+.spot.set.cpu.letter { border-color: var(--cpu, var(--ink)); color: var(--ink); }
+.duel-letters { display: flex; justify-content: center; gap: 28px; }
+.duel-row { display: flex; align-items: center; gap: 3px; font-size: 16px; }
+.duel-name { margin-right: 6px; font-size: 8px; letter-spacing: 1.6px; color: var(--label); }
+#results .letter { color: color-mix(in srgb, var(--faint) 55%, transparent); }
+#results .letter.earned { color: #c0492b; font-weight: 700; }
 .zone-tallies { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 #results-chart .zone-tallies { box-sizing: border-box; width: 100%; max-width: 340px; margin: 0 auto; padding: 0 4px; }
 .zone-tallies > div { display: grid; gap: 6px; min-width: 0; }
@@ -293,6 +330,9 @@ body:not([data-mode="free"]) :is(#session-open, .session-chevron, .session-panel
 /* HORSE letters: all five show, and the earned ones light up. */
 .session-stats .letter { color: #d9d4ca; font-size: inherit; letter-spacing: 0; }
 .session-stats .letter.earned { color: #c0492b; }
+/* Against the CPU the middle slot says whose ball it is, and the longest name needs more room than a number. */
+body[data-mode="horse"][data-opponent="cpu"] .session-stats > div:nth-of-type(2) { width: 100px; }
+body[data-mode="horse"][data-opponent="cpu"] .session-stats span { white-space: nowrap; }
 @keyframes basket-pop {
 	0% { opacity: 0; transform: translate(-50%, calc(-100% + 8px)) scale(0.85); }
 	12%, 80% { opacity: 1; transform: translate(-50%, -100%) scale(1); }
@@ -378,6 +418,55 @@ body[data-charge="mouse"] #shoot .mouse-icon { border-color: var(--orange); back
 /* Each phase's times today, so phones (which get no tooltip) can see them too. */
 .menu-options legend small { float: right; color: var(--muted); letter-spacing: 0.4px; }
 .menu-options label small { margin-left: auto; color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+/* HORSE's Opponent menu: who you play, and the CPU's level and character. */
+body:not([data-mode="horse"]) #opponent-menu { display: none; }
+#opponent-label { min-width: 16ch; }
+.opponent-panel { left: 50%; width: 312px; max-height: calc(100svh - 96px); overflow-y: auto; padding: 0 12px 12px; transform: translateX(-50%); color: var(--ink); }
+.opponent-panel .switch { margin-bottom: 4px; }
+.opponent-panel .switch label { display: grid; place-items: center; padding: 0; font-size: 10px; color: var(--soft); }
+.opponent-panel .opponent-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.opponent-panel .level-switch { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.opponent-panel .level-switch label { height: 40px; }
+.opponent-panel .level-switch span { display: grid; justify-items: center; gap: 2px; }
+.opponent-panel .level-switch small { margin: 0; font-size: 9px; color: var(--muted); }
+.opponent-panel .switch label:has(:checked) small { color: var(--label); }
+.opponent-panel[data-opponent="solo"] .cpu-picks, .opponent-panel[data-opponent="cpu"] .solo-note { display: none; }
+.panel-row { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0 6px; font-size: 9px; color: var(--muted); }
+.panel-row .panel-label { float: none; width: auto; padding: 0; }
+.solo-note { margin: 0; padding: 8px 0 0; font-size: 9px; line-height: 1.5; color: var(--muted); }
+.cpu-characters { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.opponent-panel .cpu-character { position: relative; display: grid; place-items: center; height: 72px; padding: 0; border-radius: 8px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--line); }
+.cpu-character canvas { width: 36px; height: 64px; image-rendering: pixelated; }
+.opponent-panel .cpu-character:has(:checked) { background: var(--panel); box-shadow: 0 0 0 2px var(--orange); }
+.opponent-go { display: grid; justify-items: center; gap: 6px; margin: 12px -12px -12px; padding: 12px; border-top: 1px solid var(--line); font-size: 9px; color: var(--muted); }
+#opponent-play { display: grid; place-items: center; gap: 2px; width: 100%; min-height: 48px; border: 0; border-radius: 999px; background: var(--orange); color: var(--panel); font: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.4px; box-shadow: 0 3px 0 var(--stamp, var(--ink)), 0 10px 20px -8px color-mix(in srgb, var(--shade) 45%, transparent); transition: transform 0.12s, box-shadow 0.12s; }
+#opponent-play:hover { transform: translateY(-1px); }
+#opponent-play:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--stamp, var(--ink)); }
+#opponent-play:focus-visible { outline-offset: 4px; }
+#opponent-play small { font-size: 8px; font-weight: 400; letter-spacing: 1.2px; opacity: 0.9; }
+#opponent-play small[hidden] { display: none; }
+/* Changing the opponent or level mid-game asks first. It lives inside the Opponent menu so clicks on it keep the menu open. */
+.switch-warn { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--ink) 28%, transparent); }
+.switch-warn[hidden] { display: none; }
+.switch-warn section { width: min(380px, 100%); box-sizing: border-box; display: grid; gap: 16px; padding: 22px 24px 20px; border-radius: 16px; background: linear-gradient(var(--panel), color-mix(in srgb, var(--panel) 97%, var(--shade))); color: var(--ink); text-align: left; box-shadow: var(--raised), 0 32px 64px -16px color-mix(in srgb, var(--shade) 35%, transparent); }
+.warn-text { display: grid; gap: 8px; }
+.warn-text h2 { margin: 0; color: var(--orange); font-size: 26px; line-height: 1.05; font-weight: 800; text-shadow: 2px 2px 0 var(--stamp, var(--ink)); }
+.warn-text p { margin: 0; color: var(--soft); font-size: 11px; line-height: 1.6; }
+.warn-letters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; border-radius: 10px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--line); }
+.warn-letters > div { display: grid; gap: 6px; justify-items: center; }
+.warn-row { display: flex; gap: 2px; font-size: 18px; }
+.warn-row .letter { color: color-mix(in srgb, var(--faint) 55%, transparent); }
+.warn-row .letter.earned { color: #c0492b; font-weight: 700; }
+.warn-name { font-size: 8px; letter-spacing: 1.6px; color: var(--label); }
+.warn-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 10px; }
+.warn-actions button { display: grid; place-items: center; gap: 2px; min-height: 48px; padding: 0 12px; border: 0; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 700; }
+.warn-actions small { font-size: 8px; font-weight: 400; letter-spacing: 1.2px; opacity: 0.85; }
+#warn-keep { background: var(--hover); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+#warn-keep:hover { box-shadow: inset 0 0 0 1px var(--orange); }
+#warn-confirm { background: var(--orange); color: var(--panel); box-shadow: 0 3px 0 var(--stamp, var(--ink)), 0 10px 20px -8px color-mix(in srgb, var(--shade) 45%, transparent); }
+#warn-confirm:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--stamp, var(--ink)); }
+.cpu-character input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.cpu-character:has(:focus-visible) { outline: 2px solid var(--orange); outline-offset: 2px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100svh - 40px); padding: 0; overflow: hidden; border: 0; border-radius: 16px; color: #302e2a; background: #fff; box-shadow: 0 0 0 1px #ece8e0, 0 8px 16px #3a2f1d14, 0 40px 100px -20px #3a2f1d4d; }
 /* The text scrolls inside the card, so the rounded corners clip the scrollbar too. */
@@ -427,6 +516,10 @@ dialog .dialog-note { font-size: 10px; }
 	.alternate { display: none; }
 	.menu-button { padding: 6px 12px; }
 	.credits { flex-wrap: wrap; justify-content: center; row-gap: 4px; }
+	/* HORSE adds the Opponent menu, so the three labels give up their reserved widths to fit a phone. */
+	body[data-mode="horse"] .menu-value > span[id] { min-width: 0; }
+	body[data-mode="horse"] .menu-button { padding: 6px 10px; }
+	.opponent-panel { position: fixed; left: 50%; bottom: 84px; width: min(312px, calc(100vw - 24px)); max-height: calc(100svh - 120px); overflow-y: auto; }
 }
 @media (max-height: 620px) and (min-width: 751px) {
 	body { min-height: 400px; }
@@ -523,6 +616,10 @@ dialog .dialog-note { font-size: 10px; }
 	.footer-menu:first-child .menu-button, .footer-menu:last-child .menu-button { border-radius: 12px; }
 	.menu-button { min-height: 0; padding: 5px 10px; }
 	.menu-options, .footer-menu:last-child .menu-options { top: 0; bottom: auto; left: calc(100% + 8px); right: auto; }
+	.opponent-panel { position: absolute; top: -60px; bottom: auto; left: calc(100% + 8px); transform: none; max-height: calc(100vh - 20px); overflow-y: auto; }
+	.opponent-panel .cpu-character { height: 60px; }
+	.opponent-go { margin-top: 8px; padding: 8px 12px; }
+	#opponent-play { min-height: 38px; }
 	.credits { flex-direction: column; align-items: flex-start; gap: 4px; font-size: 9px; }
 	.credits > span { display: none; }
 }
@@ -547,6 +644,14 @@ dialog .dialog-note { font-size: 10px; }
 /* On touch screens the results card sits low, over the controls it replaces, with a full-width button to play again. */
 @media (pointer: coarse) {
 	#results { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: calc(100% - 24px); max-width: 460px; max-height: calc(100% - 24px); gap: 14px; padding: 18px 18px 16px; }
+	.switch-warn { place-items: end center; padding: 12px 12px max(12px, env(safe-area-inset-bottom)); }
+	.warn-actions { grid-template-columns: 1fr; }
+	.warn-actions button { min-height: 52px; font-size: 14px; }
+	#coin-call { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: calc(100% - 24px); max-width: 460px; gap: 14px; padding: 18px 18px 16px; }
+	.coin-calls button { min-height: 120px; align-content: center; }
+	.coin-calls canvas { width: 56px; height: 56px; }
+	#coin.tossing .coin-lift { animation-name: coin-toss-short; }
+	@keyframes coin-toss-short { 0% { transform: translateY(0); } 48% { transform: translateY(-120px); } 82% { transform: translateY(0); } 90% { transform: translateY(-8px); } 100% { transform: translateY(0); } }
 	#results-score { font-size: 46px; }
 	#results-chart { padding: 12px 6px 10px; }
 	.racks { gap: 2px; }
