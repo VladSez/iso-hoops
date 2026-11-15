@@ -2,7 +2,7 @@ import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistan
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
 import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=6'
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
-import { RACK_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
+import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
 import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=12'
 import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=3'
 import { aimShot, chooseSpot, yawTo } from './cpu.js?v=3'
@@ -39,7 +39,7 @@ const nodes = Object.fromEntries([
 	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
 	'results-action-detail', 'session-open', 'session-panel', 'session-summary', 'session-court', 'session-zones', 'session-reset',
 	'opponent', 'opponent-label', 'opponent-options', 'cpu-characters', 'cpu-character-name', 'coin', 'coin-call', 'coin-versus', 'call-heads', 'call-tails', 'opponent-play', 'opponent-play-label', 'opponent-play-detail',
-	'switch-warn', 'warn-versus', 'warn-body', 'warn-you', 'warn-cpu', 'warn-cpu-name', 'warn-keep', 'warn-confirm', 'warn-confirm-label',
+	'switch-warn', 'warn-top', 'warn-versus', 'warn-title', 'warn-body', 'warn-stats', 'warn-keep', 'warn-keep-label', 'warn-confirm', 'warn-confirm-label',
 ].map(id => [id, document.getElementById(id)]))
 
 const state = {
@@ -1862,7 +1862,7 @@ function resizeCanvas() {
 
 const MOVEMENT_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'KeyQ', 'KeyE', 'Space']
 addEventListener('keydown', event => {
-	if (nodes.help.open || event.ctrlKey || event.metaKey || event.altKey) return
+	if (nodes.help.open || !nodes['switch-warn'].hidden || event.ctrlKey || event.metaKey || event.altKey) return
 	const interactive = event.target.closest?.('button, a, input, select, textarea')
 	if (interactive && event.target !== nodes.shoot) return
 	if (event.code === 'Escape') {
@@ -2203,7 +2203,7 @@ function setupPopover(button, panel) {
 		if (!panel.hidden) panel.querySelector(':checked, button:not([hidden])').focus()
 	})
 	addEventListener('pointerdown', event => {
-		if (panel.hidden || button.parentElement.contains(event.target)) return
+		if (panel.hidden || button.parentElement.contains(event.target) || nodes['switch-warn'].contains(event.target)) return
 		setOpen(false)
 		if (event.target !== canvas) return
 		event.stopPropagation()
@@ -2431,13 +2431,24 @@ function applyMode() {
 	}
 	updateStats()
 }
-setupMenu(nodes.mode, nodes['mode-options'], mode => {
+function switchMode(mode) {
 	state.mode = mode
 	try { localStorage.setItem(MODE_KEY, mode) } catch {}
 	cancelInput()
 	returnBall()
 	applyMode()
 	if (!isDuel()) setFeedback(MODE_INTROS[mode])
+}
+setupMenu(nodes.mode, nodes['mode-options'], mode => {
+	const stake = mode !== state.mode && roundAtStake()
+	if (!stake) return switchMode(mode)
+	// The menu shows the mode you are still in until you confirm.
+	checkOption(nodes['mode-options'], state.mode)
+	askFirst({ ...stake, go: `Go to ${MODES[mode]}` }, () => {
+		checkOption(nodes['mode-options'], mode)
+		switchMode(mode)
+		canvas.focus({ preventScroll: true })
+	})
 })
 
 // The Opponent menu shows in HORSE only. It stays open while you change things, like the sound panel.
@@ -2524,55 +2535,128 @@ function applyOpponentChange(name, value) {
 
 // A new opponent or level throws away a game under way, so that asks first. A new character only redraws the CPU.
 const gameInProgress = () => isDuel() && state.duel && !state.duel.winner && state.log.length > 0
-let pendingSwitch
 nodes['opponent-options'].addEventListener('change', event => {
 	const { name, value } = event.target
 	if ((name === 'opponent' || name === 'cpu-level') && gameInProgress()) {
 		// The radios go back to the current choice until you confirm.
 		showOpponent()
-		return askToSwitch(name, value)
+		const toSolo = name === 'opponent' && value === 'solo'
+		const cpu = cpuName()
+		return askFirst({
+			...duelWarning(),
+			title: 'End this game?',
+			body: toSolo
+				? `Switching to Solo ends this game against ${cpu}. It won’t count toward your record.`
+				: `Switching to ${LEVEL_NAMES[value]} starts a new game against ${cpu}. This one won’t count toward your record.`,
+			stats: [...duelWarning().stats.slice(0, 2), { value: LEVEL_NAMES[cpuSetup.level].toUpperCase(), label: 'LEVEL' }],
+			go: toSolo ? 'End game, play Solo' : `New game on ${LEVEL_NAMES[value]}`,
+		}, () => {
+			applyOpponentChange(name, value)
+			playFromMenu()
+		})
 	}
 	applyOpponentChange(name, value)
 })
 
-function askToSwitch(name, value) {
-	pendingSwitch = { name, value }
-	const cpu = cpuName()
-	const toSolo = name === 'opponent' && value === 'solo'
-	const target = toSolo ? 'Solo' : LEVEL_NAMES[value]
-	nodes['warn-versus'].textContent = `VS ${cpu.toUpperCase()} · ${LEVEL_NAMES[cpuSetup.level].toUpperCase()}`
-	nodes['warn-body'].textContent = toSolo
-		? `Switching to Solo ends this game against ${cpu}. It won’t count toward your record.`
-		: `Switching to ${target} starts a new game against ${cpu}. This one won’t count toward your record.`
-	const letters = count => LETTERS.map((letter, i) => `<span class="letter${i < count ? ' earned' : ''}">${letter}</span>`).join('')
-	nodes['warn-you'].innerHTML = letters(state.duel.letters.you)
-	nodes['warn-cpu'].innerHTML = letters(state.duel.letters.cpu)
-	nodes['warn-cpu-name'].textContent = cpu.toUpperCase()
-	nodes['warn-confirm-label'].textContent = toSolo ? 'End game, play Solo' : `New game on ${target}`
+// The one question before throwing a round away. It pauses the game while it is open, so a running clock loses nothing.
+let warning
+function askFirst({ top, side, title, body, stats, keep = 'Keep playing', go }, onConfirm) {
+	nodes['warn-top'].textContent = top
+	nodes['warn-versus'].textContent = side
+	nodes['warn-title'].textContent = title
+	nodes['warn-body'].textContent = body
+	nodes['warn-stats'].replaceChildren(...stats.map(stat => {
+		const slot = el('div')
+		slot.append(el('strong', stat.tone ?? '', String(stat.value)), el('span', '', stat.label))
+		return slot
+	}))
+	nodes['warn-keep-label'].textContent = keep
+	nodes['warn-confirm-label'].textContent = go
+	cancelInput()
+	warning = { onConfirm, wasPaused: state.paused }
+	state.paused = true
 	nodes['switch-warn'].hidden = false
-	nodes['warn-confirm'].focus()
+	// After the menu that asked has finished handling the pick, which may hand focus back to the court.
+	setTimeout(() => nodes['warn-confirm'].focus())
 }
 
-function closeSwitchWarning() {
+function closeWarning() {
 	nodes['switch-warn'].hidden = true
-	pendingSwitch = undefined
+	state.paused = warning?.wasPaused ?? false
+	const { onConfirm } = warning ?? {}
+	warning = undefined
+	return onConfirm
 }
 
 nodes['warn-keep'].addEventListener('click', () => {
-	closeSwitchWarning()
-	nodes['opponent-options'].querySelector('.level-switch :checked')?.focus()
+	closeWarning()
+	const menuRadio = document.querySelector('.menu-options:not([hidden]) :checked')
+	if (menuRadio) menuRadio.focus()
+	else canvas.focus({ preventScroll: true })
 })
-nodes['warn-confirm'].addEventListener('click', () => {
-	const { name, value } = pendingSwitch
-	closeSwitchWarning()
-	applyOpponentChange(name, value)
-	playFromMenu()
-})
+nodes['warn-confirm'].addEventListener('click', () => closeWarning()?.())
 nodes['switch-warn'].addEventListener('keydown', event => {
 	if (event.key !== 'Escape') return
 	event.preventDefault()
 	nodes['warn-keep'].click()
 })
+
+const spelled = count => (count ? LETTERS.slice(0, count).join('-') : '—')
+function duelWarning() {
+	const cpu = cpuName()
+	return {
+		top: 'GAME IN PROGRESS',
+		side: `HORSE · VS ${cpu.toUpperCase()} · ${LEVEL_NAMES[cpuSetup.level].toUpperCase()}`,
+		stats: [
+			{ value: spelled(state.duel.letters.you), label: 'YOU', tone: 'letters' },
+			{ value: spelled(state.duel.letters.cpu), label: cpu.toUpperCase(), tone: 'letters' },
+			{ value: 'SAVED', label: 'GAME' },
+		],
+	}
+}
+
+// What leaving the current round would cost, or nothing when there is no round worth asking about.
+// Free shooting never asks: its session stats carry over to every mode.
+function roundAtStake() {
+	const pad = value => String(value).padStart(2, '0')
+	if (isDuel()) {
+		if (!gameInProgress()) return null
+		return { ...duelWarning(), title: 'Leave this game?', body: `Your game against ${cpuName()} is saved. Pick HORSE again to carry on where you left off.` }
+	}
+	if (state.mode === 'horse') {
+		const { horse } = state
+		if (horse.isOver || state.log.length === 0) return null
+		return {
+			top: 'GAME IN PROGRESS', side: 'HORSE · SOLO', title: 'End this game?',
+			body: horse.best ? `Switching ends this game. Your best of ${horse.best} stays as it is.` : 'Switching ends this game.',
+			stats: [{ value: pad(horse.made), label: 'MADE', tone: 'score' }, { value: spelled(horse.letters), label: 'LETTERS', tone: 'letters' }, { value: pad(horse.best), label: 'BEST' }],
+		}
+	}
+	if (state.mode === 'free-throws') {
+		const { round } = state
+		if (round.taken === 0 || isDone(round)) return null
+		return {
+			top: 'ROUND IN PROGRESS', side: `10 FREE THROWS · ROUND ${round.level}`, title: 'End this round?',
+			body: 'Switching ends this round of free throws. Your best stays as it is.', keep: 'Keep shooting',
+			stats: [{ value: round.made, label: 'MADE', tone: 'score' }, { value: ROUND_SHOTS - round.taken, label: 'SHOTS LEFT' }, { value: `${round.best}/${ROUND_SHOTS}`, label: 'BEST' }],
+		}
+	}
+	const timed = state.mode === 'clock' ? state.clock : state.mode === 'three-point' ? state.contest : null
+	if (!timed || timed.endsAt === undefined || timed.isOver) return null
+	const seconds = Math.ceil(secondsLeft(timed, state.time))
+	if (state.mode === 'clock') {
+		return {
+			top: 'CLOCK RUNNING · PAUSED', side: 'BEAT THE CLOCK', title: 'Stop the clock?', keep: 'Keep going',
+			body: 'Switching ends this round. These points won’t count toward your best.',
+			stats: [{ value: timed.points, label: 'POINTS', tone: 'score' }, { value: seconds, label: 'SECONDS' }, { value: timed.best, label: 'BEST' }],
+		}
+	}
+	return {
+		top: 'CONTEST UNDER WAY · PAUSED', side: '3PT CONTEST', title: 'End the contest?', keep: 'Keep going',
+		body: 'Switching ends this contest. These points won’t count toward your best.',
+		stats: [{ value: timed.points, label: 'POINTS', tone: 'score' }, { value: `${timed.taken}/${SHOT_COUNT}`, label: 'BALLS' }, { value: timed.best, label: 'BEST' }],
+	}
+}
 
 applyMode()
 showOpponent()
