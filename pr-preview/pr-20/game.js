@@ -5,7 +5,7 @@ import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tie
 import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
 import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=12'
 import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=3'
-import { aimShot, chooseSpot, yawTo } from './cpu.js?v=3'
+import { aimShot, chooseSpot, yawTo } from './cpu.js?v=4'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
@@ -1395,7 +1395,7 @@ function updateCpu(delta) {
 	cpu.walking = false
 	const canAct = !duel.winner && turnOf(duel) === 'cpu' && !state.ball && state.phase === 'ready' && nodes.results.hidden
 	if (cpu.task === 'idle' && canAct && state.time >= cpu.until) {
-		cpu.target = duel.phase === 'match' ? duel.spot : chooseSpot(duel)
+		cpu.target = duel.phase === 'match' ? duel.spot : chooseSpot(duel, Math.random, state.log)
 		cpu.task = 'walk'
 		stepAsideFrom(cpu.target)
 	}

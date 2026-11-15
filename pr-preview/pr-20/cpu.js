@@ -1,14 +1,12 @@
 import { HOOP, createShot, stepBall } from './physics.js?v=3'
 
-// How often each level makes a shot from mid-range, how much worse it gets from deep, and how far out it will go to
-// set a shot when it is ahead.
+// How often each level makes a shot from mid-range, from 10 m, and how far out its ordinary shots go when it is ahead.
 export const SKILL = {
-	easy: { make: 0.62, reach: 6.4 },
-	medium: { make: 0.72, reach: 7.2 },
-	hard: { make: 0.92, reach: 7.8 },
+	easy: { make: 0.62, deep: 0.42, reach: 6.4 },
+	medium: { make: 0.72, deep: 0.4, reach: 7.2 },
+	hard: { make: 0.92, deep: 0.6, reach: 7.8 },
 }
-const DEEP_PENALTY = 0.1
-const NEAR = 5, FAR = 7.5
+const NEAR = 5, TEN = 10
 const AIM_ERROR = 0.004
 // Where the CPU and the player can stand, kept inside so the matching ring is fully on the court.
 const WALKABLE = { minX: -8, maxX: 8, maxY: 6 }
@@ -17,11 +15,13 @@ const MAX_ANGLE = Math.PI * 0.42
 export const distanceOf = spot => Math.hypot(spot.x - HOOP.x, spot.y - HOOP.y)
 export const yawTo = spot => Math.atan2(HOOP.y - spot.y, HOOP.x - spot.x)
 
-/** The chance the CPU makes a shot from this far out. */
-const depthOf = distance => Math.min(1, Math.max(0, (distance - NEAR) / (FAR - NEAR)))
+/** How far past mid-range a shot is: 0 inside 5 m, 1 at 10 m, and more beyond. */
+const depthOf = distance => Math.max(0, (distance - NEAR) / (TEN - NEAR))
 
+/** The chance the CPU makes a shot from this far out. */
 export function makeRate(level, distance) {
-	return SKILL[level].make - DEEP_PENALTY * depthOf(distance)
+	const { make, deep } = SKILL[level]
+	return Math.max(0.2, make - (make - deep) * depthOf(distance))
 }
 // Deep shots miss a little more often than their band alone suggests, so the CPU aims that much tighter from out there.
 const DEEP_SLIP = 0.06
@@ -71,28 +71,97 @@ export function aimShot(spot, level, random = Math.random, window = makeWindow(s
 	const centre = (window.min + window.max) / 2
 	const half = (window.max - window.min) / 2
 	const distance = distanceOf(spot)
-	const spread = spreadFor(Math.min(0.99, makeRate(level, distance) + DEEP_SLIP * depthOf(distance)))
+	const spread = spreadFor(Math.min(0.99, makeRate(level, distance) + DEEP_SLIP * Math.min(1, depthOf(distance))))
 	return {
 		yaw: yawTo(spot) + gaussian(random) * AIM_ERROR,
 		power: Math.max(0, Math.min(1, centre + gaussian(random) * spread * half)),
 	}
 }
 
-/**
- * Where the CPU sets a shot. Behind, it takes safe mid-range shots; level, a little longer; ahead, it goes deep,
- * as far as its level reaches, and the hard CPU likes the corners.
- */
-export function chooseSpot(duel, random = Math.random) {
-	const lead = duel.letters.you - duel.letters.cpu
-	const { reach } = SKILL[duel.level]
-	const range = lead < 0 ? { min: 4, max: 5.2 } : lead === 0 ? { min: 4.5, max: 6.2 } : { min: 6, max: reach }
-	const wide = lead > 0 && duel.level === 'hard'
-	for (let i = 0; i < 200; i++) {
-		const distance = range.min + (range.max - range.min) * random()
-		const side = random() < 0.5 ? -1 : 1
-		const angle = side * (wide ? MAX_ANGLE * (0.7 + 0.3 * random()) : MAX_ANGLE * random())
-		const spot = { x: HOOP.x + Math.cos(angle) * distance, y: HOOP.y + Math.sin(angle) * distance }
-		if (spot.x >= WALKABLE.minX && spot.x <= WALKABLE.maxX && Math.abs(spot.y) <= WALKABLE.maxY) return spot
+const onCourt = spot => spot.x >= WALKABLE.minX && spot.x <= WALKABLE.maxX && Math.abs(spot.y) <= WALKABLE.maxY
+const between = (min, max, random) => min + (max - min) * random()
+const fromHoop = (distance, angle) => ({ x: HOOP.x + Math.cos(angle) * distance, y: HOOP.y + Math.sin(angle) * distance })
+
+/** What kind of shot a spot is: the CPU picks a kind first, and reads your misses by kind. */
+export function kindOf(spot) {
+	const distance = distanceOf(spot)
+	const angle = Math.abs(Math.atan2(spot.y - HOOP.y, spot.x - HOOP.x))
+	if (distance >= 11.5) return 'logo'
+	if (distance >= 7.6) return 'deep'
+	if (distance >= 6.6 && Math.abs(spot.y - HOOP.y) >= 5.2) return 'corner'
+	if (angle >= 1.2) return 'baseline'
+	return 'inside'
+}
+
+// How often each level picks each kind of shot to set. Deep and logo shots are its gambles.
+const KINDS = {
+	easy: { inside: 1 },
+	medium: { inside: 0.55, deep: 0.25, corner: 0.1, baseline: 0.1 },
+	hard: { inside: 0.25, deep: 0.4, logo: 0.1, corner: 0.15, baseline: 0.1 },
+}
+const GAMBLES = ['deep', 'logo']
+
+const SPOTS = {
+	// Behind, it takes safe mid-range shots; level, a little longer; ahead, as far as its level reaches.
+	inside(level, lead, side, random) {
+		const range = lead < 0 ? { min: 4, max: 5.2 } : lead === 0 ? { min: 4.5, max: 6.2 } : { min: 6, max: SKILL[level].reach }
+		return fromHoop(between(range.min, range.max, random), side * MAX_ANGLE * random())
+	},
+	deep(level, lead, side, random) {
+		const distance = level === 'hard' ? between(8.8, 11.2, random) : between(7.6, 9, random)
+		// The court is 6 m to each side, so the deeper the shot, the straighter on it has to be.
+		return fromHoop(distance, side * Math.asin(5.6 / distance) * random())
+	},
+	logo: (level, lead, side, random) => fromHoop(between(11.8, 13.6, random), side * 0.35 * random()),
+	corner(level, lead, side, random) {
+		const across = between(5.3, 5.9, random)
+		return { x: HOOP.x + Math.sqrt(between(6.9, 7.3, random) ** 2 - across ** 2), y: HOOP.y + side * across }
+	},
+	baseline: (level, lead, side, random) => fromHoop(between(3.8, 5.2, random), side * between(1.25, 1.42, random)),
+}
+
+/** How much more the CPU wants a kind of shot: more for every match you missed from it this game, less for each make. */
+function weakness(log) {
+	const kinds = {}, sides = { [-1]: 1, [1]: 1 }
+	for (const shot of log) {
+		if (shot.by !== 'you' || shot.phase !== 'match') continue
+		const kind = kindOf({ x: HOOP.x + shot.out, y: HOOP.y + shot.across })
+		const tally = kinds[kind] ??= { made: 0, missed: 0 }
+		tally[shot.made ? 'made' : 'missed']++
+		if (!shot.made) sides[Math.sign(shot.across) || 1]++
 	}
-	return { x: HOOP.x + range.min, y: 0 }
+	const factor = kind => {
+		const tally = kinds[kind]
+		return tally ? Math.min(3, Math.max(0.5, (1 + 2 * tally.missed) / (1 + 2 * tally.made))) : 1
+	}
+	return { factor, left: sides[-1] / (sides[-1] + sides[1]) }
+}
+
+function pick(weights, random) {
+	const total = Object.values(weights).reduce((sum, weight) => sum + weight, 0)
+	let roll = random() * total
+	for (const [kind, weight] of Object.entries(weights)) if ((roll -= weight) < 0) return kind
+	return Object.keys(weights)[0]
+}
+
+/**
+ * Where the CPU sets a shot. It picks a kind of shot by its level: Medium and Hard mix in corner threes, baseline
+ * angles and deep threes, and Hard goes to the logo. It gambles deep more when ahead and less when behind, and it
+ * leans toward the kinds of shots and the side of the court where you have missed matches this game.
+ */
+export function chooseSpot(duel, random = Math.random, log = []) {
+	const lead = duel.letters.you - duel.letters.cpu
+	const { factor, left } = weakness(log)
+	const weights = {}
+	for (const [kind, weight] of Object.entries(KINDS[duel.level])) {
+		const nerve = GAMBLES.includes(kind) ? (lead > 0 ? 1.5 : lead < 0 ? 0.4 : 1) : 1
+		weights[kind] = weight * nerve * factor(kind)
+	}
+	const kind = pick(weights, random)
+	for (let i = 0; i < 200; i++) {
+		const side = random() < left ? -1 : 1
+		const spot = SPOTS[kind](duel.level, lead, side, random)
+		if (onCourt(spot)) return spot
+	}
+	return { x: HOOP.x + 4.5, y: 0 }
 }
