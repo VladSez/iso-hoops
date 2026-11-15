@@ -79,7 +79,7 @@ test('every spot the CPU sets is on the court and in front of the hoop', () => {
 			for (let i = 0; i < 200; i++) {
 				const spot = chooseSpot({ ...startDuel(level, 'you'), letters }, random)
 				assert.ok(spot.x > HOOP.x && spot.x <= 8 && Math.abs(spot.y) <= 6, JSON.stringify(spot))
-				assert.ok(distanceOf(spot) <= { easy: SKILL.easy.reach, medium: 9, hard: 13.6 }[level] + 1e-9)
+				assert.ok(distanceOf(spot) <= { easy: SKILL.easy.reach, medium: 9.5, hard: 13.6 }[level] + 1e-9)
 			}
 		}
 	}
@@ -97,7 +97,8 @@ test('Medium and Hard mix in deep threes, corners and baseline angles, and only 
 	}
 	const easy = mix('easy'), medium = mix('medium'), hard = mix('hard')
 	assert.ok(!easy.deep && !easy.logo && !easy.corner, JSON.stringify(easy))
-	assert.ok(medium.deep > 150 && medium.corner > 50 && medium.baseline > 50 && !medium.logo, JSON.stringify(medium))
+	assert.ok(medium.deep > 250 && medium.corner > 80 && medium.baseline > 80 && !medium.logo, JSON.stringify(medium))
+	assert.ok(medium.inside < 450, `Medium keeps it varied: ${JSON.stringify(medium)}`)
 	assert.ok(hard.deep > 300 && hard.logo > 50 && hard.corner > 80, JSON.stringify(hard))
 })
 
@@ -117,4 +118,15 @@ test('the CPU sets more shots where you have missed matches this game, and fewer
 	assert.ok(share([match(true, 8.5, 0), match(true, 8.4, 1)], isDeep) < share([], isDeep) - 0.08)
 	// Its own shots and your set shots say nothing about how you match.
 	assert.ok(Math.abs(share([{ ...match(false, 3.5, -5.6), by: 'cpu' }], isCorner) - share([], isCorner)) < 0.05)
+})
+
+test('the CPU is less likely to set the same kind of shot twice in a row', () => {
+	const random = seeded(8)
+	const share = log => {
+		let deep = 0
+		for (let i = 0; i < 2000; i++) deep += kindOf(chooseSpot(startDuel('medium', 'you'), random, log)) === 'deep'
+		return deep / 2000
+	}
+	const deepSet = { by: 'cpu', phase: 'set', made: true, out: 8.5, across: 0 }
+	assert.ok(share([deepSet]) < share([]) - 0.1)
 })

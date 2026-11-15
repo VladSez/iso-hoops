@@ -96,7 +96,7 @@ export function kindOf(spot) {
 // How often each level picks each kind of shot to set. Deep and logo shots are its gambles.
 const KINDS = {
 	easy: { inside: 1 },
-	medium: { inside: 0.55, deep: 0.25, corner: 0.1, baseline: 0.1 },
+	medium: { inside: 0.3, deep: 0.4, corner: 0.15, baseline: 0.15 },
 	hard: { inside: 0.25, deep: 0.4, logo: 0.1, corner: 0.15, baseline: 0.1 },
 }
 const GAMBLES = ['deep', 'logo']
@@ -108,7 +108,7 @@ const SPOTS = {
 		return fromHoop(between(range.min, range.max, random), side * MAX_ANGLE * random())
 	},
 	deep(level, lead, side, random) {
-		const distance = level === 'hard' ? between(8.8, 11.2, random) : between(7.6, 9, random)
+		const distance = level === 'hard' ? between(8.8, 11.2, random) : between(7.2, 9.5, random)
 		// The court is 6 m to each side, so the deeper the shot, the straighter on it has to be.
 		return fromHoop(distance, side * Math.asin(5.6 / distance) * random())
 	},
@@ -146,16 +146,20 @@ function pick(weights, random) {
 
 /**
  * Where the CPU sets a shot. It picks a kind of shot by its level: Medium and Hard mix in corner threes, baseline
- * angles and deep threes, and Hard goes to the logo. It gambles deep more when ahead and less when behind, and it
+ * angles and deep threes, Hard goes to the logo, and neither likes to set the same kind twice in a row. It gambles deep more when ahead and less when behind, and it
  * leans toward the kinds of shots and the side of the court where you have missed matches this game.
  */
 export function chooseSpot(duel, random = Math.random, log = []) {
 	const lead = duel.letters.you - duel.letters.cpu
 	const { factor, left } = weakness(log)
+	const lastSet = log.findLast(shot => shot.by === 'cpu' && shot.phase === 'set')
+	const lastKind = lastSet && kindOf({ x: HOOP.x + lastSet.out, y: HOOP.y + lastSet.across })
 	const weights = {}
 	for (const [kind, weight] of Object.entries(KINDS[duel.level])) {
 		const nerve = GAMBLES.includes(kind) ? (lead > 0 ? 1.5 : lead < 0 ? 0.4 : 1) : 1
-		weights[kind] = weight * nerve * factor(kind)
+		// It mixes things up: the kind of shot it set last time is half as likely next time.
+		const fresh = kind === lastKind ? 0.5 : 1
+		weights[kind] = weight * nerve * factor(kind) * fresh
 	}
 	const kind = pick(weights, random)
 	for (let i = 0; i < 200; i++) {
