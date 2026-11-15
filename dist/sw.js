@@ -9,7 +9,7 @@ const FILES = [
 	'./',
 	'style.css?v=e90cd310ec88',
 	'engine.js?v=7c2d4e10',
-	'game.js?v=316873d99d',
+	'game.js?v=5f025e3484',
 	'physics.js?v=3',
 	'dunks.js?v=3',
 	'slam.js?v=3',
