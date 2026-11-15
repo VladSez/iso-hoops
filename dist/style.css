@@ -181,6 +181,8 @@ body:has(.menu-options:not([hidden]), .audio-panel:not([hidden])) #coin-call { d
 .coin-calls button:focus-visible { outline-offset: 2px; }
 .coin-calls canvas { width: 48px; height: 48px; image-rendering: pixelated; }
 .coin-calls span { font-size: 13px; font-weight: 700; }
+.coin-change { justify-self: center; margin-top: -6px; padding: 4px 8px; border: 0; background: none; color: var(--label); font: inherit; font-size: 11px; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.coin-change:hover { color: var(--orange); text-decoration-color: currentColor; }
 #coin { position: absolute; z-index: 2; width: 64px; height: 64px; margin: -32px 0 0 -32px; perspective: 500px; pointer-events: none; }
 #coin[hidden] { display: none; }
 .coin-lift, .coin-turn { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
@@ -649,6 +651,7 @@ dialog .dialog-note { font-size: 10px; }
 	#coin-call { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: calc(100% - 24px); max-width: 460px; gap: 14px; padding: 18px 18px 16px; }
 	.coin-calls button { min-height: 120px; align-content: center; }
 	.coin-calls canvas { width: 56px; height: 56px; }
+	.coin-change { min-height: 40px; padding: 0 16px; font-size: 12px; }
 	#coin.tossing .coin-lift { animation-name: coin-toss-short; }
 	@keyframes coin-toss-short { 0% { transform: translateY(0); } 48% { transform: translateY(-120px); } 82% { transform: translateY(0); } 90% { transform: translateY(-8px); } 100% { transform: translateY(0); } }
 	#results-score { font-size: 46px; }

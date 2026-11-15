@@ -11,6 +11,8 @@ Neighborhood Hoops: an isometric pixel-art basketball game that runs in the brow
 
 Use the built-in browser (the Claude desktop app's browser pane) to open, test and screenshot the game. Use another browser, such as Claude in Chrome or Playwright, only when asked.
 
+Before building a visual or UI change, ask whether to design it first on a canvas artifact. If the answer is yes, build only after the design is agreed.
+
 After any visual or UI change, show before and after screenshots, and a short video when the change moves (an animation, a flow across screens), unless there is nothing visible to compare. Send them with the reply, not only in a pull request. `.claude/skills/pr-description/scripts/capture.mjs` takes the after shots from `dist/` and the before shots from `origin/main` checked out to a throwaway worktree, and records MP4 and GIF clips.
 
 Mark every one clearly as before or after, in the image or video itself, not only in its file name or caption: a large BEFORE or AFTER banner across the top. The local ffmpeg can't draw text, so add the banner in the page with an `eval` step before the screenshot or recording. A side-by-side comparison gets a label over each half.

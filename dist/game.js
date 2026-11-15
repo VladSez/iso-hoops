@@ -38,7 +38,7 @@ const nodes = Object.fromEntries([
 	'results', 'results-label', 'results-side', 'results-score', 'results-note', 'results-stamp', 'results-stamp-text',
 	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
 	'results-action-detail', 'session-open', 'session-panel', 'session-summary', 'session-court', 'session-zones', 'session-reset',
-	'opponent', 'opponent-label', 'opponent-options', 'cpu-characters', 'cpu-character-name', 'coin', 'coin-call', 'coin-versus', 'call-heads', 'call-tails', 'opponent-play', 'opponent-play-label', 'opponent-play-detail',
+	'opponent', 'opponent-label', 'opponent-options', 'cpu-characters', 'cpu-character-name', 'coin', 'coin-call', 'coin-versus', 'call-heads', 'call-tails', 'coin-change', 'opponent-play', 'opponent-play-label', 'opponent-play-detail',
 	'switch-warn', 'warn-top', 'warn-versus', 'warn-title', 'warn-body', 'warn-stats', 'warn-keep', 'warn-keep-label', 'warn-confirm', 'warn-confirm-label',
 ].map(id => [id, document.getElementById(id)]))
 
@@ -2479,6 +2479,11 @@ for (const side of ['heads', 'tails']) {
 }
 
 const setOpponentOpen = setupPopover(nodes.opponent, nodes['opponent-options'])
+nodes['coin-change'].addEventListener('click', () => {
+	showOpponent()
+	setOpponentOpen(true)
+	setTimeout(() => nodes['opponent-play'].focus())
+})
 // Play, or Enter anywhere in the menu, closes it and starts: against the CPU that brings up the coin flip.
 function playFromMenu() {
 	setOpponentOpen(false)
