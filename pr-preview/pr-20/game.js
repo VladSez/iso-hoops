@@ -1266,11 +1266,15 @@ function startNewDuel(first) {
 	state.duel = null
 	state.coin = { phase: 'call' }
 	forgetDuel()
-	nodes['coin-versus'].textContent = `VS ${cpuName().toUpperCase()} · ${LEVEL_NAMES[cpuSetup.level].toUpperCase()}`
+	showCoinVersus()
 	nodes['coin-call'].hidden = false
 	nodes.coin.hidden = true
 	setFeedback('Heads or tails? Call it to start the game.')
 	updateStats()
+}
+
+function showCoinVersus() {
+	nodes['coin-versus'].textContent = `VS ${cpuName().toUpperCase()} · ${LEVEL_NAMES[cpuSetup.level].toUpperCase()}`
 }
 
 const COIN_FLIGHT = 1.55
@@ -2559,6 +2563,7 @@ function applyOpponentChange(name, value) {
 		showOpponent()
 		if (!isDuel()) setFeedback(MODE_INTROS.horse)
 	} else {
+		showCoinVersus()
 		updateStats()
 	}
 }
