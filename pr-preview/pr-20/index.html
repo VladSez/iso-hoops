@@ -19,7 +19,7 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=8170db74ad60" />
+		<link rel="stylesheet" href="style.css?v=e90cd310ec88" />
 	</head>
 	<body>
 		<script>
@@ -117,7 +117,6 @@
 					<span id="results-foot-note"></span>
 					<div class="results-go">
 						<button id="results-again" type="button"><span id="results-action">Play again</span><small id="results-action-detail" hidden></small></button>
-						<span class="results-hint pointer-only" aria-hidden="true">press <kbd>SPACE</kbd> or click</span>
 					</div>
 				</div>
 			</section>
@@ -129,8 +128,8 @@
 					<p>Win the toss and you set the first shot.</p>
 				</div>
 				<div class="coin-calls">
-					<button id="call-heads" type="button"><canvas width="16" height="16" aria-hidden="true"></canvas><span>Heads</span><kbd class="pointer-only">H / ←</kbd></button>
-					<button id="call-tails" type="button"><canvas width="16" height="16" aria-hidden="true"></canvas><span>Tails</span><kbd class="pointer-only">T / →</kbd></button>
+					<button id="call-heads" type="button"><canvas width="16" height="16" aria-hidden="true"></canvas><span>Heads</span></button>
+					<button id="call-tails" type="button"><canvas width="16" height="16" aria-hidden="true"></canvas><span>Tails</span></button>
 				</div>
 			</section>
 			<div class="shoot-panel">
@@ -176,26 +175,8 @@
 						</div>
 						<div class="opponent-go">
 							<button id="opponent-play" type="button"><span id="opponent-play-label">Play HORSE</span><small id="opponent-play-detail">COIN FLIP FIRST</small></button>
-							<span class="pointer-only">or press Enter</span>
 						</div>
 					</fieldset>
-					<div id="switch-warn" class="switch-warn" hidden>
-						<section role="alertdialog" aria-modal="true" aria-labelledby="warn-title" aria-describedby="warn-body">
-							<div class="results-top"><span>GAME IN PROGRESS</span><span id="warn-versus"></span></div>
-							<div class="warn-text">
-								<h2 id="warn-title">End this game?</h2>
-								<p id="warn-body"></p>
-							</div>
-							<div class="warn-letters">
-								<div><span id="warn-you" class="warn-row"></span><span class="warn-name you">YOU</span></div>
-								<div><span id="warn-cpu" class="warn-row"></span><span id="warn-cpu-name" class="warn-name cpu"></span></div>
-							</div>
-							<div class="warn-actions">
-								<button id="warn-keep" type="button"><span>Keep playing</span><small class="pointer-only">ESC</small></button>
-								<button id="warn-confirm" type="button"><span id="warn-confirm-label"></span><small class="pointer-only">ENTER</small></button>
-							</div>
-						</section>
-					</div>
 					<button id="opponent" class="menu-button" type="button" aria-expanded="false" aria-controls="opponent-options"><span class="menu-name">OPPONENT</span><span class="menu-value"><span id="opponent-label">Solo</span> <span aria-hidden="true">▾</span></span></button>
 				</div>
 				<div class="footer-menu">
@@ -217,6 +198,20 @@
 				<a href="https://x.com/vladsazonau" target="_blank" rel="noreferrer" aria-label="Made by @vladsazonau">Made by @vladsazonau</a>
 			</nav>
 		</footer>
+		<div id="switch-warn" class="switch-warn" hidden>
+			<section role="alertdialog" aria-modal="true" aria-labelledby="warn-title" aria-describedby="warn-body">
+				<div class="results-top"><span id="warn-top"></span><span id="warn-versus"></span></div>
+				<div class="warn-text">
+					<h2 id="warn-title"></h2>
+					<p id="warn-body"></p>
+				</div>
+				<div id="warn-stats" class="warn-stats"></div>
+				<div class="warn-actions">
+					<button id="warn-keep" type="button"><span id="warn-keep-label">Keep playing</span></button>
+					<button id="warn-confirm" type="button"><span id="warn-confirm-label"></span></button>
+				</div>
+			</section>
+		</div>
 		<dialog id="help">
 			<div class="dialog-body">
 				<div class="dialog-top"><span>THE COURT IS YOURS</span><button id="help-close" class="text-button" type="button" aria-label="Close instructions">Close ×</button></div>
@@ -234,7 +229,7 @@
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=7c2d4e10"></script>
-		<script type="module" src="game.js?v=cecb1fa4cd"></script>
+		<script type="module" src="game.js?v=316873d99d"></script>
 		<script>
 			// Saves the game for offline play. Skipped when running locally, where edits
 			// would otherwise be hidden behind the saved copies.
