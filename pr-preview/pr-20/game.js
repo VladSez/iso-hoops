@@ -50,7 +50,7 @@ const state = {
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	// Free shooting's shots since the page opened, or since Start over, for the session court.
 	session: [],
-	feedbackTime: 0, walking: false, scoredAt: undefined,
+	feedbackTime: 0, walking: false, scoredAt: undefined, swishAt: undefined,
 	mode: 'free', round: startRound(0), clock: startClockRound(0), horse: startHorse(0), longest: 0,
 	// The contest lets the next ball go while earlier ones are still in the air, so its balls live in `flying`.
 	contest: startContest(0), flying: [], reloadAt: undefined,
@@ -238,7 +238,7 @@ function drawRim(bend = 0, toward = 0) {
 }
 
 function drawNet(bend = 0, toward = 0) {
-	const age = state.scoredAt === undefined ? 2 : state.time - state.scoredAt
+	const age = state.swishAt === undefined ? 2 : state.time - state.swishAt
 	const active = age < 1.3 && !STILL
 	const stretch = active ? Math.sin(Math.min(age / 0.32, 1) * Math.PI) * 0.35 : 0
 	const sway = active ? Math.sin(age * 18) * Math.exp(-age * 4) * 0.22 : 0
@@ -931,8 +931,10 @@ function updateContest(delta) {
 	if ((timeUp || !nextShot(contest)) && state.flying.length === 0 && state.phase !== 'charging') finishContest()
 }
 
-function showCallout(title, detail) {
+// `basket` is false for callouts that aren't a shot going in, such as the coin or a rematch, so the net stays still.
+function showCallout(title, detail, basket = true) {
 	state.scoredAt = state.time
+	if (basket) state.swishAt = state.time
 	nodes['callout-title'].textContent = title
 	nodes['callout-detail'].textContent = detail
 	nodes['basket-callout'].hidden = false
@@ -1209,6 +1211,13 @@ const CPU_CHARGE = 0.9
 // Between turns it waits on the sideline, across from you.
 const restSpot = () => ({ x: -2.2, y: state.player.y > 0 ? -5.6 : 5.6 })
 
+// The CPU only moves while a game is under way, so between games it must not be left mid-stride.
+function placeCpuAtRest(until) {
+	const rest = restSpot()
+	Object.assign(state.cpu, { ...rest, rest, task: 'idle', until, followThrough: 0, walking: false, target: undefined })
+	state.cpu.yaw = Math.atan2(state.player.y - rest.y, state.player.x - rest.x)
+}
+
 function saveDuel() {
 	try { localStorage.setItem(CPU_GAME_KEY, JSON.stringify({ duel: state.duel, log: state.log })) } catch {}
 }
@@ -1229,7 +1238,7 @@ function resumeDuel() {
 	state.duel = saved.duel
 	state.log = saved.log
 	state.stepAside = undefined
-	Object.assign(state.cpu, { task: 'idle', until: state.time + 1.2, followThrough: 0, rest: restSpot() })
+	placeCpuAtRest(state.time + 1.2)
 	const name = cpuName()
 	const { duel } = state
 	if (turnOf(duel) === 'cpu') setFeedback(`Welcome back. ${name}’s ball.`)
@@ -1242,14 +1251,14 @@ function resumeDuel() {
 function startNewDuel(first) {
 	startLog()
 	state.stepAside = undefined
-	Object.assign(state.cpu, { task: 'idle', until: 0, followThrough: 0, rest: restSpot() })
+	placeCpuAtRest(0)
 	if (first) {
 		state.coin = null
 		state.duel = startDuel(cpuSetup.level, first)
 		state.cpu.until = state.time + 1.2
 		const name = cpuName()
 		saveDuel()
-		showCallout('REMATCH', first === 'you' ? 'YOU START' : `${name.toUpperCase()} STARTS`)
+		showCallout('REMATCH', first === 'you' ? 'YOU START' : `${name.toUpperCase()} STARTS`, false)
 		setFeedback(first === 'you' ? 'Rematch. You lost the last one, so you start. Make a shot from anywhere to set it.' : `Rematch. ${name} lost the last one, so ${name} starts.`)
 		updateStats()
 		return
@@ -1290,7 +1299,7 @@ function landCoin() {
 	saveDuel()
 	state.cpu.until = state.time + 1.2
 	const name = cpuName()
-	showCallout(landed.toUpperCase(), first === 'you' ? 'YOU CALLED IT · YOUR BALL' : `YOU CALLED ${called.toUpperCase()} · ${name.toUpperCase()} STARTS`)
+	showCallout(landed.toUpperCase(), first === 'you' ? 'YOU CALLED IT · YOUR BALL' : `YOU CALLED ${called.toUpperCase()} · ${name.toUpperCase()} STARTS`, false)
 	setFeedback(first === 'you' ? 'You called it. Make a shot from anywhere to set it.' : `It’s ${landed}. ${name} sets the first shot.`, first === 'you')
 	updateStats()
 }
@@ -2393,6 +2402,9 @@ const MODE_INTROS = {
 
 function applyMode() {
 	setSessionOpen(false)
+	state.scoredAt = undefined
+	state.swishAt = undefined
+	nodes['basket-callout'].hidden = true
 	const freeThrows = state.mode === 'free-throws'
 	const clock = state.mode === 'clock'
 	const contest = state.mode === 'three-point'
@@ -2432,12 +2444,20 @@ function applyMode() {
 	updateStats()
 }
 function switchMode(mode) {
+	// Leaving HORSE ends a game against the CPU, so coming back starts a new one. Only a reload carries it on.
+	if (state.mode === 'horse' && mode !== 'horse') forgetDuel()
 	state.mode = mode
 	try { localStorage.setItem(MODE_KEY, mode) } catch {}
 	cancelInput()
 	returnBall()
 	applyMode()
 	if (!isDuel()) setFeedback(MODE_INTROS[mode])
+	// Arriving in HORSE starts at the Opponent menu, so you choose who you play before anything begins; Play starts it.
+	if (mode === 'horse') {
+		showOpponent()
+		setOpponentOpen(true)
+		setTimeout(() => nodes['opponent-play'].focus())
+	}
 }
 setupMenu(nodes.mode, nodes['mode-options'], mode => {
 	const stake = mode !== state.mode && roundAtStake()
@@ -2548,7 +2568,6 @@ nodes['opponent-options'].addEventListener('change', event => {
 			body: toSolo
 				? `Switching to Solo ends this game against ${cpu}. It won’t count toward your record.`
 				: `Switching to ${LEVEL_NAMES[value]} starts a new game against ${cpu}. This one won’t count toward your record.`,
-			stats: [...duelWarning().stats.slice(0, 2), { value: LEVEL_NAMES[cpuSetup.level].toUpperCase(), label: 'LEVEL' }],
 			go: toSolo ? 'End game, play Solo' : `New game on ${LEVEL_NAMES[value]}`,
 		}, () => {
 			applyOpponentChange(name, value)
@@ -2610,7 +2629,7 @@ function duelWarning() {
 		stats: [
 			{ value: spelled(state.duel.letters.you), label: 'YOU', tone: 'letters' },
 			{ value: spelled(state.duel.letters.cpu), label: cpu.toUpperCase(), tone: 'letters' },
-			{ value: 'SAVED', label: 'GAME' },
+			{ value: LEVEL_NAMES[cpuSetup.level].toUpperCase(), label: 'LEVEL' },
 		],
 	}
 }
@@ -2621,7 +2640,7 @@ function roundAtStake() {
 	const pad = value => String(value).padStart(2, '0')
 	if (isDuel()) {
 		if (!gameInProgress()) return null
-		return { ...duelWarning(), title: 'Leave this game?', body: `Your game against ${cpuName()} is saved. Pick HORSE again to carry on where you left off.` }
+		return { ...duelWarning(), title: 'End this game?', body: `Switching ends this game against ${cpuName()}. It won’t count toward your record.` }
 	}
 	if (state.mode === 'horse') {
 		const { horse } = state
