@@ -69,5 +69,6 @@ In free throws mode, holding Space for about 620 ms usually makes the shot, and 
 - Commit messages: a sentence-case title saying what a player now gets, then bullet points. See `git log`.
 - Open pull requests with the `pr-description` skill in `.claude/skills/`. It captures before/after screenshots and a clip.
 - Every pull request gets a preview at `https://vladsez.github.io/iso-hoops/pr-preview/pr-<number>/`. Merging to `main` deploys `dist/` to GitHub Pages automatically.
+- When you learn in this session that its PR has merged (the user says so, or the PR status or a CI event shows it), ask whether to archive the session and remove its worktree to free disk space. Do it only on a yes.
 - Check the phone layout (portrait and landscape) for any header, footer or menu change. Touch screens use separate layouts in `style.css` under `@media (pointer: coarse)`.
 - Don't commit plan files. Once everything in a plan is built, ask before deleting it.
