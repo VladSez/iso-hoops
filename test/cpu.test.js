@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HOOP } from '../dist/physics.js'
-import { SKILL, aimShot, chooseSpot, distanceOf, makeRate, makeWindow, scores } from '../dist/cpu.js'
+import { SKILL, aimShot, chooseSpot, distanceOf, kindOf, makeRate, makeWindow, scores } from '../dist/cpu.js'
 import { startDuel } from '../dist/horse-duel.js'
 
 function seeded(seed) {
@@ -20,14 +20,20 @@ test('every distance the CPU shoots from has a band of power that scores', () =>
 			assert.ok(window.max - window.min > 0.03, `${distance} m at ${angle} rad has a ${window.max - window.min} band`)
 		}
 	}
+	const deep = [at(9, 0.5), at(11, -0.4), at(13.5, 0.2), { x: HOOP.x + 3.5, y: 5.8 }, at(4, -1.42)]
+	for (const spot of deep) {
+		const window = makeWindow(spot)
+		assert.ok(window.max - window.min > 0.03, `${JSON.stringify(spot)} has a ${window.max - window.min} band`)
+	}
 })
 
 // Single spots vary by about ten points either way, so this checks what a player notices: the average over a band.
 test('each level makes its shots about as often as it should, from mid-range and from deep', () => {
 	const random = seeded(5)
-	const bands = { 'mid-range': [4.2, 5], deep: [7, 7.8] }
+	const bands = { 'mid-range': [4.2, 5], deep: [7, 7.8], 'deep three': [9, 10] }
 	const spots = Object.fromEntries(Object.entries(bands).map(([name, [min, max]]) => [name, Array.from({ length: 8 }, () => {
-		const spot = at(min + (max - min) * random(), (random() * 2 - 1) * 1.2)
+		const distance = min + (max - min) * random()
+		const spot = at(distance, (random() * 2 - 1) * Math.min(1.2, Math.asin(Math.min(1, 5.6 / distance))))
 		return { spot, window: makeWindow(spot) }
 	})]))
 	for (const level of Object.keys(SKILL)) {
@@ -49,6 +55,9 @@ test('each level makes its shots about as often as it should, from mid-range and
 test('harder levels shoot better, and every level is worse from deep', () => {
 	assert.ok(makeRate('easy', 5) < makeRate('medium', 5) && makeRate('medium', 5) < makeRate('hard', 5))
 	for (const level of Object.keys(SKILL)) assert.ok(makeRate(level, 7.5) < makeRate(level, 4.5))
+	// From 10 m Hard stays dangerous and Medium is a gamble.
+	assert.equal(makeRate('hard', 10), 0.6)
+	assert.equal(makeRate('medium', 10), 0.4)
 })
 
 test('the CPU sets safer shots when behind and goes deeper when ahead', () => {
@@ -70,8 +79,42 @@ test('every spot the CPU sets is on the court and in front of the hoop', () => {
 			for (let i = 0; i < 200; i++) {
 				const spot = chooseSpot({ ...startDuel(level, 'you'), letters }, random)
 				assert.ok(spot.x > HOOP.x && spot.x <= 8 && Math.abs(spot.y) <= 6, JSON.stringify(spot))
-				assert.ok(distanceOf(spot) <= SKILL[level].reach + 1e-9)
+				assert.ok(distanceOf(spot) <= { easy: SKILL.easy.reach, medium: 9, hard: 13.6 }[level] + 1e-9)
 			}
 		}
 	}
+})
+
+test('Medium and Hard mix in deep threes, corners and baseline angles, and only Hard goes to the logo', () => {
+	const random = seeded(4)
+	const mix = level => {
+		const kinds = {}
+		for (let i = 0; i < 1000; i++) {
+			const kind = kindOf(chooseSpot(startDuel(level, 'you'), random))
+			kinds[kind] = (kinds[kind] ?? 0) + 1
+		}
+		return kinds
+	}
+	const easy = mix('easy'), medium = mix('medium'), hard = mix('hard')
+	assert.ok(!easy.deep && !easy.logo && !easy.corner, JSON.stringify(easy))
+	assert.ok(medium.deep > 150 && medium.corner > 50 && medium.baseline > 50 && !medium.logo, JSON.stringify(medium))
+	assert.ok(hard.deep > 300 && hard.logo > 50 && hard.corner > 80, JSON.stringify(hard))
+})
+
+test('the CPU sets more shots where you have missed matches this game, and fewer where you made them', () => {
+	const random = seeded(6)
+	const share = (log, test) => {
+		let count = 0
+		for (let i = 0; i < 2000; i++) count += test(chooseSpot(startDuel('medium', 'you'), random, log))
+		return count / 2000
+	}
+	const match = (made, out, across) => ({ by: 'you', phase: 'match', made, out, across })
+	const isCorner = spot => kindOf(spot) === 'corner'
+	const isDeep = spot => kindOf(spot) === 'deep'
+	const missedLeftCorners = [match(false, 3.5, -5.6), match(false, 3.4, -5.7)]
+	assert.ok(share(missedLeftCorners, isCorner) > share([], isCorner) + 0.08)
+	assert.ok(share(missedLeftCorners, spot => spot.y < HOOP.y) > 0.65)
+	assert.ok(share([match(true, 8.5, 0), match(true, 8.4, 1)], isDeep) < share([], isDeep) - 0.08)
+	// Its own shots and your set shots say nothing about how you match.
+	assert.ok(Math.abs(share([{ ...match(false, 3.5, -5.6), by: 'cpu' }], isCorner) - share([], isCorner)) < 0.05)
 })
