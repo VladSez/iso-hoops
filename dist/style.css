@@ -81,10 +81,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .switch { clear: left; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); gap: 3px; padding: 3px; border-radius: 10px; background: var(--hover); }
 .switch label { position: relative; display: grid; place-items: center; height: 30px; border-radius: 7px; color: var(--soft); cursor: pointer; }
 .switch input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
-.switch label:has(:checked) { background: var(--panel); color: var(--orange); box-shadow: 0 0 0 1px var(--edge), 0 1px 2px color-mix(in srgb, var(--shade) 8%, transparent); }
-.switch label:not(:has(:checked)):active { background: color-mix(in srgb, var(--panel) 55%, transparent); transform: scale(0.96); }
+.switch label:has(:checked), .menu-options .switch label:has(:checked) { background: var(--switch-on); color: var(--orange); box-shadow: 0 0 0 1px var(--edge), 0 1px 2px color-mix(in srgb, var(--shade) 8%, transparent); }
+.switch label:not(:has(:checked)):active { background: color-mix(in srgb, var(--switch-on) 55%, transparent); transform: scale(0.96); }
+@media (hover: hover) { .switch label:not(:has(:checked)):hover, .menu-options .switch label:not(:has(:checked)):hover { background: color-mix(in srgb, var(--switch-on) 50%, transparent); } }
 .switch label { transition: transform 0.12s; }
-.track-everywhere:active, .menu-options label:active { background: var(--hover); }
+.track-everywhere:active, .menu-options label:not(.switch label):active { background: var(--hover); }
 .switch label:has(:focus-visible) { outline: 2px solid var(--orange); outline-offset: 1px; }
 .now-playing { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
 .now-playing .panel-label { float: none; padding: 0; }
@@ -103,10 +104,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--orange); outlin
 .track-everywhere input { margin: 0; accent-color: var(--orange); }
 .audio-panel:not([data-sound="all"]) :is(.panel-label, #track-name) { color: var(--muted); }
 /* The sky behind the page for each phase of the neighborhood court; game.js sets data-phase from the player's clock. */
+/* On body, where the phases set --panel, so it follows each phase's panel. */
+body { --switch-on: var(--panel); }
 [data-phase="morning"] { --sky-top: #f3d9c8; --sky-bottom: #fbf0e6; --ink: #3a2f29; --muted: #6e5a4f; --label: #6e5a4f; --soft: #4f3f36; --faint: #9c8579; --panel: #fdf4ec; --line: #ead6c8; --edge: #e3cdbd; --hover: #f7e8dc; --kbd: #5a4a41; --skeleton: #f1e2d6; }
 [data-phase="day"] { --sky-top: #e4eff3; --sky-bottom: #fafcfc; --muted: #5f6a6d; --label: #5f6a6d; --line: #dde7ea; --edge: #d6e1e4; --hover: #f3f7f8; --skeleton: #e8eff1; }
 [data-phase="evening"] { --sky-top: #b9a3c9; --sky-bottom: #f4c3a1; --ink: #2e2433; --muted: #45364b; --label: #45364b; --soft: #3e3044; --faint: #6e5a72; --panel: #f8e9e1; --line: #d9c3c9; --edge: #d3bcc4; --hover: #f1dcd2; --kbd: #3e3044; --skeleton: #eedbd3; --orange: #b4512a; }
-[data-phase="night"] { --sky-top: #0c1028; --sky-bottom: #1d2448; --ink: #e8e6f2; --muted: #a3a6c4; --label: #a3a6c4; --soft: #c9cbe0; --faint: #7d81a6; --panel: #161c3a; --line: #2c3460; --edge: #343d6c; --hover: #1f2650; --kbd: #c9cbe0; --skeleton: #232a52; --orange: #f08a4b; --glint: #ffffff14; --shade: #000; --stamp: #05081a; color-scheme: dark; }
+[data-phase="night"] { --sky-top: #0c1028; --sky-bottom: #1d2448; --ink: #e8e6f2; --muted: #a3a6c4; --label: #a3a6c4; --soft: #c9cbe0; --faint: #7d81a6; --panel: #161c3a; --line: #2c3460; --edge: #343d6c; --hover: #1f2650; --switch-on: #2e3770; --kbd: #c9cbe0; --skeleton: #232a52; --orange: #f08a4b; --glint: #ffffff14; --shade: #000; --stamp: #05081a; color-scheme: dark; }
 .session-stats { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 27px; align-items: center; padding: 12px 24px; border-radius: 14px; background: linear-gradient(var(--panel), color-mix(in srgb, var(--panel) 97%, var(--shade))); box-shadow: var(--raised); }
 /* Every slot has the same fixed width, so the row only changes size with the number of slots (which the page knows before
    game.js loads), never with what a mode writes into them: HORSE letters, SHOTS LEFT or a longest basket up to 99.9m. */
@@ -415,7 +418,7 @@ body[data-charge="mouse"] #shoot .mouse-icon { border-color: var(--orange); back
 .menu-options[hidden] { display: none; }
 .menu-options legend { float: left; width: 100%; padding: 12px 12px 6px; font-size: 8px; letter-spacing: 1.4px; color: var(--orange); }
 .menu-options label { clear: left; display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 10px; color: var(--soft); cursor: pointer; }
-.menu-options label:hover { background: var(--hover); }
+.menu-options label:not(.switch label):hover { background: var(--hover); }
 .menu-options input { margin: 0; accent-color: var(--orange); }
 /* Each phase's times today, so phones (which get no tooltip) can see them too. */
 .menu-options legend small { float: right; color: var(--muted); letter-spacing: 0.4px; }

@@ -110,11 +110,17 @@ async function runSteps(steps) {
 		else if (step.waitFor) await waitFor(step.waitFor, step.timeout ?? 5000)
 		else if (step.eval) await evaluate(step.eval)
 		else if (step.click) await evaluate(`document.querySelector(${JSON.stringify(step.click)}).click()`)
+		else if (step.hover) await hover(step.hover)
 		else if (step.key) await pressKey(step.key, step.hold ?? 50)
 		else if (step.screenshot) await screenshot(step)
 		else if (step.record) await record(step)
 		else throw new Error(`Unknown step: ${JSON.stringify(step)}`)
 	}
+}
+
+async function hover(selector) {
+	const { x, y } = await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 } })()`)
+	await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
 }
 
 async function screenshot({ screenshot: name, selector, pad = 16 }) {

@@ -2202,17 +2202,22 @@ for (const type of ['pointermove', 'pointerup', 'pointercancel']) {
 }
 
 // A button that opens a panel beside it; a press outside closes it.
+const popovers = []
 function setupPopover(button, panel) {
 	function setOpen(open) {
 		panel.hidden = !open
 		button.setAttribute('aria-expanded', String(open))
 	}
+	popovers.push({ button, setOpen })
 	button.addEventListener('click', () => {
+		for (const other of popovers) if (other.button !== button) other.setOpen(false)
 		setOpen(panel.hidden)
 		if (!panel.hidden) panel.querySelector(':checked, button:not([hidden])').focus()
 	})
 	addEventListener('pointerdown', event => {
 		if (panel.hidden || button.parentElement.contains(event.target) || nodes['switch-warn'].contains(event.target)) return
+		// Pressing another menu's button swaps menus on its click, so nothing under them (the coin card) shows in between.
+		if (popovers.some(other => other.button.contains(event.target))) return
 		setOpen(false)
 		if (event.target !== canvas) return
 		event.stopPropagation()
