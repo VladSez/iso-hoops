@@ -213,7 +213,7 @@ A before scenario runs against the old code, so it can't wait for selectors or s
 | Step | Fields |
 | --- | --- |
 | Wait | `wait` (ms), or `waitFor` (a JS expression) with an optional `timeout` |
-| Interact | `click` (a CSS selector), `key` (`Space`, `Escape`, `KeyW`, arrows…) with `hold` (ms), or `eval` (any JS) |
+| Interact | `click` (a CSS selector), `hover` (a CSS selector, for hover styles), `key` (`Space`, `Escape`, `KeyW`, arrows…) with `hold` (ms), or `eval` (any JS) |
 | Screenshot | `screenshot` (a file name); add `selector` and `pad` to crop |
 | Record | `record` (a base name) with nested `steps`; writes `<name>.mp4` and `<name>.gif` |
 
