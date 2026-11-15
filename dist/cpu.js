@@ -97,7 +97,7 @@ export function kindOf(spot) {
 const KINDS = {
 	easy: { inside: 1 },
 	medium: { inside: 0.3, deep: 0.4, corner: 0.15, baseline: 0.15 },
-	hard: { inside: 0.25, deep: 0.4, logo: 0.1, corner: 0.15, baseline: 0.1 },
+	hard: { inside: 0.25, deep: 0.35, logo: 0.25, corner: 0.15, baseline: 0.1 },
 }
 const GAMBLES = ['deep', 'logo']
 

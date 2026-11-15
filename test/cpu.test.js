@@ -99,7 +99,9 @@ test('Medium and Hard mix in deep threes, corners and baseline angles, and only 
 	assert.ok(!easy.deep && !easy.logo && !easy.corner, JSON.stringify(easy))
 	assert.ok(medium.deep > 250 && medium.corner > 80 && medium.baseline > 80 && !medium.logo, JSON.stringify(medium))
 	assert.ok(medium.inside < 450, `Medium keeps it varied: ${JSON.stringify(medium)}`)
-	assert.ok(hard.deep > 300 && hard.logo > 50 && hard.corner > 80, JSON.stringify(hard))
+	assert.ok(hard.deep > 250 && hard.corner > 80, JSON.stringify(hard))
+	// Hard goes to the logo about two or three times in ten.
+	assert.ok(hard.logo > 180 && hard.logo < 300, JSON.stringify(hard))
 })
 
 test('the CPU sets more shots where you have missed matches this game, and fewer where you made them', () => {
