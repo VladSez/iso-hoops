@@ -1,7 +1,6 @@
 :root {
 	font-family: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
 	color: #302e2a;
-	background: #fff;
 	font-synthesis: none;
 	--muted: #8a8981;
 	--orange: #bf5b32;
@@ -19,7 +18,7 @@
 	--sky-bottom: #fff;
 }
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 300px; height: 100svh; height: var(--page-height, 100svh); min-height: 600px; overflow: hidden; color: var(--ink); background: linear-gradient(var(--sky-top), var(--sky-bottom));
+body { margin: 0; min-width: 300px; height: 100svh; height: var(--page-height, 100svh); min-height: 600px; overflow: hidden; color: var(--ink); background: var(--sky-top) linear-gradient(var(--sky-top), var(--sky-bottom));
 	/* Raised surfaces: a hairline ring, a contact shadow and a soft drop, in the current phase's colours. Defined on body,
 	   where data-phase sets the colours, so they follow the phase. */
 	--glint: #fff;
@@ -27,6 +26,12 @@ body { margin: 0; min-width: 300px; height: 100svh; height: var(--page-height, 1
 	--raised: inset 0 1px 0 var(--glint), 0 0 0 1px var(--line), 0 2px 3px color-mix(in srgb, var(--shade) 8%, transparent), 0 12px 26px -8px color-mix(in srgb, var(--shade) 16%, transparent);
 	--raised-small: 0 0 0 1px var(--line), 0 2px 3px color-mix(in srgb, var(--shade) 7%, transparent), 0 6px 14px -4px color-mix(in srgb, var(--shade) 12%, transparent);
 }
+/* Safari 26 tints its status bar and address bar from fixed, full-width strips at the page edges, not from theme-color,
+   and falls back to body's background-color, which a gradient doesn't set. These strips give each bar the sky's colour
+   at that edge. Only body is coloured: a different html background leaves a hairline at the page edge. */
+.edge { position: fixed; left: 0; right: 0; height: 12px; z-index: 1; pointer-events: none; }
+.edge-top { top: 0; background-color: var(--sky-top); }
+.edge-bottom { bottom: 0; background-color: var(--sky-bottom); }
 button, a, label { -webkit-tap-highlight-color: transparent; }
 button { font: inherit; cursor: pointer; }
 a { color: inherit; text-decoration: none; }
