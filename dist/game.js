@@ -2378,6 +2378,8 @@ function applyPhase() {
 	court = { ...COURTS[courtId], ...(phase.daylight && COURTS[courtId].daylight) }
 	setShadowDirection(phase.shadow.x, phase.shadow.y)
 	document.body.dataset.phase = phaseId
+	// Chrome and Safari before 26 colour their toolbars from theme-color; keep it on the sky's top colour.
+	document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.body).getPropertyValue('--sky-top').trim()
 	const auto = timeChoice === 'auto'
 	nodes['time-label'].textContent = auto ? `Auto · ${phase.name}` : phase.name
 	nodes.time.classList.toggle('pinned', !auto)
