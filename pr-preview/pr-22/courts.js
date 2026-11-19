@@ -29,7 +29,7 @@ export const COURTS = {
 		cool: [70, 40, 96], warm: [255, 196, 150],
 		fence: 'rail',
 		sound: { pitch: 1, floor: 1.1, echo: 0.3 },
-		rim: 0.85,
+		rim: 0.78,
 	},
 	beach: {
 		name: 'Boardwalk beach',

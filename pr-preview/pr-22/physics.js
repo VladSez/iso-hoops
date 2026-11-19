@@ -7,8 +7,8 @@ export const BACKBOARD_X = -7.9
 export const RIM_BOUNCE = 0.65
 const MIN_SPEED = 5
 const MAX_SPEED = 14.5
-// Horizontal push per m/s of wind, in m/s². Tuned so a 3 m/s wind, the strongest, moves the power a make needs off the
-// calm band from the three-point line. Stronger winds would line the shot up with the next band of makes again.
+// Horizontal push per m/s of wind, in m/s². Tuned so a 2 m/s wind, the strongest, moves a shot from the edge of the calm
+// band off it from the three-point line. Much stronger winds would line the shot up with the next band of makes again.
 export const WIND_PUSH = 0.3
 
 /**
@@ -22,10 +22,10 @@ export function windPush(player, wind) {
 	return { x: dx / length * wind * WIND_PUSH, y: dy / length * wind * WIND_PUSH }
 }
 
-export const MAX_WIND = 3
+export const MAX_WIND = 2
 const CALM_SHARE = 0.2
 
-/** The wind for the next shot: calm about 1 shot in 5, otherwise 1 to 3 m/s, as a headwind (negative) or a tailwind. */
+/** The wind for the next shot: calm about 1 shot in 5, otherwise 1 or 2 m/s, as a headwind (negative) or a tailwind. */
 export function rollWind(random = Math.random) {
 	if (random() < CALM_SHARE) return 0
 	const speed = 1 + Math.min(MAX_WIND - 1, Math.floor(random() * MAX_WIND))

@@ -51,6 +51,9 @@ export const maxPoints = moneyRack => SHOTS.reduce((total, shot) => total + valu
  * mode's clock and scoring functions run it too. `taken` counts balls off the racks; the money rack can be changed
  * until the first shot.
  */
+/** The money rack a new contest starts on: any of the five, so it isn't always the same one until you pick. */
+export const randomMoneyRack = (random = Math.random) => Math.floor(random() * RACK_COUNT)
+
 export const startContest = (best, moneyRack = RACK_COUNT - 1) => ({ points: 0, best, endsAt: undefined, isOver: false, taken: 0, moneyRack })
 
 export const hasStarted = contest => contest.endsAt !== undefined
