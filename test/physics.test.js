@@ -155,12 +155,13 @@ test('wind blows only along the line to the hoop', () => {
 
 test('a headwind needs more power and a tailwind less', () => {
 	const spot = { x: -0.3, y: 0 }
-	// Inside the calm band from the three-point line (free-throws.js, round 4).
-	assert.ok(landsAt(spot, 0.54, 0))
-	assert.equal(landsAt(spot, 0.54, -3), false)
-	assert.ok(landsAt(spot, 0.58, -3))
-	assert.equal(landsAt(spot, 0.54, 3), false)
-	assert.ok(landsAt(spot, 0.48, 3))
+	// Near each edge of the calm band from the three-point line (free-throws.js, round 4).
+	assert.ok(landsAt(spot, 0.505, 0))
+	assert.equal(landsAt(spot, 0.505, -2), false)
+	assert.ok(landsAt(spot, 0.56, -2))
+	assert.ok(landsAt(spot, 0.555, 0))
+	assert.equal(landsAt(spot, 0.555, 2), false)
+	assert.ok(landsAt(spot, 0.52, 2))
 })
 
 test('wind stops carrying the ball once it has bounced', () => {
@@ -169,7 +170,7 @@ test('wind stops carrying the ball once it has bounced', () => {
 	assert.equal(ball.vx, 0)
 })
 
-test('the wind is calm about one shot in five, otherwise a whole 1 to 3 m/s either way', () => {
+test('the wind is calm about one shot in five, otherwise a whole 1 or 2 m/s either way', () => {
 	let seed = 7
 	const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
 	const winds = Array.from({ length: 5000 }, () => rollWind(random))

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { HOOP, createShot, stepBall } from '../dist/physics.js'
 import { finishRound, isBeyondArc, recordMake, startClock } from '../dist/beat-the-clock.js'
 import {
-	BALLS_PER_RACK, RACK_COUNT, SHOTS, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, maxPoints, nextShot, startContest, takeBall, valueOf,
+	BALLS_PER_RACK, RACK_COUNT, SHOTS, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, maxPoints, nextShot, randomMoneyRack, startContest, takeBall, valueOf,
 } from '../dist/three-point.js'
 
 function scores(spot, power) {
@@ -47,6 +47,12 @@ test('money balls are worth 2, the money rack is all money balls, deep balls are
 	assert.deepEqual(values.slice(5, 10), [2, 2, 2, 2, 2])
 	assert.equal(values[10], 3)
 	for (let rack = 0; rack < RACK_COUNT; rack++) assert.equal(maxPoints(rack), 40)
+})
+
+test('a new contest can start on any money rack', () => {
+	const racks = new Set(Array.from({ length: 10 }, (_, i) => randomMoneyRack(() => i / 10)))
+	assert.deepEqual([...racks].sort(), [0, 1, 2, 3, 4])
+	assert.equal(randomMoneyRack(() => 0.999), RACK_COUNT - 1)
 })
 
 test('the money rack can only be changed before the clock starts', () => {
