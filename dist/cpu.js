@@ -1,4 +1,4 @@
-import { HOOP, createShot, stepBall } from './physics.js?v=3'
+import { HOOP, createShot, stepBall } from './physics.js?v=4'
 
 // How often each level makes a shot from mid-range, from 10 m, and how far out its ordinary shots go when it is ahead.
 export const SKILL = {
@@ -26,21 +26,21 @@ export function makeRate(level, distance) {
 // Deep shots miss a little more often than their band alone suggests, so the CPU aims that much tighter from out there.
 const DEEP_SLIP = 0.06
 
-export function scores(spot, yaw, power) {
-	const ball = createShot(spot, yaw, power)
+export function scores(spot, yaw, power, wind = 0) {
+	const ball = createShot(spot, yaw, power, wind)
 	for (let t = 0; t < 4 && !ball.made; t += 1 / 60) stepBall(ball, 1 / 60)
 	return ball.made
 }
 
-/** The widest unbroken band of power that makes the shot from `spot`, aiming straight at the rim. */
-export function makeWindow(spot) {
+/** The widest unbroken band of power that makes the shot from `spot` in this wind, aiming straight at the rim. */
+export function makeWindow(spot, wind = 0) {
 	const step = 0.0025
 	const yaw = yawTo(spot)
 	let best = { min: 0, max: 0 }
 	let start
 	for (let i = 0; i <= 1 / step + 1; i++) {
 		const power = Math.round(i * step * 1e4) / 1e4
-		if (i <= 1 / step && scores(spot, yaw, power)) {
+		if (i <= 1 / step && scores(spot, yaw, power, wind)) {
 			start ??= power
 			continue
 		}

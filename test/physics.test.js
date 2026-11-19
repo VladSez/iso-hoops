@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BALL_RADIUS, HOOP, createShot, isDead, shotDistance, stepBall } from '../dist/physics.js'
+import { BALL_RADIUS, CHARGE_TIME, HOOP, createShot, MAX_WIND, isDead, rollChargeTime, rollWind, shotDistance, stepBall, windPush } from '../dist/physics.js'
 
 function ballAt(position, velocity = {}) {
 	return { ...createShot({ x: 0, y: 0 }, 0, 0), vx: 0, vy: 0, vz: 0, ...position, ...velocity }
@@ -130,4 +130,62 @@ test('shot distance is measured along the floor to the hoop, in tenths of a metr
 	assert.equal(shotDistance({ x: HOOP.x + 3, y: 4 }), 5)
 	assert.equal(shotDistance({ x: 3.5, y: 0 }), 10.5)
 	assert.equal(shotDistance({ x: HOOP.x + 6.66, y: 0 }), 6.7)
+})
+
+function landsAt(spot, power, wind) {
+	const ball = createShot(spot, Math.atan2(HOOP.y - spot.y, HOOP.x - spot.x), power, wind)
+	let made = false
+	for (let t = 0; t < 4 && !made; t += 1 / 60) made = stepBall(ball, 1 / 60).includes('score') || ball.made
+	return made
+}
+
+test('a calm shot flies exactly as it did before wind', () => {
+	const ball = createShot({ x: 0, y: 2 }, 3, 0.5)
+	assert.deepEqual([ball.ax, ball.ay], [0, 0])
+	assert.deepEqual(createShot({ x: 0, y: 2 }, 3, 0.5, 0), ball)
+})
+
+test('wind blows only along the line to the hoop', () => {
+	const push = windPush({ x: HOOP.x, y: HOOP.y + 5 }, 2)
+	assert.ok(Math.abs(push.x) < 1e-9)
+	assert.ok(push.y < 0, 'A tailwind pushes toward the hoop')
+	assert.ok(windPush({ x: HOOP.x, y: HOOP.y + 5 }, -2).y > 0, 'A headwind pushes away from it')
+})
+
+test('a headwind needs more power and a tailwind less', () => {
+	const spot = { x: -0.3, y: 0 }
+	// Inside the calm band from the three-point line (free-throws.js, round 4).
+	assert.ok(landsAt(spot, 0.54, 0))
+	assert.equal(landsAt(spot, 0.54, -3), false)
+	assert.ok(landsAt(spot, 0.58, -3))
+	assert.equal(landsAt(spot, 0.54, 3), false)
+	assert.ok(landsAt(spot, 0.48, 3))
+})
+
+test('wind stops carrying the ball once it has bounced', () => {
+	const ball = { ...createShot({ x: 0, y: 0 }, Math.PI, 0.5, 4), x: 0, y: 0, z: BALL_RADIUS, vx: 0, vy: 0, vz: 0, bounces: 1 }
+	stepBall(ball, 0.5)
+	assert.equal(ball.vx, 0)
+})
+
+test('the wind is calm about one shot in five, otherwise a whole 1 to 3 m/s either way', () => {
+	let seed = 7
+	const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+	const winds = Array.from({ length: 5000 }, () => rollWind(random))
+	const calm = winds.filter(wind => wind === 0).length / winds.length
+	assert.ok(calm > 0.17 && calm < 0.23, `calm share ${calm}`)
+	for (let speed = 1; speed <= MAX_WIND; speed++) {
+		assert.ok(winds.includes(speed) && winds.includes(-speed), `${speed} m/s both ways`)
+	}
+	assert.ok(winds.every(wind => Number.isInteger(wind) && Math.abs(wind) <= MAX_WIND))
+})
+
+test('the meter fills at a different speed each shot, within its range', () => {
+	assert.equal(rollChargeTime(() => 0), CHARGE_TIME.min)
+	assert.equal(rollChargeTime(() => 0.5), 1.6)
+	let seed = 11
+	const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+	const times = Array.from({ length: 2000 }, () => rollChargeTime(random))
+	assert.ok(times.every(time => time >= CHARGE_TIME.min && time < CHARGE_TIME.max))
+	assert.ok(Math.min(...times) < 1.25 && Math.max(...times) > 1.95, 'Both ends of the range come up')
 })

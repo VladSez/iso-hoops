@@ -1,15 +1,15 @@
-import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
-import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
-import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=6'
-import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
-import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
-import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=12'
-import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=3'
-import { aimShot, chooseSpot, yawTo } from './cpu.js?v=6'
+import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, rollChargeTime, rollWind, shotDistance, stepBall } from './physics.js?v=4'
+import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=6'
+import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=7'
+import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=5'
+import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=2'
+import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=13'
+import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=4'
+import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=6'
-import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=3'
+import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
@@ -33,7 +33,7 @@ const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'audio-options', 'now-playing-label', 'track-prev', 'track-next', 'track-name', 'track-note', 'track-dots', 'track-own', 'track-own-label', 'track-everywhere', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 	'time', 'time-label', 'time-options', 'time-zone', 'time-tip-name', 'time-tip-hours', 'time-tip-zone', 'time-tip-mode',
-	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
+	'mode', 'mode-label', 'mode-options', 'power-target', 'wind', 'wind-arrow', 'wind-text', 'label-attempts', 'label-accuracy',
 	'label-makes', 'longest', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 	'results', 'results-label', 'results-side', 'results-score', 'results-note', 'results-stamp', 'results-stamp-text',
 	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
@@ -45,7 +45,7 @@ const nodes = Object.fromEntries([
 const state = {
 	// Just behind the three-point arc at the top of the key (7.2 m), so the first shot is a realistic three.
 	player: { x: 0.2, y: 0 }, yaw: Math.PI, pointer: undefined,
-	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
+	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, chargeTime: rollChargeTime(), power: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	// Free shooting's shots since the page opened, or since Start over, for the session court.
@@ -65,6 +65,11 @@ const state = {
 	coin: null,
 	cpu: { x: -2.2, y: 5.6, yaw: Math.PI, task: 'idle', until: 0, target: undefined, aim: undefined, chargeStart: 0, followThrough: 0, walking: false, rest: { x: -2.2, y: 5.6 } },
 	stepAside: undefined,
+	// The wind for the next shot in m/s along the line to the hoop (see physics.js): negative is a headwind. A new one
+	// blows in once the last shot is over, so the meter never changes under a ball still in the air.
+	wind: rollWind(), windStale: false,
+	// Trees, grass and the sea sway on this clock, which runs faster in a stronger wind.
+	swayTime: 0,
 }
 
 const COURT_KEY = 'iso-hoops:court'
@@ -570,6 +575,21 @@ function updateMeter() {
 	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.ball?.by === 'cpu' ? 'Watch the shot…' : state.phase === 'flight' || state.phase === 'dunk' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
 }
 
+let lastWind
+// The arrow points the way the wind blows on screen: from the shooter to the hoop for a tailwind, back for a headwind.
+function updateWind() {
+	const shooter = isDuel() && state.duel && turnOf(state.duel) !== 'you' ? state.cpu : state.player
+	const from = project(shooter.x, shooter.y, 0), to = project(HOOP.x, HOOP.y, 0)
+	const degrees = Math.round(Math.atan2(to.sy - from.sy, to.sx - from.sx) * 180 / Math.PI / 5) * 5 + (state.wind < 0 ? 180 : 0)
+	const key = `${state.wind} ${degrees}`
+	if (key === lastWind) return
+	lastWind = key
+	const speed = Math.abs(state.wind)
+	nodes.wind.classList.toggle('calm', !speed)
+	nodes['wind-arrow'].style.transform = `rotate(${degrees}deg)`
+	nodes['wind-text'].textContent = speed ? `${state.wind < 0 ? 'Headwind' : 'Tailwind'} ${speed} m/s` : 'Calm'
+}
+
 // Puts the player on this round's spot and the meter's band over its scoring range.
 function placeForRound() {
 	const { spot, window } = levelOf(state.round)
@@ -670,6 +690,7 @@ function beginCharge(source) {
 	state.phase = 'charging'
 	state.chargeSource = source
 	state.charge = 0
+	state.chargeTime = rollChargeTime()
 	state.power = 0
 }
 
@@ -677,7 +698,8 @@ function releaseShot(source) {
 	if (state.phase !== 'charging' || source !== state.chargeSource) return
 	state.lastPower = state.power
 	if (state.mode === 'three-point') return releaseContestBall()
-	state.ball = createShot(state.player, state.yaw, state.power)
+	state.ball = createShot(state.player, state.yaw, state.power, state.wind)
+	state.windStale = true
 	state.ball.distance = shotDistance(state.player)
 	state.ball.from = { x: state.player.x, y: state.player.y }
 	state.ball.by = 'you'
@@ -743,7 +765,8 @@ const RELOAD = 0.3
 const STATION_MOVE = 0.7
 function releaseContestBall() {
 	const shot = nextShot(state.contest)
-	const ball = createShot(state.player, state.yaw, state.power)
+	const ball = createShot(state.player, state.yaw, state.power, state.wind)
+	state.windStale = true
 	ball.value = valueOf(shot, state.contest.moneyRack)
 	ball.shot = state.contest.taken
 	state.flying.push(ball)
@@ -1408,12 +1431,13 @@ function updateCpu(delta) {
 			cpu.until = state.time + CPU_SETTLE
 		}
 	} else if (cpu.task === 'settle' && state.time >= cpu.until) {
-		cpu.aim = aimShot(cpu, duel.level)
+		cpu.aim = aimShot(cpu, duel.level, Math.random, makeWindow(cpu, state.wind))
 		cpu.yaw = cpu.aim.yaw
 		cpu.task = 'charge'
 		cpu.chargeStart = state.time
 	} else if (cpu.task === 'charge' && state.time - cpu.chargeStart >= CPU_CHARGE) {
-		state.ball = createShot(cpu, cpu.aim.yaw, cpu.aim.power)
+		state.ball = createShot(cpu, cpu.aim.yaw, cpu.aim.power, state.wind)
+		state.windStale = true
 		state.ball.distance = shotDistance(cpu)
 		state.ball.from = { x: cpu.x, y: cpu.y }
 		state.ball.by = 'cpu'
@@ -1485,7 +1509,7 @@ function update(delta) {
 		startDunk(drive)
 	}
 	if (state.phase === 'charging') {
-		state.charge = Math.min(1, state.charge + delta / 1.6)
+		state.charge = Math.min(1, state.charge + delta / state.chargeTime)
 		let level
 		if (freeThrows) level = levelOf(state.round)
 		if (contest) level = STATIONS[nextShot(state.contest).station]
@@ -1603,7 +1627,13 @@ function update(delta) {
 	if (state.phase === 'ready' && state.time - state.feedbackTime > 7 && state.mode === 'free') {
 		setFeedback('Find your spot. Take your time.')
 	}
+	if (state.windStale && state.phase === 'ready') {
+		state.wind = rollWind()
+		state.windStale = false
+	}
+	state.swayTime += delta * (1 + 0.4 * Math.abs(state.wind))
 	updateMeter()
+	updateWind()
 }
 
 function drawBasketball(x, y, z, time, color = BALL_COLOR) {
@@ -1633,12 +1663,12 @@ function drawAimGuide() {
 	}
 	drawDots(dots, rgb(239, 220, 175))
 	if (state.phase !== 'charging') return
-	const shot = createShot(state.player, state.yaw, state.power)
+	const shot = createShot(state.player, state.yaw, state.power, state.wind)
 	const arc = []
 	for (let t = 0.06; t < 3; t += 0.1) {
 		const z = shot.z + shot.vz * t - GRAVITY * t * t * 0.5
 		if (z < BALL_RADIUS) break
-		const p = project(shot.x + shot.vx * t, shot.y + shot.vy * t, z)
+		const p = project(shot.x + shot.vx * t + shot.ax * t * t * 0.5, shot.y + shot.vy * t + shot.ay * t * t * 0.5, z)
 		arc.push([p.sx, p.sy])
 	}
 	// Bright orange dots over a dark shadow pixel, so the arc reads on any court.
@@ -1764,7 +1794,7 @@ function draw() {
 	pix.set(bakedPix)
 	zb.set(bakedZ)
 	pendingShadows.length = 0
-	const windTime = STILL ? 0 : Math.floor(state.time * WIND_FPS) / WIND_FPS
+	const windTime = STILL ? 0 : Math.floor(state.swayTime * WIND_FPS) / WIND_FPS
 	drawSea(windTime)
 	const charging = state.phase === 'charging'
 	const shotPose = charging || state.followThrough > 0

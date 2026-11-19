@@ -5,10 +5,42 @@ export const LAUNCH_ANGLE = Math.PI * 0.32
 export const BACKBOARD_X = -7.9
 const MIN_SPEED = 5
 const MAX_SPEED = 14.5
+// Horizontal push per m/s of wind, in m/s². Tuned so a 3 m/s wind, the strongest, moves the power a make needs off the
+// calm band from the three-point line. Stronger winds would line the shot up with the next band of makes again.
+export const WIND_PUSH = 0.3
 
-/** Creates a ballistic shot. Power is 0–1; yaw is a world-space angle in radians. */
-export function createShot(player, yaw, power) {
+/**
+ * The wind's push on a ball shot from `player`, in m/s². Wind only blows along the line to the hoop: positive `wind` is
+ * a tailwind (toward the hoop), negative a headwind.
+ */
+export function windPush(player, wind) {
+	if (!wind) return { x: 0, y: 0 }
+	const dx = HOOP.x - player.x, dy = HOOP.y - player.y
+	const length = Math.hypot(dx, dy) || 1
+	return { x: dx / length * wind * WIND_PUSH, y: dy / length * wind * WIND_PUSH }
+}
+
+export const MAX_WIND = 3
+const CALM_SHARE = 0.2
+
+/** The wind for the next shot: calm about 1 shot in 5, otherwise 1 to 3 m/s, as a headwind (negative) or a tailwind. */
+export function rollWind(random = Math.random) {
+	if (random() < CALM_SHARE) return 0
+	const speed = 1 + Math.min(MAX_WIND - 1, Math.floor(random() * MAX_WIND))
+	return random() < 0.5 ? -speed : speed
+}
+
+/** How long the meter takes to fill, in seconds. It changes every shot, so a memorised hold time stops working. */
+export const CHARGE_TIME = { min: 1.2, max: 2 }
+
+export function rollChargeTime(random = Math.random) {
+	return CHARGE_TIME.min + random() * (CHARGE_TIME.max - CHARGE_TIME.min)
+}
+
+/** Creates a ballistic shot. Power is 0–1; yaw is a world-space angle in radians; wind is in m/s, see windPush. */
+export function createShot(player, yaw, power, wind = 0) {
 	const speed = MIN_SPEED + Math.max(0, Math.min(1, power)) * (MAX_SPEED - MIN_SPEED)
+	const push = windPush(player, wind)
 	return {
 		x: player.x + Math.cos(yaw) * 0.55,
 		y: player.y + Math.sin(yaw) * 0.55,
@@ -19,6 +51,8 @@ export function createShot(player, yaw, power) {
 		age: 0,
 		made: false,
 		bounces: 0,
+		ax: push.x,
+		ay: push.y,
 	}
 }
 
@@ -29,6 +63,11 @@ export function stepBall(ball, delta) {
 	const dt = delta / steps
 	for (let step = 0; step < steps; step++) {
 		const previous = { x: ball.x, y: ball.y, z: ball.z }
+		// Wind carries the ball only in open air, not once the net or the floor has it.
+		if (!ball.made && !ball.bounces && (ball.ax || ball.ay)) {
+			ball.vx += ball.ax * dt
+			ball.vy += ball.ay * dt
+		}
 		ball.x += ball.vx * dt
 		ball.y += ball.vy * dt
 		ball.z += ball.vz * dt - GRAVITY * dt * dt * 0.5

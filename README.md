@@ -38,6 +38,10 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 | Shoot | Hold Space or the left mouse button to build power, release to shoot |
 | Cancel a shot or pause | Escape |
 
+The power meter fills at a different speed on every shot, anywhere from 1.2 to 2 seconds to full, so watch the meter rather than counting.
+
+A new wind blows in after every shot, from calm up to 3 m/s, straight toward the hoop or straight back at you. It shows above the power meter: give a headwind a little more power and a tailwind a little less. The meter's band shows the calm-air power, so the wind is yours to judge.
+
 In 10 free throws mode your spot and aim are locked, starting at the free throw line. Release inside the dark band on the meter, which wobbles slightly, so time your release. After your tenth shot, Space starts the next round a step farther back, from 5.5 m, then 6 m, then the three-point line.
 
 Beat the clock plays like free shooting: move and aim anywhere. Points go by where you release the shot, 3 from beyond the arc (more than 6.7 m from the hoop, or past the straight corner lines 5.8 m to either side near the baseline) and 2 anywhere else, the line included. A shot still in the air at the buzzer counts if it goes in. When time is up, Space (or Shoot) resets the score and the next shot starts a new 60 seconds. Pausing with Escape or opening How to play stops the clock.
