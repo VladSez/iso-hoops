@@ -2,20 +2,30 @@ import { HOOP } from './physics.js?v=4'
 
 export const BALLS_PER_RACK = 5
 export const RACK_COUNT = 5
-// Every rack is 7 m out and both deep spots 8.3 m, and the physics only cares about distance, so two bands cover all
-// seven spots. Each is the run of clean swishes; test/three-point.test.js checks every power inside it scores.
-const RACK = { distance: 7, window: { min: 0.4325, max: 0.48 } }
-const DEEP = { distance: 8.3, window: { min: 0.52, max: 0.5625 } }
-// The corners are 62° round from straight out: any farther and the spot would leave the walkable court.
-const RACK_ANGLES = [62, 31, 0, -31, -62]
-const DEEP_ANGLES = [16, -16]
+// The NBA's spots: a rack in each corner on the baseline, one on each wing at 45°, one at the top, and a deep ball between
+// each wing and the top. The physics only cares about distance, so one band covers each kind of spot. Each is the run of
+// clean swishes; test/three-point.test.js checks every power inside it scores.
+const CORNER = { window: { min: 0.3775, max: 0.43 } }
+const ARC = { distance: 7, window: { min: 0.4325, max: 0.48 } }
+const DEEP = { distance: 8.5, window: { min: 0.5325, max: 0.5775 } }
+// Between the corner line, 5.8 m to the side of the hoop, and the sideline at 6.7 m, a little in front of the backboard.
+const cornerSpot = side => ({ x: HOOP.x + 0.8, y: HOOP.y + side * 6.2 })
 
 function spotAt(distance, degrees) {
 	const angle = degrees * Math.PI / 180
 	return { x: HOOP.x + Math.cos(angle) * distance, y: HOOP.y + Math.sin(angle) * distance }
 }
 
-const rack = index => ({ rack: index, balls: BALLS_PER_RACK, spot: spotAt(RACK.distance, RACK_ANGLES[index]), window: RACK.window })
+const RACK_SPOTS = [
+	{ spot: cornerSpot(1), window: CORNER.window },
+	{ spot: spotAt(ARC.distance, 45), window: ARC.window },
+	{ spot: spotAt(ARC.distance, 0), window: ARC.window },
+	{ spot: spotAt(ARC.distance, -45), window: ARC.window },
+	{ spot: cornerSpot(-1), window: CORNER.window },
+]
+const DEEP_ANGLES = [22, -22]
+
+const rack = index => ({ rack: index, balls: BALLS_PER_RACK, ...RACK_SPOTS[index] })
 const deep = index => ({ deep: index, balls: 1, spot: spotAt(DEEP.distance, DEEP_ANGLES[index]), window: DEEP.window })
 
 /** The shooting order: the five racks round the arc, with a deep ball after the second rack and after the third. */
