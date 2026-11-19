@@ -13,9 +13,12 @@ Use the built-in browser (the Claude desktop app's browser pane) to open, test a
 
 Before building a visual or UI change, ask whether to design it first on a canvas artifact. If the answer is yes, build only after the design is agreed.
 
-After any visual or UI change, show before and after screenshots, and a short video when the change moves (an animation, a flow across screens), unless there is nothing visible to compare. Send them with the reply, not only in a pull request. `.claude/skills/pr-description/scripts/capture.mjs` takes the after shots from `dist/` and the before shots from `origin/main` checked out to a throwaway worktree, and records MP4 and GIF clips.
+After a visual or UI change, don't make before/after screenshots or videos for the reply. Instead, start the game yourself in the browser pane, set any localStorage keys the feature needs (see Running the game), and give the user the URL, http://127.0.0.1:5300, plus step-by-step instructions for trying the new feature, with a screenshot of the key steps:
 
-Mark every one clearly as before or after, in the image or video itself, not only in its file name or caption: a large BEFORE or AFTER banner across the top. The local ffmpeg can't draw text, so add the banner in the page with an `eval` step before the screenshot or recording. A side-by-side comparison gets a label over each half.
+1. What to do, one action per step (which key to hold and for how long, where to walk, which menu to open).
+2. What to look for at each step, so the user can tell it works.
+
+Before/after media belongs only in pull requests, captured by the `pr-description` skill.
 
 ## Running the game
 
@@ -38,7 +41,7 @@ The same way, open straight into a state by setting these keys before load:
 
 Best scores live in `iso-hoops:free-throw-best`, `iso-hoops:clock-best-points`, `iso-hoops:horse-best`, `iso-hoops:three-point-best` and `iso-hoops:longest-basket`. Seed one to show a realistic score.
 
-In free throws mode, holding Space for about 620 ms usually makes the shot, and a 60 ms tap misses.
+The meter's fill speed is random each shot (`rollChargeTime` in `physics.js`). To time a shot, set `Math.random = () => 0.5` in the page first; that gives the old fixed speed, 1.6 s to full, and a 2 m/s tailwind. Then in free throws mode, holding Space for about 620 ms usually makes the shot, and a 60 ms tap misses.
 
 ## Where things live
 
@@ -46,7 +49,7 @@ In free throws mode, holding Space for about 620 ms usually makes the shot, and 
 - `dist/engine.js`: the renderer, vendored from Pixel Plays (MIT). It is a classic script whose top-level names (`pix`, `plot`, `project`, `unproject`, `castShadow`, `hash`) are globals that `game.js` uses. Change it only when you must, and keep its two-space style.
 - `dist/physics.js`, `free-throws.js`, `beat-the-clock.js`, `horse.js`, `three-point.js`: pure rules for the ball and each mode. Each has a test file in `test/`.
 - `dist/results.js`: what each mode's results card shows when a round ends, built from the round's shot log in `game.js`.
-- `dist/courts.js`: one data entry per court (palette, sound, lighting settings). Add per-court behaviour here as data, not as branches in `game.js`.
+- `dist/courts.js`: one data entry per court (palette, sound, lighting settings, rim bounciness). Add per-court behaviour here as data, not as branches in `game.js`.
 - `dist/time-of-day.js`: the phase table (morning, day, evening, night) and today's schedule from sunrise and sunset. `dist/places.js` holds reference coordinates for Europe, the US, Turkey and the most populous zones elsewhere (other zones are estimated from their UTC offset), generated from tzdb's `zone.tab` and `backward`; regenerate it with `node scripts/build-places.mjs` rather than editing by hand. `game.js` saves today's schedule as `iso-hoops:sky` so the early script in `index.html` paints the right sky.
 - `dist/music.js`: the music, generated sample by sample with no audio files.
 - `dist/style.css`: colours are CSS variables on `:root`, and each phase overrides them under `[data-phase="…"]`. Use the variables, not hex values.
@@ -63,6 +66,7 @@ In free throws mode, holding Space for about 620 ms usually makes the shot, and 
 - Tabs, no semicolons and single quotes in the game's own files.
 - Comments only for a reason the code can't show.
 - Copy for players is plain and calm, like the existing feedback lines.
+- After finishing a feature or fixing a bug, end the reply with a summary of what you did in simple terms: what a player now gets, what changed in tests or docs, and what is still not done (for example, nothing committed). Skip it for minor changes, such as a wording tweak, a one-line edit or a docs update.
 
 ## Shipping
 

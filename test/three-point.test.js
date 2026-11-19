@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HOOP, createShot, stepBall } from '../dist/physics.js'
-import { finishRound, recordMake, startClock } from '../dist/beat-the-clock.js'
+import { finishRound, isBeyondArc, recordMake, startClock } from '../dist/beat-the-clock.js'
 import {
-	BALLS_PER_RACK, RACK_COUNT, SHOTS, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, maxPoints, nextShot, startContest, takeBall, valueOf,
+	BALLS_PER_RACK, RACK_COUNT, SHOTS, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, maxPoints, nextShot, randomMoneyRack, startContest, takeBall, valueOf,
 } from '../dist/three-point.js'
 
 function scores(spot, power) {
@@ -17,11 +17,20 @@ test('five racks of five and two deep balls, shot in the NBA order', () => {
 	assert.deepEqual(STATIONS.map(station => station.rack ?? `deep ${station.deep}`), [0, 1, 'deep 0', 2, 'deep 1', 3, 4])
 })
 
-test('every spot is beyond the arc and where the player can stand', () => {
+test('every spot is beyond the three-point line and where the player can stand', () => {
 	for (const { spot } of STATIONS) {
-		assert.ok(Math.hypot(spot.x - HOOP.x, spot.y - HOOP.y) > 6.7)
+		assert.ok(isBeyondArc(spot), `${spot.x}, ${spot.y}`)
 		assert.ok(spot.x > HOOP.x && spot.x <= 8.3 && Math.abs(spot.y) <= 6.3)
 	}
+})
+
+test('the racks stand in the corners, on the wings at 45° and at the top, like the NBA contest', () => {
+	const racks = STATIONS.filter(station => station.rack !== undefined)
+	const angle = ({ spot }) => Math.round(Math.atan2(spot.y - HOOP.y, spot.x - HOOP.x) * 180 / Math.PI)
+	assert.deepEqual(racks.map(angle).slice(1, 4), [45, 0, -45])
+	for (const corner of [racks[0], racks[4]]) assert.ok(corner.spot.x - HOOP.x < 1 && Math.abs(corner.spot.y) > 5.8, 'Corner racks sit by the baseline')
+	const distance = ({ spot }) => Math.hypot(spot.x - HOOP.x, spot.y - HOOP.y)
+	assert.ok(distance(racks[0]) < distance(racks[1]), 'The corner three is the shortest shot')
 })
 
 test('every power inside a spot’s band scores', () => {
@@ -38,6 +47,12 @@ test('money balls are worth 2, the money rack is all money balls, deep balls are
 	assert.deepEqual(values.slice(5, 10), [2, 2, 2, 2, 2])
 	assert.equal(values[10], 3)
 	for (let rack = 0; rack < RACK_COUNT; rack++) assert.equal(maxPoints(rack), 40)
+})
+
+test('a new contest can start on any money rack', () => {
+	const racks = new Set(Array.from({ length: 10 }, (_, i) => randomMoneyRack(() => i / 10)))
+	assert.deepEqual([...racks].sort(), [0, 1, 2, 3, 4])
+	assert.equal(randomMoneyRack(() => 0.999), RACK_COUNT - 1)
 })
 
 test('the money rack can only be changed before the clock starts', () => {
