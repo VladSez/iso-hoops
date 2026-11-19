@@ -33,7 +33,7 @@ const nodes = Object.fromEntries([
 	'makes', 'attempts', 'accuracy', 'feedback', 'power-value', 'power-fill',
 	'power-meter', 'shoot', 'shoot-label', 'help', 'help-open', 'help-close', 'help-play', 'sound', 'sound-label', 'sound-options', 'audio-options', 'now-playing-label', 'track-prev', 'track-next', 'track-name', 'track-note', 'track-dots', 'track-own', 'track-own-label', 'track-everywhere', 'court', 'court-label', 'court-options', 'stage', 'basket-callout',
 	'time', 'time-label', 'time-options', 'time-zone', 'time-tip-name', 'time-tip-hours', 'time-tip-zone', 'time-tip-mode',
-	'mode', 'mode-label', 'mode-options', 'power-target', 'wind', 'wind-arrow', 'wind-text', 'label-attempts', 'label-accuracy',
+	'mode', 'mode-label', 'mode-options', 'power-target', 'label-attempts', 'label-accuracy',
 	'label-makes', 'longest', 'callout-title', 'callout-detail', 'stick', 'stick-knob', 'turn',
 	'results', 'results-label', 'results-side', 'results-score', 'results-note', 'results-stamp', 'results-stamp-text',
 	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
@@ -573,21 +573,6 @@ function updateMeter() {
 	document.body.classList.toggle('charging', state.phase === 'charging')
 	document.body.dataset.charge = state.phase === 'charging' ? state.chargeSource : ''
 	nodes['shoot-label'].textContent = state.phase === 'charging' ? 'Release to let it fly' : state.ball?.by === 'cpu' ? 'Watch the shot…' : state.phase === 'flight' || state.phase === 'dunk' ? 'Watch your shot…' : 'Hold to charge · release to shoot'
-}
-
-let lastWind
-// The arrow points the way the wind blows on screen: from the shooter to the hoop for a tailwind, back for a headwind.
-function updateWind() {
-	const shooter = isDuel() && state.duel && turnOf(state.duel) !== 'you' ? state.cpu : state.player
-	const from = project(shooter.x, shooter.y, 0), to = project(HOOP.x, HOOP.y, 0)
-	const degrees = Math.round(Math.atan2(to.sy - from.sy, to.sx - from.sx) * 180 / Math.PI / 5) * 5 + (state.wind < 0 ? 180 : 0)
-	const key = `${state.wind} ${degrees}`
-	if (key === lastWind) return
-	lastWind = key
-	const speed = Math.abs(state.wind)
-	nodes.wind.classList.toggle('calm', !speed)
-	nodes['wind-arrow'].style.transform = `rotate(${degrees}deg)`
-	nodes['wind-text'].textContent = speed ? `${state.wind < 0 ? 'Headwind' : 'Tailwind'} ${speed} m/s` : 'Calm'
 }
 
 // Puts the player on this round's spot and the meter's band over its scoring range.
@@ -1633,7 +1618,6 @@ function update(delta) {
 	}
 	state.swayTime += delta * (1 + 0.4 * Math.abs(state.wind))
 	updateMeter()
-	updateWind()
 }
 
 function drawBasketball(x, y, z, time, color = BALL_COLOR) {
