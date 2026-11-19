@@ -1,4 +1,4 @@
-import { HOOP, createShot } from './physics.js?v=4'
+import { HOOP, createShot } from './physics.js?v=5'
 
 // Running at the rim, a dunk starts from this far out; standing still or moving any other way, from closer in.
 export const RUN_RANGE = 4

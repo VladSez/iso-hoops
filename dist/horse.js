@@ -1,5 +1,5 @@
-import { THREE_POINT_DISTANCE, isBeyondArc } from './beat-the-clock.js?v=7'
-import { HOOP } from './physics.js?v=4'
+import { THREE_POINT_DISTANCE, isBeyondArc } from './beat-the-clock.js?v=8'
+import { HOOP } from './physics.js?v=5'
 
 export const LETTERS = ['H', 'O', 'R', 'S', 'E']
 /** How close to a spot's centre the player must stand to shoot, in metres. Also the marker ring's radius. */

@@ -38,9 +38,13 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 | Shoot | Hold Space or the left mouse button to build power, release to shoot |
 | Cancel a shot or pause | Escape |
 
-The power meter fills at a different speed on every shot, anywhere from 1.2 to 2 seconds to full, so watch the meter rather than counting.
+Outside the three-point contest, the power meter fills at a different speed on every shot, anywhere from 1.2 to 2 seconds to full, so watch the meter rather than counting. Set your feet before you release: a shot let go while walking, or within a second of stopping, drifts sideways, more the sooner it follows a step. Outside the three-point contest, shots fired faster than about one every 3 seconds tire you, and each one makes the meter fill a little faster until you take a breather.
 
-A new wind blows in after every shot, from calm up to 3 m/s, straight toward the hoop or straight back at you. Nothing on screen names it: the aim arc bends with it, and the trees sway harder when it blows. A headwind needs a little more power and a tailwind a little less. In free throws there's no arc, so the meter's band shows the calm-air power and the wind is a surprise.
+Every court's rim plays its own way. The rooftop rim is stiff and kicks a shot that clips it away; the beach rim is soft and lets more of them roll in. Winter's cold rim is lively too, and autumn's a touch softer than the neighborhood's.
+
+When something other than your aim cost a shot, the line under the court says so: shooting off the move, a strong headwind or tailwind, a stiff rim, or tired legs.
+
+A new wind blows in after every shot (except in the three-point contest, which is played in still air), from calm up to 3 m/s, straight toward the hoop or straight back at you. Nothing on screen names it: the aim arc bends with it, and the trees sway harder when it blows. A headwind needs a little more power and a tailwind a little less. In free throws there's no arc, so the meter's band shows the calm-air power and the wind is a surprise.
 
 In 10 free throws mode your spot and aim are locked, starting at the free throw line. Release inside the dark band on the meter, which wobbles slightly, so time your release. After your tenth shot, Space starts the next round a step farther back, from 5.5 m, then 6 m, then the three-point line.
 

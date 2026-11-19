@@ -1,4 +1,4 @@
-import { createShot, stepBall } from './physics.js?v=4'
+import { createShot, stepBall } from './physics.js?v=5'
 
 export const ROUND_SHOTS = 10
 const YAW = Math.PI

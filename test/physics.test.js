@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BALL_RADIUS, CHARGE_TIME, HOOP, createShot, MAX_WIND, isDead, rollChargeTime, rollWind, shotDistance, stepBall, windPush } from '../dist/physics.js'
+import { COURTS } from '../dist/courts.js'
+import { BALL_RADIUS, CHARGE_TIME, STEADY_CHARGE_TIME, HOOP, MAX_DRIFT, RIM_BOUNCE, missReason, MAX_FATIGUE, SETTLE_TIME, createShot, MAX_WIND, isDead, moveDrift, recover, rollChargeTime, rollWind, shotDistance, stepBall, tire, tiredChargeTime, windPush } from '../dist/physics.js'
 
 function ballAt(position, velocity = {}) {
 	return { ...createShot({ x: 0, y: 0 }, 0, 0), vx: 0, vy: 0, vz: 0, ...position, ...velocity }
@@ -182,10 +183,90 @@ test('the wind is calm about one shot in five, otherwise a whole 1 to 3 m/s eith
 
 test('the meter fills at a different speed each shot, within its range', () => {
 	assert.equal(rollChargeTime(() => 0), CHARGE_TIME.min)
-	assert.equal(rollChargeTime(() => 0.5), 1.6)
+	assert.equal(rollChargeTime(() => 0.5), STEADY_CHARGE_TIME)
 	let seed = 11
 	const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
 	const times = Array.from({ length: 2000 }, () => rollChargeTime(random))
 	assert.ok(times.every(time => time >= CHARGE_TIME.min && time < CHARGE_TIME.max))
 	assert.ok(Math.min(...times) < 1.25 && Math.max(...times) > 1.95, 'Both ends of the range come up')
+})
+
+test('a shot straight off a step drifts sideways, and settled feet shoot straight', () => {
+	assert.equal(moveDrift(0, () => 1), MAX_DRIFT)
+	assert.equal(moveDrift(0, () => 0), -MAX_DRIFT)
+	assert.ok(Math.abs(moveDrift(SETTLE_TIME / 2, () => 1) - MAX_DRIFT / 2) < 1e-12)
+	assert.equal(moveDrift(SETTLE_TIME, () => 1), 0)
+	assert.equal(moveDrift(Infinity, () => 1), 0)
+})
+
+test('the full drift misses from the three-point line, and settled feet still score', () => {
+	const spot = { x: -0.3, y: 0 }
+	const lands = yaw => {
+		const ball = createShot(spot, yaw, 0.53)
+		for (let t = 0; t < 4 && !ball.made; t += 1 / 60) stepBall(ball, 1 / 60)
+		return ball.made
+	}
+	assert.ok(lands(Math.PI))
+	assert.equal(lands(Math.PI + MAX_DRIFT), false)
+	assert.equal(lands(Math.PI - MAX_DRIFT), false)
+})
+
+test('rapid shots tire you and the meter fills faster, and rest wears it off', () => {
+	let fatigue = 0
+	for (let shot = 0; shot < 10; shot++) fatigue = recover(tire(fatigue), 1.5)
+	assert.ok(fatigue > 2, `fatigue after quick shots ${fatigue}`)
+	assert.ok(fatigue <= MAX_FATIGUE)
+	assert.ok(tiredChargeTime(1.6, fatigue) < 1.6)
+	assert.equal(tiredChargeTime(1.6, 0), 1.6)
+	let steady = 0
+	for (let shot = 0; shot < 10; shot++) steady = recover(tire(steady), 3)
+	assert.ok(steady === 0, 'One shot every 3 seconds never tires you')
+	assert.equal(recover(MAX_FATIGUE, 20), 0)
+})
+
+test('a stiff rim kicks the ball back harder than a soft one', () => {
+	const bounce = rimBounce => {
+		const ball = { ...ballAt({ x: HOOP.x + HOOP.radius, y: 0, z: HOOP.z + 0.5 }, { vz: -3 }), rimBounce }
+		stepBall(ball, 0.15)
+		return ball.vz
+	}
+	assert.ok(bounce(0.85) > bounce(RIM_BOUNCE))
+	assert.ok(bounce(RIM_BOUNCE) > bounce(0.45))
+})
+
+test('a soft rim lets more shots roll in than a stiff one', () => {
+	const makes = rim => {
+		let made = 0
+		for (const offset of [-0.04, 0, 0.04]) for (let power = 0.4; power <= 0.65; power += 0.0025) {
+			const ball = createShot({ x: -0.3, y: 0 }, Math.PI + offset, power, 0, rim)
+			for (let t = 0; t < 4 && !ball.made; t += 1 / 60) stepBall(ball, 1 / 60)
+			made += ball.made
+		}
+		return made
+	}
+	assert.ok(makes(COURTS.beach.rim) > makes(COURTS.neighborhood.rim))
+	assert.ok(makes(COURTS.neighborhood.rim) > makes(COURTS.rooftop.rim))
+})
+
+test('every court has a rim, and the neighborhood keeps the original one', () => {
+	for (const [id, court] of Object.entries(COURTS)) assert.ok(court.rim >= 0.4 && court.rim <= 0.9, `${id} rim ${court.rim}`)
+	assert.equal(COURTS.neighborhood.rim, RIM_BOUNCE)
+})
+
+test('a miss names what cost it, most likely cause first, and a plain miss stays plain', () => {
+	assert.equal(missReason({}), undefined)
+	assert.equal(missReason({ drift: 0.01, wind: 1, rimHits: 1, fatigue: 2 }), undefined)
+	assert.equal(missReason({ drift: -0.05, wind: -3, fatigue: 4 }), 'feet')
+	assert.equal(missReason({ wind: -2, rimHits: 1, rimBounce: 0.85 }), 'headwind')
+	assert.equal(missReason({ wind: 3 }), 'tailwind')
+	assert.equal(missReason({ rimHits: 2, rimBounce: COURTS.rooftop.rim }), 'rim')
+	assert.equal(missReason({ rimHits: 2, rimBounce: COURTS.beach.rim }), undefined)
+	assert.equal(missReason({ fatigue: 3.5 }), 'tired')
+})
+
+test('the ball counts its rim hits', () => {
+	const ball = ballAt({ x: HOOP.x + HOOP.radius, y: 0, z: HOOP.z + 0.5 }, { vz: -3 })
+	assert.equal(ball.rimHits, 0)
+	stepBall(ball, 0.15)
+	assert.ok(ball.rimHits >= 1)
 })

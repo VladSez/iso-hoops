@@ -1,15 +1,15 @@
-import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, rollChargeTime, rollWind, shotDistance, stepBall } from './physics.js?v=4'
-import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=6'
-import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=7'
-import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=5'
-import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=2'
-import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=13'
-import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=4'
-import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
+import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, STEADY_CHARGE_TIME, createShot, isDead, missReason, moveDrift, recover, rollChargeTime, rollWind, shotDistance, stepBall, tire, tiredChargeTime } from './physics.js?v=5'
+import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=7'
+import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=8'
+import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=6'
+import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=3'
+import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=14'
+import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=5'
+import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=8'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
-import { COURTS } from './courts.js?v=6'
-import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
+import { COURTS } from './courts.js?v=8'
+import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=5'
 import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
@@ -45,7 +45,7 @@ const nodes = Object.fromEntries([
 const state = {
 	// Just behind the three-point arc at the top of the key (7.2 m), so the first shot is a realistic three.
 	player: { x: 0.2, y: 0 }, yaw: Math.PI, pointer: undefined,
-	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, chargeTime: rollChargeTime(), power: 0,
+	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, chargeTime: rollChargeTime(), power: 0, lastStep: -Infinity, fatigue: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
 	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
 	// Free shooting's shots since the page opened, or since Start over, for the session court.
@@ -500,6 +500,16 @@ function bakeCourt() {
 	bakedZ.set(zb)
 }
 
+// Said instead of a plain "Missed." when something other than the aim cost the shot, so the hidden rules don't feel random.
+const MISS_LINES = {
+	feet: 'Set your feet first.',
+	headwind: 'Into the wind. Give it more.',
+	tailwind: 'Wind at your back. Ease off.',
+	rim: 'That rim’s stiff.',
+	tired: 'Tired legs. Catch your breath.',
+}
+const missLine = (ball, plain) => MISS_LINES[ball && ball.by === 'you' ? missReason(ball) : undefined] ?? plain
+
 function setFeedback(message, made = false) {
 	nodes.feedback.textContent = message
 	nodes.feedback.classList.toggle('made', made)
@@ -675,15 +685,19 @@ function beginCharge(source) {
 	state.phase = 'charging'
 	state.chargeSource = source
 	state.charge = 0
-	state.chargeTime = rollChargeTime()
+	state.chargeTime = state.mode === 'three-point' ? STEADY_CHARGE_TIME : tiredChargeTime(rollChargeTime(), state.fatigue)
 	state.power = 0
 }
 
 function releaseShot(source) {
 	if (state.phase !== 'charging' || source !== state.chargeSource) return
 	state.lastPower = state.power
+	// The contest is a race through the racks, so its quick shots don't tire you.
 	if (state.mode === 'three-point') return releaseContestBall()
-	state.ball = createShot(state.player, state.yaw, state.power, state.wind)
+	state.fatigue = tire(state.fatigue)
+	const drift = moveDrift(state.time - state.lastStep)
+	state.ball = createShot(state.player, state.yaw + drift, state.power, state.wind, court.rim)
+	Object.assign(state.ball, { drift, wind: state.wind, fatigue: state.fatigue })
 	state.windStale = true
 	state.ball.distance = shotDistance(state.player)
 	state.ball.from = { x: state.player.x, y: state.player.y }
@@ -750,7 +764,7 @@ const RELOAD = 0.3
 const STATION_MOVE = 0.7
 function releaseContestBall() {
 	const shot = nextShot(state.contest)
-	const ball = createShot(state.player, state.yaw, state.power, state.wind)
+	const ball = createShot(state.player, state.yaw, state.power, state.wind, court.rim)
 	state.windStale = true
 	ball.value = valueOf(shot, state.contest.moneyRack)
 	ball.shot = state.contest.taken
@@ -827,7 +841,7 @@ function takeFreeThrow(made) {
 			distance: levelOf(state.round).distance, nextDistance: levelOf(next).distance,
 		}))
 	} else {
-		setFeedback(made ? `Good. ${score}.` : `Off the mark. ${score}.`, made)
+		setFeedback(made ? `Good. ${score}.` : `${missLine(state.ball, 'Off the mark.')} ${score}.`, made)
 	}
 }
 
@@ -1205,7 +1219,7 @@ function takeHorseShot(made) {
 		return
 	}
 	if (!made) {
-		setFeedback(`Missed. That’s ${LETTERS.slice(0, letters).join('-')}. Next spot.`)
+		setFeedback(`${missLine(state.ball, 'Missed.')} That’s ${LETTERS.slice(0, letters).join('-')}. Next spot.`)
 		return
 	}
 	const movedBack = tierOf(makes) !== tierOf(before.made)
@@ -1354,11 +1368,11 @@ function takeDuelShot(made) {
 	} else if (before.phase === 'set' && made) {
 		setFeedback(`${name} made it from ${ball.distance.toFixed(1)} m. ${lastTry ? 'Make it from the ring, or that’s E.' : 'Match it from the ring.'}`)
 	} else if (before.phase === 'set') {
-		setFeedback(by === 'you' ? `Missed. ${name}’s ball.` : `${name} missed. Your ball. Shoot from anywhere.`)
+		setFeedback(by === 'you' ? `${missLine(state.ball, 'Missed.')} ${name}’s ball.` : `${name} missed. Your ball. Shoot from anywhere.`)
 	} else if (made) {
 		setFeedback(by === 'you' ? `Matched. ${name}’s ball again.` : `${name} matched it. Your ball again.`, by === 'you')
 	} else {
-		setFeedback(by === 'you' ? `Missed. That’s ${spelled(duel.letters.you)}. ${name}’s ball.` : `${name} missed. That’s ${spelled(duel.letters.cpu)} for ${name}. Your ball.`, by === 'cpu')
+		setFeedback(by === 'you' ? `${missLine(state.ball, 'Missed.')} That’s ${spelled(duel.letters.you)}. ${name}’s ball.` : `${name} missed. That’s ${spelled(duel.letters.cpu)} for ${name}. Your ball.`, by === 'cpu')
 	}
 }
 
@@ -1416,12 +1430,12 @@ function updateCpu(delta) {
 			cpu.until = state.time + CPU_SETTLE
 		}
 	} else if (cpu.task === 'settle' && state.time >= cpu.until) {
-		cpu.aim = aimShot(cpu, duel.level, Math.random, makeWindow(cpu, state.wind))
+		cpu.aim = aimShot(cpu, duel.level, Math.random, makeWindow(cpu, state.wind, court.rim))
 		cpu.yaw = cpu.aim.yaw
 		cpu.task = 'charge'
 		cpu.chargeStart = state.time
 	} else if (cpu.task === 'charge' && state.time - cpu.chargeStart >= CPU_CHARGE) {
-		state.ball = createShot(cpu, cpu.aim.yaw, cpu.aim.power, state.wind)
+		state.ball = createShot(cpu, cpu.aim.yaw, cpu.aim.power, state.wind, court.rim)
 		state.windStale = true
 		state.ball.distance = shotDistance(cpu)
 		state.ball.from = { x: cpu.x, y: cpu.y }
@@ -1472,6 +1486,7 @@ function update(delta) {
 			screenY /= length
 		}
 		state.moving = { x: (screenX + screenY) / Math.hypot(screenX, screenY) / R2, y: (screenY - screenX) / Math.hypot(screenX, screenY) / R2 }
+		state.lastStep = state.time
 		state.player.x = clamp(state.player.x + (screenX + screenY) / R2 * 4.4 * delta, -8.25, 8.3)
 		state.player.y = clamp(state.player.y + (screenY - screenX) / R2 * 4.4 * delta, -6.5, 6.5)
 		updateAim()
@@ -1493,6 +1508,7 @@ function update(delta) {
 		state.chargeSource = undefined
 		startDunk(drive)
 	}
+	state.fatigue = recover(state.fatigue, delta)
 	if (state.phase === 'charging') {
 		state.charge = Math.min(1, state.charge + delta / state.chargeTime)
 		let level
@@ -1583,11 +1599,11 @@ function update(delta) {
 				updateStats()
 			} else if (clock) {
 				logClockShot(false)
-				setFeedback('Next one, quick.')
+				setFeedback(missLine(state.ball, 'Next one, quick.'))
 			} else {
 				logFreeShot(false)
 				state.attempts++
-				setFeedback('Another one. The court isn’t going anywhere.')
+				setFeedback(missLine(state.ball, 'Another one. The court isn’t going anywhere.'))
 				updateStats()
 			}
 		}
@@ -1612,7 +1628,9 @@ function update(delta) {
 	if (state.phase === 'ready' && state.time - state.feedbackTime > 7 && state.mode === 'free') {
 		setFeedback('Find your spot. Take your time.')
 	}
-	if (state.windStale && state.phase === 'ready') {
+	// The contest is a race against the band on the meter, which is set for still air, so it has no wind.
+	if (state.mode === 'three-point') state.wind = 0
+	else if (state.windStale && state.phase === 'ready') {
 		state.wind = rollWind()
 		state.windStale = false
 	}
