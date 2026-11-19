@@ -40,7 +40,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 
 The power meter fills at a different speed on every shot, anywhere from 1.2 to 2 seconds to full, so watch the meter rather than counting.
 
-A new wind blows in after every shot, from calm up to 3 m/s, straight toward the hoop or straight back at you. It shows above the power meter: give a headwind a little more power and a tailwind a little less. The meter's band shows the calm-air power, so the wind is yours to judge.
+A new wind blows in after every shot, from calm up to 3 m/s, straight toward the hoop or straight back at you. Nothing on screen names it: the aim arc bends with it, and the trees sway harder when it blows. A headwind needs a little more power and a tailwind a little less. In free throws there's no arc, so the meter's band shows the calm-air power and the wind is a surprise.
 
 In 10 free throws mode your spot and aim are locked, starting at the free throw line. Release inside the dark band on the meter, which wobbles slightly, so time your release. After your tenth shot, Space starts the next round a step farther back, from 5.5 m, then 6 m, then the three-point line.
 

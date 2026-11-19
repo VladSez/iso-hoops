@@ -367,10 +367,6 @@ canvas { display: block; image-rendering: pixelated; cursor: crosshair; touch-ac
 @media (prefers-reduced-motion: reduce) { .shoot-panel:not(.ready) #feedback::before { animation: hide-skeleton 0s 2s forwards; } }
 .power-label { display: flex; justify-content: space-between; color: var(--muted); font-size: 8px; letter-spacing: 1.4px; }
 #power-value { font-variant-numeric: tabular-nums; color: var(--soft); }
-#wind { display: flex; align-items: center; gap: 5px; color: var(--orange); font-weight: 700; text-transform: uppercase; }
-#wind.calm { color: var(--muted); font-weight: inherit; }
-#wind.calm #wind-arrow { display: none; }
-#wind-arrow { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
 #power-meter { position: relative; margin-top: 8px; height: 10px; border-radius: 6px; background: color-mix(in srgb, var(--line) 85%, var(--shade)); overflow: hidden; box-shadow: inset 0 2px 3px color-mix(in srgb, var(--shade) 18%, transparent), inset 0 -1px 0 var(--glint), 0 1px 0 var(--glint); }
 #power-fill { height: 100%; width: 0; border-radius: 6px; background: linear-gradient(color-mix(in srgb, var(--orange) 82%, #fff), var(--orange) 60%, color-mix(in srgb, var(--orange) 88%, #000)); box-shadow: inset 0 1px 0 #ffffff59, 2px 0 4px #8a3c1c40; }
 #power-target { position: absolute; top: 0; height: 100%; background: color-mix(in srgb, var(--ink) 25%, transparent); border: solid var(--ink); border-width: 0 1px; }
