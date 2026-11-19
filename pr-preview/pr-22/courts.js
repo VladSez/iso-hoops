@@ -1,5 +1,6 @@
 // Palettes, ground options and sound for each playground. The props each one adds are drawn in game.js.
 // `sound` scales effect pitch, how loud the ball hits the floor, and how much the air echoes.
+// `rim` is how lively the rim is (physics.js RIM_BOUNCE): the rooftop's is stiff and kicks the ball away, the beach's soft.
 // Every court follows the player's clock (time-of-day.js). `lampScale` softens lamplight on pale ground that would wash out,
 // `daylight` replaces palette entries in the morning and day, and `paintedForDusk` skips the evening grade for a palette that is already dusk.
 export const COURTS = {
@@ -11,6 +12,7 @@ export const COURTS = {
 		cool: [46, 38, 84], warm: [255, 232, 180],
 		fence: 'chain',
 		sound: { pitch: 1, floor: 1, echo: 0 },
+		rim: 0.65,
 	},
 	rooftop: {
 		name: 'Rooftop',
@@ -27,6 +29,7 @@ export const COURTS = {
 		cool: [70, 40, 96], warm: [255, 196, 150],
 		fence: 'rail',
 		sound: { pitch: 1, floor: 1.1, echo: 0.3 },
+		rim: 0.85,
 	},
 	beach: {
 		name: 'Boardwalk beach',
@@ -38,6 +41,7 @@ export const COURTS = {
 		cool: [40, 70, 110], warm: [255, 238, 196],
 		fence: 'none',
 		sound: { pitch: 0.88, floor: 0.75, echo: 0 },
+		rim: 0.45,
 	},
 	autumn: {
 		name: 'Autumn park',
@@ -48,6 +52,7 @@ export const COURTS = {
 		cool: [60, 40, 70], warm: [255, 214, 160],
 		fence: 'chain',
 		sound: { pitch: 0.95, floor: 0.9, echo: 0.1 },
+		rim: 0.6,
 	},
 	winter: {
 		name: 'First snow',
@@ -58,5 +63,6 @@ export const COURTS = {
 		cool: [60, 70, 120], warm: [240, 244, 255],
 		fence: 'chain',
 		sound: { pitch: 1.12, floor: 0.6, echo: 0.18 },
+		rim: 0.75,
 	},
 }

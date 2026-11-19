@@ -1,4 +1,4 @@
-import { HOOP } from './physics.js?v=4'
+import { HOOP } from './physics.js?v=5'
 
 export const ROUND_SECONDS = 60
 // The ball comes back faster than in free shooting, since every second counts.
