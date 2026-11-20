@@ -8,7 +8,7 @@ import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, pars
 import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
-import { COURTS } from './courts.js?v=12'
+import { COURTS } from './courts.js?v=13'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
@@ -146,7 +146,9 @@ function seaColor(x, y, ix, iy, time) {
 function bakeSea(x, y, ix, iy, index) {
 	const shore = 9.1 + (noise(x * 0.35, 3.1) - 0.5) * 1.1
 	if (y < shore - 0.5) return undefined
-	const reach = Math.pow((Math.abs(x) / 13.4) ** 6 + (Math.max(0, y - shore) / 4.6) ** 6, 1 / 6) + (noise(x * 1.3, y * 1.3) - 0.5) * 0.1
+	// The last term rounds off the corner nearest the viewer, so the water ends as low on the page as the other courts' ground
+	// and never runs under the feedback line.
+	const reach = Math.pow((Math.abs(x) / 13.4) ** 6 + (Math.max(0, y - shore) / 4.6) ** 6 + (Math.max(0, x + y) / 21.2) ** 6, 1 / 6) + (noise(x * 1.3, y * 1.3) - 0.5) * 0.1
 	if (fadesOut(reach, ix, iy)) return 0
 	kinds[index] = 2
 	seaPixels.push({ x, y, ix, iy, index, color: 0 })
@@ -217,6 +219,30 @@ const RIM_COLOR = [192, 73, 36]
 const CLASSIC_HOOP = { board: [227, 225, 206], frame: STEEL, pole: STEEL, rim: RIM_COLOR, net: NET_COLOR }
 const SNOW = [246, 249, 253]
 const hoopLook = () => ({ ...CLASSIC_HOOP, ...court.hoop })
+const CLASSIC_FEEL = { shake: 0, shakeHz: 9, shakeDecay: 6, netSway: 1, netSettle: 4, breeze: 0, puff: false }
+const rimFeel = () => ({ ...CLASSIC_FEEL, ...court.feel })
+
+// The rim trembles after a hit: up and down, most on the side the ball struck.
+function rimShake() {
+	if (state.rimHit === undefined || STILL) return
+	const { shake, shakeHz, shakeDecay } = rimFeel()
+	const age = state.time - state.rimHit.at
+	if (age > 1.5) return
+	return { bend: shake * Math.sin(age * shakeHz * Math.PI * 2) * Math.exp(-age * shakeDecay), angle: state.rimHit.angle }
+}
+
+function drawSnowPuff() {
+	if (state.puff === undefined || STILL) return
+	const age = state.time - state.puff.at
+	if (age > 1.2) return
+	for (let i = 0; i < 30; i++) {
+		if (hash(i, 3) < age / 1.2) continue
+		const y = state.puff.y + (hash(i, 1) - 0.5) * 1.4
+		const fall = age * (0.5 + hash(i, 2) * 1.2) + age * age * 2
+		const x = BACKBOARD_X + 0.1 + hash(i, 4) * 0.35 + age * 0.25
+		sphere(x, y + Math.sin(age * 5 + i) * 0.06, 5.02 - fall, hash(i, 5) < 0.5 ? 0.05 : 0.035, SNOW, 'solid')
+	}
+}
 
 function drawHoop() {
 	const { board, frame, pole, rim, square = rim, ...look } = hoopLook()
@@ -255,9 +281,11 @@ function drawRim(bend = 0, toward = 0) {
 function drawNet(bend = 0, toward = 0) {
 	const { net, torn } = hoopLook()
 	const age = state.swishAt === undefined ? 2 : state.time - state.swishAt
-	const active = age < 1.3 && !STILL
+	const feel = rimFeel()
+	const active = age < 3 && !STILL
 	const stretch = active ? Math.sin(Math.min(age / 0.32, 1) * Math.PI) * 0.35 : 0
-	const sway = active ? Math.sin(age * 18) * Math.exp(-age * 4) * 0.22 : 0
+	const breeze = STILL ? 0 : feel.breeze * (Math.sin(state.time * 1.3) + 0.5 * Math.sin(state.time * 3.1 + 1))
+	const sway = (active ? Math.sin(age * 18) * Math.exp(-age * feel.netSettle) * 0.22 * feel.netSway : 0) + breeze
 	function point(row, strand) {
 		const t = row / 4
 		const angle = strand / 12 * Math.PI * 2 + (row % 2) * Math.PI / 12
@@ -691,6 +719,11 @@ function beginCharge(source) {
 	state.power = 0
 }
 
+function noteHoopHit(event, ball) {
+	if (event === 'rim') state.rimHit = { at: state.time, angle: Math.atan2(ball.y - HOOP.y, ball.x - HOOP.x) }
+	if (event === 'board' && rimFeel().puff && ball.z > 3.6) state.puff = { at: state.time, y: clamp(ball.y, -1.2, 1.2) }
+}
+
 function releaseShot(source) {
 	if (state.phase !== 'charging' || source !== state.chargeSource) return
 	state.lastPower = state.power
@@ -927,6 +960,7 @@ function updateContest(delta) {
 	for (const ball of state.flying) {
 		for (const event of stepBall(ball, delta)) {
 			playSound(event)
+			noteHoopHit(event, ball)
 			if (event === 'board') ball.banked = true
 			if (event === 'score') scoreContestBall(ball)
 		}
@@ -1514,6 +1548,7 @@ function update(delta) {
 		const events = stepBall(state.ball, delta)
 		for (const event of events) {
 			playSound(event)
+			noteHoopHit(event, state.ball)
 			if (event === 'board') state.ball.banked = true
 			if (event === 'score' && state.ball.dunk && clock) {
 				showCallout('DUNK!', '+2 PT')
@@ -1798,7 +1833,8 @@ function draw() {
 	const contest = state.mode === 'three-point'
 	if (contest) drawRacks()
 	const dunk = state.dunk && dunkPose(state.dunk, state.time - state.dunk.start)
-	drawRim(dunk?.bend, state.dunk?.angle)
+	const shake = dunk ? undefined : rimShake()
+	drawRim(dunk?.bend ?? shake?.bend, state.dunk?.angle ?? shake?.angle)
 	figure(state.player.x, state.player.y, state.yaw, dunk ?? {
 		crouch: charging ? state.power * 0.45 : 0,
 		stance: 0.12 + walkCycle * 0.18,
@@ -1832,7 +1868,8 @@ function draw() {
 	flushShadows()
 	applyShadows(bakedZ)
 	shadeEdges()
-	drawNet(dunk?.bend, state.dunk?.angle)
+	drawNet(dunk?.bend ?? shake?.bend, state.dunk?.angle ?? shake?.angle)
+	drawSnowPuff()
 	drawAimGuide()
 	gradeFrame()
 	ctx.putImageData(image, 0, 0)
