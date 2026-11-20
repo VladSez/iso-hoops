@@ -1,4 +1,4 @@
-import { HOOP } from './physics.js?v=3'
+import { HOOP } from './physics.js?v=4'
 
 export const BALLS_PER_RACK = 5
 export const RACK_COUNT = 5

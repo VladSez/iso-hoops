@@ -1,15 +1,15 @@
-import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=3'
-import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
-import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=6'
-import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
+import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistance, stepBall } from './physics.js?v=4'
+import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=6'
+import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=7'
+import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=5'
 import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, randomMoneyRack, startContest, takeBall, valueOf } from './three-point.js?v=2'
 import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=13'
-import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=3'
-import { aimShot, chooseSpot, yawTo } from './cpu.js?v=6'
+import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=4'
+import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
-import { COURTS } from './courts.js?v=6'
-import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=3'
+import { COURTS } from './courts.js?v=7'
+import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
@@ -677,7 +677,7 @@ function releaseShot(source) {
 	if (state.phase !== 'charging' || source !== state.chargeSource) return
 	state.lastPower = state.power
 	if (state.mode === 'three-point') return releaseContestBall()
-	state.ball = createShot(state.player, state.yaw, state.power)
+	state.ball = createShot(state.player, state.yaw, state.power, court.rim)
 	state.ball.distance = shotDistance(state.player)
 	state.ball.from = { x: state.player.x, y: state.player.y }
 	state.ball.by = 'you'
@@ -743,7 +743,7 @@ const RELOAD = 0.3
 const STATION_MOVE = 0.7
 function releaseContestBall() {
 	const shot = nextShot(state.contest)
-	const ball = createShot(state.player, state.yaw, state.power)
+	const ball = createShot(state.player, state.yaw, state.power, court.rim)
 	ball.value = valueOf(shot, state.contest.moneyRack)
 	ball.shot = state.contest.taken
 	state.flying.push(ball)
@@ -1408,12 +1408,12 @@ function updateCpu(delta) {
 			cpu.until = state.time + CPU_SETTLE
 		}
 	} else if (cpu.task === 'settle' && state.time >= cpu.until) {
-		cpu.aim = aimShot(cpu, duel.level)
+		cpu.aim = aimShot(cpu, duel.level, Math.random, makeWindow(cpu, court.rim))
 		cpu.yaw = cpu.aim.yaw
 		cpu.task = 'charge'
 		cpu.chargeStart = state.time
 	} else if (cpu.task === 'charge' && state.time - cpu.chargeStart >= CPU_CHARGE) {
-		state.ball = createShot(cpu, cpu.aim.yaw, cpu.aim.power)
+		state.ball = createShot(cpu, cpu.aim.yaw, cpu.aim.power, court.rim)
 		state.ball.distance = shotDistance(cpu)
 		state.ball.from = { x: cpu.x, y: cpu.y }
 		state.ball.by = 'cpu'

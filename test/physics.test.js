@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BALL_RADIUS, HOOP, createShot, isDead, shotDistance, stepBall } from '../dist/physics.js'
+import { COURTS } from '../dist/courts.js'
+import { BALL_RADIUS, HOOP, RIM_BOUNCE, createShot, isDead, shotDistance, stepBall } from '../dist/physics.js'
 
 function ballAt(position, velocity = {}) {
 	return { ...createShot({ x: 0, y: 0 }, 0, 0), vx: 0, vy: 0, vz: 0, ...position, ...velocity }
@@ -130,4 +131,33 @@ test('shot distance is measured along the floor to the hoop, in tenths of a metr
 	assert.equal(shotDistance({ x: HOOP.x + 3, y: 4 }), 5)
 	assert.equal(shotDistance({ x: 3.5, y: 0 }), 10.5)
 	assert.equal(shotDistance({ x: HOOP.x + 6.66, y: 0 }), 6.7)
+})
+
+test('a stiff rim kicks the ball back harder than a soft one', () => {
+	const bounce = rimBounce => {
+		const ball = { ...ballAt({ x: HOOP.x + HOOP.radius, y: 0, z: HOOP.z + 0.5 }, { vz: -3 }), rimBounce }
+		stepBall(ball, 0.15)
+		return ball.vz
+	}
+	assert.ok(bounce(COURTS.rooftop.rim) > bounce(RIM_BOUNCE))
+	assert.ok(bounce(RIM_BOUNCE) > bounce(COURTS.beach.rim))
+})
+
+test('a soft rim lets more shots roll in than a stiff one', () => {
+	const makes = rim => {
+		let made = 0
+		for (const offset of [-0.04, 0, 0.04]) for (let power = 0.4; power <= 0.65; power += 0.0025) {
+			const ball = createShot({ x: -0.3, y: 0 }, Math.PI + offset, power, rim)
+			for (let t = 0; t < 4 && !ball.made; t += 1 / 60) stepBall(ball, 1 / 60)
+			made += ball.made
+		}
+		return made
+	}
+	assert.ok(makes(COURTS.beach.rim) > makes(COURTS.neighborhood.rim))
+	assert.ok(makes(COURTS.neighborhood.rim) > makes(COURTS.rooftop.rim))
+})
+
+test('every court has a rim, and the neighborhood keeps the original one', () => {
+	for (const [id, court] of Object.entries(COURTS)) assert.ok(court.rim >= 0.4 && court.rim <= 0.9, `${id} rim ${court.rim}`)
+	assert.equal(COURTS.neighborhood.rim, RIM_BOUNCE)
 })
