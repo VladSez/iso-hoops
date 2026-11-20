@@ -140,25 +140,25 @@ test('a stiff rim kicks the ball back harder than a soft one', () => {
 		return ball.vz
 	}
 	assert.ok(bounce(COURTS.rooftop.rim) > bounce(RIM_BOUNCE))
-	assert.ok(bounce(RIM_BOUNCE) > bounce(COURTS.autumn.rim))
+	assert.ok(bounce(RIM_BOUNCE) > bounce(0.45))
 })
 
-test('a soft rim lets more shots roll in than a stiff one', () => {
+test('a soft rim lets more shots roll in than a stiff one, and no court is softer than the neighborhood', () => {
 	const makes = rim => {
 		let made = 0
-		for (const offset of [-0.04, 0, 0.04]) for (let power = 0.4; power <= 0.65; power += 0.0025) {
-			const ball = createShot({ x: -0.3, y: 0 }, Math.PI + offset, power, rim)
+		for (const distance of [4.5, 6.7, 9]) for (const offset of [-0.04, 0, 0.04]) for (let power = 0.3; power <= 0.75; power += 0.005) {
+			const ball = createShot({ x: HOOP.x + distance, y: 0 }, Math.PI + offset, power, rim)
 			for (let t = 0; t < 4 && !ball.made; t += 1 / 60) stepBall(ball, 1 / 60)
 			made += ball.made
 		}
 		return made
 	}
-	assert.ok(makes(COURTS.autumn.rim) > makes(COURTS.neighborhood.rim))
-	assert.ok(makes(COURTS.beach.rim) <= makes(COURTS.neighborhood.rim), 'The beach rim never gives away makes')
+	assert.ok(makes(0.45) > makes(RIM_BOUNCE))
+	for (const id of ['autumn', 'beach', 'winter']) assert.ok(makes(COURTS[id].rim) <= makes(COURTS.neighborhood.rim), `The ${id} rim never gives away makes`)
 	assert.ok(makes(COURTS.neighborhood.rim) > makes(COURTS.rooftop.rim))
 })
 
 test('every court has a rim, and the neighborhood keeps the original one', () => {
-	for (const [id, court] of Object.entries(COURTS)) assert.ok(court.rim >= 0.4 && court.rim <= 0.9, `${id} rim ${court.rim}`)
+	for (const [id, court] of Object.entries(COURTS)) assert.ok(court.rim >= RIM_BOUNCE && court.rim <= 0.9, `${id} rim ${court.rim}`)
 	assert.equal(COURTS.neighborhood.rim, RIM_BOUNCE)
 })
