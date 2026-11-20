@@ -8,7 +8,7 @@ import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, pars
 import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
-import { COURTS } from './courts.js?v=13'
+import { COURTS } from './courts.js?v=14'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
@@ -219,16 +219,20 @@ const RIM_COLOR = [192, 73, 36]
 const CLASSIC_HOOP = { board: [227, 225, 206], frame: STEEL, pole: STEEL, rim: RIM_COLOR, net: NET_COLOR }
 const SNOW = [246, 249, 253]
 const hoopLook = () => ({ ...CLASSIC_HOOP, ...court.hoop })
-const CLASSIC_FEEL = { shake: 0, shakeHz: 9, shakeDecay: 6, netSway: 1, netSettle: 4, breeze: 0, puff: false }
+const CLASSIC_FEEL = { sway: 'bob', shake: 0.08, shakeHz: 9, shakeDecay: 6, netSway: 1, netSettle: 4, breeze: 0, puff: false }
 const rimFeel = () => ({ ...CLASSIC_FEEL, ...court.feel })
 
-// The rim trembles after a hit: up and down, most on the side the ball struck.
+// The rim sways after a hit. `bob` dips and lifts the side the ball struck, `rock` tilts the rim across that line,
+// and `jolt` gives two sharp knocks and then stops dead.
 function rimShake() {
 	if (state.rimHit === undefined || STILL) return
-	const { shake, shakeHz, shakeDecay } = rimFeel()
+	const { sway, shake, shakeHz, shakeDecay } = rimFeel()
 	const age = state.time - state.rimHit.at
 	if (age > 1.5) return
-	return { bend: shake * Math.sin(age * shakeHz * Math.PI * 2) * Math.exp(-age * shakeDecay), angle: state.rimHit.angle }
+	const { angle } = state.rimHit
+	if (sway === 'jolt') return { bend: shake * (age < 0.07 ? 1 : age < 0.14 ? -0.7 : age < 0.2 ? 0.4 : 0), angle }
+	const bend = shake * Math.sin(age * shakeHz * Math.PI * 2) * Math.exp(-age * shakeDecay)
+	return { bend, angle: sway === 'rock' ? angle + Math.PI / 2 : angle }
 }
 
 function drawSnowPuff() {
