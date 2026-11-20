@@ -3,11 +3,13 @@ export const BALL_RADIUS = 0.24
 export const GRAVITY = 11
 export const LAUNCH_ANGLE = Math.PI * 0.32
 export const BACKBOARD_X = -7.9
+// The share of its speed into the rim that a ball keeps when it bounces off. Each court sets its own (courts.js).
+export const RIM_BOUNCE = 0.65
 const MIN_SPEED = 5
 const MAX_SPEED = 14.5
 
-/** Creates a ballistic shot. Power is 0–1; yaw is a world-space angle in radians. */
-export function createShot(player, yaw, power) {
+/** Creates a ballistic shot. Power is 0–1; yaw is a world-space angle in radians; rimBounce is the court's rim, see RIM_BOUNCE. */
+export function createShot(player, yaw, power, rimBounce = RIM_BOUNCE) {
 	const speed = MIN_SPEED + Math.max(0, Math.min(1, power)) * (MAX_SPEED - MIN_SPEED)
 	return {
 		x: player.x + Math.cos(yaw) * 0.55,
@@ -19,6 +21,7 @@ export function createShot(player, yaw, power) {
 		age: 0,
 		made: false,
 		bounces: 0,
+		rimBounce,
 	}
 }
 
@@ -89,9 +92,10 @@ export function stepBall(ball, delta) {
 				ball.y = rimY + normal.y * contactRadius
 				ball.z = HOOP.z + normal.z * contactRadius
 				if (impact < 0) {
-					ball.vx -= 1.65 * impact * normal.x
-					ball.vy -= 1.65 * impact * normal.y
-					ball.vz -= 1.65 * impact * normal.z
+					const kick = 1 + ball.rimBounce
+					ball.vx -= kick * impact * normal.x
+					ball.vy -= kick * impact * normal.y
+					ball.vz -= kick * impact * normal.z
 					events.push('rim')
 				}
 			}
