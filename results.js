@@ -1,7 +1,7 @@
-import { zoneOf } from './beat-the-clock.js?v=6'
-import { ROUND_SHOTS } from './free-throws.js?v=5'
-import { LETTERS } from './horse.js?v=4'
-import { SHOTS, STATIONS, valueOf } from './three-point.js?v=1'
+import { zoneOf } from './beat-the-clock.js?v=7'
+import { ROUND_SHOTS } from './free-throws.js?v=6'
+import { LETTERS } from './horse.js?v=5'
+import { SHOTS, STATIONS, valueOf } from './three-point.js?v=2'
 
 // Each mode's round summary for the card shown when a round ends. These are plain data: game.js draws them. A round's
 // `log` holds one entry per shot, in order, as game.js records it.

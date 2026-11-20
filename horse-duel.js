@@ -1,4 +1,4 @@
-import { LETTERS } from './horse.js?v=4'
+import { LETTERS } from './horse.js?v=5'
 
 export const PLAYERS = ['you', 'cpu']
 export const LEVELS = ['easy', 'medium', 'hard']
