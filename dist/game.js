@@ -2,8 +2,8 @@ import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistan
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=5'
 import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=6'
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=4'
-import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, startContest, takeBall, valueOf } from './three-point.js?v=1'
-import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=12'
+import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, randomMoneyRack, startContest, takeBall, valueOf } from './three-point.js?v=2'
+import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=13'
 import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=3'
 import { aimShot, chooseSpot, yawTo } from './cpu.js?v=6'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
@@ -98,7 +98,7 @@ try {
 	state.round = startRound(Math.max(0, Number.parseInt(localStorage.getItem(FREE_THROW_BEST_KEY), 10) || 0))
 	state.clock = startClockRound(Math.max(0, Number.parseInt(localStorage.getItem(CLOCK_BEST_KEY), 10) || 0))
 	state.horse = startHorse(Math.max(0, Number.parseInt(localStorage.getItem(HORSE_BEST_KEY), 10) || 0))
-	state.contest = startContest(Math.max(0, Number.parseInt(localStorage.getItem(THREE_POINT_BEST_KEY), 10) || 0))
+	state.contest = startContest(Math.max(0, Number.parseInt(localStorage.getItem(THREE_POINT_BEST_KEY), 10) || 0), randomMoneyRack())
 	state.longest = Math.max(0, Number.parseFloat(localStorage.getItem(LONGEST_KEY)) || 0)
 } catch {}
 
@@ -607,7 +607,7 @@ function beginCharge(source) {
 	if (state.mode === 'three-point') {
 		// Like a new free throw round, this press only resets the racks, so the player can pick a money rack again.
 		if (state.contest.isOver) {
-			state.contest = startContest(state.contest.best, state.contest.moneyRack)
+			state.contest = startContest(state.contest.best, randomMoneyRack())
 			startLog()
 			placeForStation()
 			setFeedback(`${PICK_HINT}, then shoot to start.`)
@@ -2449,7 +2449,7 @@ function applyMode() {
 	state.flying = []
 	state.reloadAt = undefined
 	if (contest) {
-		state.contest = startContest(state.contest.best, state.contest.moneyRack)
+		state.contest = startContest(state.contest.best, randomMoneyRack())
 		placeForStation()
 	}
 	updateStats()
