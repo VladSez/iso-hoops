@@ -8,7 +8,7 @@ import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, pars
 import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
-import { COURTS } from './courts.js?v=7'
+import { COURTS } from './courts.js?v=14'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
@@ -146,7 +146,9 @@ function seaColor(x, y, ix, iy, time) {
 function bakeSea(x, y, ix, iy, index) {
 	const shore = 9.1 + (noise(x * 0.35, 3.1) - 0.5) * 1.1
 	if (y < shore - 0.5) return undefined
-	const reach = Math.pow((Math.abs(x) / 13.4) ** 6 + (Math.max(0, y - shore) / 4.6) ** 6, 1 / 6) + (noise(x * 1.3, y * 1.3) - 0.5) * 0.1
+	// The last term rounds off the corner nearest the viewer, so the water ends as low on the page as the other courts' ground
+	// and never runs under the feedback line.
+	const reach = Math.pow((Math.abs(x) / 13.4) ** 6 + (Math.max(0, y - shore) / 4.6) ** 6 + (Math.max(0, x + y) / 21.2) ** 6, 1 / 6) + (noise(x * 1.3, y * 1.3) - 0.5) * 0.1
 	if (fadesOut(reach, ix, iy)) return 0
 	kinds[index] = 2
 	seaPixels.push({ x, y, ix, iy, index, color: 0 })
@@ -213,16 +215,58 @@ function line3D(from, to, radius, color) {
 }
 
 const RIM_COLOR = [192, 73, 36]
+// The neighborhood's hoop; other courts swap parts of it through `hoop` in courts.js.
+const CLASSIC_HOOP = { board: [227, 225, 206], frame: STEEL, pole: STEEL, rim: RIM_COLOR, net: NET_COLOR }
+const SNOW = [246, 249, 253]
+const hoopLook = () => ({ ...CLASSIC_HOOP, ...court.hoop })
+const CLASSIC_FEEL = { sway: 'bob', shake: 0.08, shakeHz: 9, shakeDecay: 6, netSway: 1, netSettle: 4, breeze: 0, puff: false }
+const rimFeel = () => ({ ...CLASSIC_FEEL, ...court.feel })
+
+// The rim sways after a hit. `bob` dips and lifts the side the ball struck, `rock` tilts the rim across that line,
+// and `jolt` gives two sharp knocks and then stops dead.
+function rimShake() {
+	if (state.rimHit === undefined || STILL) return
+	const { sway, shake, shakeHz, shakeDecay } = rimFeel()
+	const age = state.time - state.rimHit.at
+	if (age > 1.5) return
+	const { angle } = state.rimHit
+	if (sway === 'jolt') return { bend: shake * (age < 0.07 ? 1 : age < 0.14 ? -0.7 : age < 0.2 ? 0.4 : 0), angle }
+	const bend = shake * Math.sin(age * shakeHz * Math.PI * 2) * Math.exp(-age * shakeDecay)
+	return { bend, angle: sway === 'rock' ? angle + Math.PI / 2 : angle }
+}
+
+function drawSnowPuff() {
+	if (state.puff === undefined || STILL) return
+	const age = state.time - state.puff.at
+	if (age > 1.2) return
+	for (let i = 0; i < 30; i++) {
+		if (hash(i, 3) < age / 1.2) continue
+		const y = state.puff.y + (hash(i, 1) - 0.5) * 1.4
+		const fall = age * (0.5 + hash(i, 2) * 1.2) + age * age * 2
+		const x = BACKBOARD_X + 0.1 + hash(i, 4) * 0.35 + age * 0.25
+		sphere(x, y + Math.sin(age * 5 + i) * 0.06, 5.02 - fall, hash(i, 5) < 0.5 ? 0.05 : 0.035, SNOW, 'solid')
+	}
+}
+
 function drawHoop() {
-	const board = [227, 225, 206]
-	const rim = RIM_COLOR
-	line3D([-8.9, 0, 0], [-8.9, 0, 4.05], 0.13, STEEL)
-	line3D([-8.9, 0, 4.05], [BACKBOARD_X, 0, 4.05], 0.1, STEEL)
+	const { board, frame, pole, rim, square = rim, ...look } = hoopLook()
+	line3D([-8.9, 0, 0], [-8.9, 0, 4.05], 0.13, pole)
+	line3D([-8.9, 0, 4.05], [BACKBOARD_X, 0, 4.05], 0.1, pole)
 	box(BACKBOARD_X - 0.06, -1.35, 3, BACKBOARD_X + 0.06, 1.35, 4.9, board)
-	for (const y of [-1.35, 1.35]) line3D([BACKBOARD_X + 0.08, y, 3], [BACKBOARD_X + 0.08, y, 4.9], 0.045, STEEL)
-	for (const z of [3, 4.9]) line3D([BACKBOARD_X + 0.08, -1.35, z], [BACKBOARD_X + 0.08, 1.35, z], 0.045, STEEL)
-	for (const y of [-0.62, 0.62]) line3D([BACKBOARD_X + 0.1, y, 3.4], [BACKBOARD_X + 0.1, y, 4.2], 0.035, rim)
-	for (const z of [3.4, 4.2]) line3D([BACKBOARD_X + 0.1, -0.62, z], [BACKBOARD_X + 0.1, 0.62, z], 0.035, rim)
+	if (look.planks) for (let z = 3.3; z < 4.9; z += 0.32) line3D([BACKBOARD_X + 0.07, -1.33, z], [BACKBOARD_X + 0.07, 1.33, z], 0.02, frame)
+	for (const y of [-1.35, 1.35]) line3D([BACKBOARD_X + 0.08, y, 3], [BACKBOARD_X + 0.08, y, 4.9], 0.045, frame)
+	for (const z of [3, 4.9]) line3D([BACKBOARD_X + 0.08, -1.35, z], [BACKBOARD_X + 0.08, 1.35, z], 0.045, frame)
+	for (const y of [-0.62, 0.62]) line3D([BACKBOARD_X + 0.1, y, 3.4], [BACKBOARD_X + 0.1, y, 4.2], 0.035, square)
+	for (const z of [3.4, 4.2]) line3D([BACKBOARD_X + 0.1, -0.62, z], [BACKBOARD_X + 0.1, 0.62, z], 0.035, square)
+	if (look.snow) {
+		box(BACKBOARD_X - 0.12, -1.42, 4.92, BACKBOARD_X + 0.14, 1.42, 5.1, SNOW)
+		for (let i = 0; i < 15; i++) {
+			if (hash(i, 3) < 0.45) continue
+			const y = -1.3 + i * 0.18
+			line3D([BACKBOARD_X + 0.1, y, 4.98], [BACKBOARD_X + 0.1, y, 4.9 - hash(i, 9) * 0.12], 0.03, SNOW)
+		}
+		line3D([-8.9, -0.06, 4.17], [BACKBOARD_X - 0.08, -0.06, 4.17], 0.05, SNOW)
+	}
 }
 
 // How far a dunk pulls the rim down at an angle round it: most at the front the player hangs on, none at the board.
@@ -232,16 +276,20 @@ function rimDip(angle, bend, toward) {
 
 // Drawn every frame rather than baked, so a dunk can bend it.
 function drawRim(bend = 0, toward = 0) {
-	line3D([BACKBOARD_X, 0, HOOP.z], [HOOP.x - HOOP.radius, 0, HOOP.z], 0.07, RIM_COLOR)
+	const color = hoopLook().rim
+	line3D([BACKBOARD_X, 0, HOOP.z], [HOOP.x - HOOP.radius, 0, HOOP.z], 0.07, color)
 	const point = a => [HOOP.x + Math.cos(a) * HOOP.radius, Math.sin(a) * HOOP.radius, HOOP.z - rimDip(a, bend, toward)]
-	for (let i = 0; i < 40; i++) line3D(point(i / 40 * Math.PI * 2), point((i + 1) / 40 * Math.PI * 2), 0.055, RIM_COLOR)
+	for (let i = 0; i < 40; i++) line3D(point(i / 40 * Math.PI * 2), point((i + 1) / 40 * Math.PI * 2), 0.055, color)
 }
 
 function drawNet(bend = 0, toward = 0) {
+	const { net, torn } = hoopLook()
 	const age = state.swishAt === undefined ? 2 : state.time - state.swishAt
-	const active = age < 1.3 && !STILL
+	const feel = rimFeel()
+	const active = age < 3 && !STILL
 	const stretch = active ? Math.sin(Math.min(age / 0.32, 1) * Math.PI) * 0.35 : 0
-	const sway = active ? Math.sin(age * 18) * Math.exp(-age * 4) * 0.22 : 0
+	const breeze = STILL ? 0 : feel.breeze * (Math.sin(state.time * 1.3) + 0.5 * Math.sin(state.time * 3.1 + 1))
+	const sway = (active ? Math.sin(age * 18) * Math.exp(-age * feel.netSettle) * 0.22 * feel.netSway : 0) + breeze
 	function point(row, strand) {
 		const t = row / 4
 		const angle = strand / 12 * Math.PI * 2 + (row % 2) * Math.PI / 12
@@ -256,7 +304,9 @@ function drawNet(bend = 0, toward = 0) {
 		for (let strand = 0; strand < 12; strand++) {
 			const from = point(row, strand)
 			for (const next of [strand, strand + (row % 2 ? 1 : -1)]) {
-				line3D(from, point(row + 1, next), 0.022, NET_COLOR)
+				// A worn park net: a few cords snapped, the rest hang on.
+				if (torn && row >= 1 && hash(strand * 17 + next, row * 31) < 0.3 + row * 0.12) continue
+				line3D(from, point(row + 1, next), 0.022, net)
 			}
 		}
 	}
@@ -673,6 +723,11 @@ function beginCharge(source) {
 	state.power = 0
 }
 
+function noteHoopHit(event, ball) {
+	if (event === 'rim') state.rimHit = { at: state.time, angle: Math.atan2(ball.y - HOOP.y, ball.x - HOOP.x) }
+	if (event === 'board' && rimFeel().puff && ball.z > 3.6) state.puff = { at: state.time, y: clamp(ball.y, -1.2, 1.2) }
+}
+
 function releaseShot(source) {
 	if (state.phase !== 'charging' || source !== state.chargeSource) return
 	state.lastPower = state.power
@@ -909,6 +964,7 @@ function updateContest(delta) {
 	for (const ball of state.flying) {
 		for (const event of stepBall(ball, delta)) {
 			playSound(event)
+			noteHoopHit(event, ball)
 			if (event === 'board') ball.banked = true
 			if (event === 'score') scoreContestBall(ball)
 		}
@@ -1496,6 +1552,7 @@ function update(delta) {
 		const events = stepBall(state.ball, delta)
 		for (const event of events) {
 			playSound(event)
+			noteHoopHit(event, state.ball)
 			if (event === 'board') state.ball.banked = true
 			if (event === 'score' && state.ball.dunk && clock) {
 				showCallout('DUNK!', '+2 PT')
@@ -1780,7 +1837,8 @@ function draw() {
 	const contest = state.mode === 'three-point'
 	if (contest) drawRacks()
 	const dunk = state.dunk && dunkPose(state.dunk, state.time - state.dunk.start)
-	drawRim(dunk?.bend, state.dunk?.angle)
+	const shake = dunk ? undefined : rimShake()
+	drawRim(dunk?.bend ?? shake?.bend, state.dunk?.angle ?? shake?.angle)
 	figure(state.player.x, state.player.y, state.yaw, dunk ?? {
 		crouch: charging ? state.power * 0.45 : 0,
 		stance: 0.12 + walkCycle * 0.18,
@@ -1814,7 +1872,8 @@ function draw() {
 	flushShadows()
 	applyShadows(bakedZ)
 	shadeEdges()
-	drawNet(dunk?.bend, state.dunk?.angle)
+	drawNet(dunk?.bend ?? shake?.bend, state.dunk?.angle ?? shake?.angle)
+	drawSnowPuff()
 	drawAimGuide()
 	gradeFrame()
 	ctx.putImageData(image, 0, 0)
