@@ -8,7 +8,7 @@ import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, pars
 import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
-import { COURTS } from './courts.js?v=11'
+import { COURTS } from './courts.js?v=12'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
@@ -246,63 +246,35 @@ function rimDip(angle, bend, toward) {
 
 // Drawn every frame rather than baked, so a dunk can bend it.
 function drawRim(bend = 0, toward = 0) {
-	const look = hoopLook()
-	const color = look.rim
+	const color = hoopLook().rim
 	line3D([BACKBOARD_X, 0, HOOP.z], [HOOP.x - HOOP.radius, 0, HOOP.z], 0.07, color)
-	const ring = (radius, drop) => {
-		const point = a => [HOOP.x + Math.cos(a) * radius, Math.sin(a) * radius, HOOP.z - drop - rimDip(a, bend, toward)]
-		for (let i = 0; i < 40; i++) line3D(point(i / 40 * Math.PI * 2), point((i + 1) / 40 * Math.PI * 2), 0.055, color)
-		return point
-	}
-	const point = ring(HOOP.radius, 0)
-	if (look.double) {
-		ring(HOOP.radius, 0.13)
-		for (let i = 0; i < 12; i++) {
-			const a = i / 12 * Math.PI * 2
-			const top = point(a)
-			line3D(top, [top[0], top[1], top[2] - 0.13], 0.03, color)
-		}
-	}
+	const point = a => [HOOP.x + Math.cos(a) * HOOP.radius, Math.sin(a) * HOOP.radius, HOOP.z - rimDip(a, bend, toward)]
+	for (let i = 0; i < 40; i++) line3D(point(i / 40 * Math.PI * 2), point((i + 1) / 40 * Math.PI * 2), 0.055, color)
 }
 
 function drawNet(bend = 0, toward = 0) {
-	const look = hoopLook()
-	const color = look.net
+	const { net, torn } = hoopLook()
 	const age = state.swishAt === undefined ? 2 : state.time - state.swishAt
 	const active = age < 1.3 && !STILL
 	const stretch = active ? Math.sin(Math.min(age / 0.32, 1) * Math.PI) * 0.35 : 0
 	const sway = active ? Math.sin(age * 18) * Math.exp(-age * 4) * 0.22 : 0
-	const drop = look.double ? 0.13 : 0
-	const rows = look.chain ? 5 : 4
 	function point(row, strand) {
-		const t = row / rows
-		const angle = strand / 12 * Math.PI * 2 + (look.chain ? 0 : (row % 2) * Math.PI / 12)
-		const radius = lerp(0.57, look.chain ? 0.42 : 0.33, t) + stretch * t * 0.1
+		const t = row / 4
+		const angle = strand / 12 * Math.PI * 2 + (row % 2) * Math.PI / 12
+		const radius = lerp(0.57, 0.33, t) + stretch * t * 0.1
 		return [
 			HOOP.x + Math.cos(angle) * radius + sway * t,
 			HOOP.y + Math.sin(angle) * radius,
-			HOOP.z - 0.05 - drop - t * (look.chain ? 0.9 : 0.95 + stretch) - rimDip(angle, bend, toward) * (1 - t * 0.6),
+			HOOP.z - 0.05 - t * (0.95 + stretch) - rimDip(angle, bend, toward) * (1 - t * 0.6),
 		]
 	}
-	if (look.chain) {
-		const dark = rgb(color[0] * 0.6, color[1] * 0.6, color[2] * 0.66)
-		const lit = rgb(...color)
-		for (let strand = 0; strand < 12; strand++) {
-			const from = point(0, strand), to = point(rows, strand)
-			for (let k = 0; k <= 14; k++) {
-				const t = k / 14
-				plot(lerp(from[0], to[0], t), lerp(from[1], to[1], t), lerp(from[2], to[2], t), k % 2 ? dark : lit)
-			}
-		}
-		return
-	}
-	for (let row = 0; row < rows; row++) {
+	for (let row = 0; row < 4; row++) {
 		for (let strand = 0; strand < 12; strand++) {
 			const from = point(row, strand)
 			for (const next of [strand, strand + (row % 2 ? 1 : -1)]) {
 				// A worn park net: a few cords snapped, the rest hang on.
-				if (look.torn && row >= 1 && hash(strand * 17 + next, row * 31) < 0.3 + row * 0.12) continue
-				line3D(from, point(row + 1, next), 0.022, color)
+				if (torn && row >= 1 && hash(strand * 17 + next, row * 31) < 0.3 + row * 0.12) continue
+				line3D(from, point(row + 1, next), 0.022, net)
 			}
 		}
 	}

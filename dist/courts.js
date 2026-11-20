@@ -1,7 +1,7 @@
 // Palettes, ground options and sound for each playground. The props each one adds are drawn in game.js.
 // `sound` scales effect pitch, how loud the ball hits the floor, and how much the air echoes.
-// `hoop` swaps parts of the neighborhood's hoop (game.js CLASSIC_HOOP): colours, plus `planks` on the board, a `double` rim,
-// a `chain` net, a `torn` net and `snow` on the board.
+// `hoop` swaps parts of the neighborhood's hoop (game.js CLASSIC_HOOP): colours, plus `planks` on the board,
+// a `torn` net and `snow` on the board.
 // `rim` is how lively the rim is (physics.js RIM_BOUNCE): the neighborhood's is the softest, the rooftop's stiff enough to kick the ball away.
 // Every court follows the player's clock (time-of-day.js). `lampScale` softens lamplight on pale ground that would wash out,
 // `daylight` replaces palette entries in the morning and day, and `paintedForDusk` skips the evening grade for a palette that is already dusk.
@@ -32,7 +32,7 @@ export const COURTS = {
 		fence: 'rail',
 		sound: { pitch: 1, floor: 1.1, echo: 0.3 },
 		rim: 0.78,
-		hoop: { board: [196, 224, 238], frame: [40, 44, 52], pole: [40, 44, 52], square: [238, 242, 246], double: true, net: [170, 178, 186], chain: true },
+		hoop: { board: [196, 224, 238], frame: [40, 44, 52], pole: [40, 44, 52], square: [238, 242, 246] },
 	},
 	beach: {
 		name: 'Boardwalk beach',
