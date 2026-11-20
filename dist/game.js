@@ -8,7 +8,7 @@ import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, pars
 import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
-import { COURTS } from './courts.js?v=7'
+import { COURTS } from './courts.js?v=11'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
@@ -213,16 +213,30 @@ function line3D(from, to, radius, color) {
 }
 
 const RIM_COLOR = [192, 73, 36]
+// The neighborhood's hoop; other courts swap parts of it through `hoop` in courts.js.
+const CLASSIC_HOOP = { board: [227, 225, 206], frame: STEEL, pole: STEEL, rim: RIM_COLOR, net: NET_COLOR }
+const SNOW = [246, 249, 253]
+const hoopLook = () => ({ ...CLASSIC_HOOP, ...court.hoop })
+
 function drawHoop() {
-	const board = [227, 225, 206]
-	const rim = RIM_COLOR
-	line3D([-8.9, 0, 0], [-8.9, 0, 4.05], 0.13, STEEL)
-	line3D([-8.9, 0, 4.05], [BACKBOARD_X, 0, 4.05], 0.1, STEEL)
+	const { board, frame, pole, rim, square = rim, ...look } = hoopLook()
+	line3D([-8.9, 0, 0], [-8.9, 0, 4.05], 0.13, pole)
+	line3D([-8.9, 0, 4.05], [BACKBOARD_X, 0, 4.05], 0.1, pole)
 	box(BACKBOARD_X - 0.06, -1.35, 3, BACKBOARD_X + 0.06, 1.35, 4.9, board)
-	for (const y of [-1.35, 1.35]) line3D([BACKBOARD_X + 0.08, y, 3], [BACKBOARD_X + 0.08, y, 4.9], 0.045, STEEL)
-	for (const z of [3, 4.9]) line3D([BACKBOARD_X + 0.08, -1.35, z], [BACKBOARD_X + 0.08, 1.35, z], 0.045, STEEL)
-	for (const y of [-0.62, 0.62]) line3D([BACKBOARD_X + 0.1, y, 3.4], [BACKBOARD_X + 0.1, y, 4.2], 0.035, rim)
-	for (const z of [3.4, 4.2]) line3D([BACKBOARD_X + 0.1, -0.62, z], [BACKBOARD_X + 0.1, 0.62, z], 0.035, rim)
+	if (look.planks) for (let z = 3.3; z < 4.9; z += 0.32) line3D([BACKBOARD_X + 0.07, -1.33, z], [BACKBOARD_X + 0.07, 1.33, z], 0.02, frame)
+	for (const y of [-1.35, 1.35]) line3D([BACKBOARD_X + 0.08, y, 3], [BACKBOARD_X + 0.08, y, 4.9], 0.045, frame)
+	for (const z of [3, 4.9]) line3D([BACKBOARD_X + 0.08, -1.35, z], [BACKBOARD_X + 0.08, 1.35, z], 0.045, frame)
+	for (const y of [-0.62, 0.62]) line3D([BACKBOARD_X + 0.1, y, 3.4], [BACKBOARD_X + 0.1, y, 4.2], 0.035, square)
+	for (const z of [3.4, 4.2]) line3D([BACKBOARD_X + 0.1, -0.62, z], [BACKBOARD_X + 0.1, 0.62, z], 0.035, square)
+	if (look.snow) {
+		box(BACKBOARD_X - 0.12, -1.42, 4.92, BACKBOARD_X + 0.14, 1.42, 5.1, SNOW)
+		for (let i = 0; i < 15; i++) {
+			if (hash(i, 3) < 0.45) continue
+			const y = -1.3 + i * 0.18
+			line3D([BACKBOARD_X + 0.1, y, 4.98], [BACKBOARD_X + 0.1, y, 4.9 - hash(i, 9) * 0.12], 0.03, SNOW)
+		}
+		line3D([-8.9, -0.06, 4.17], [BACKBOARD_X - 0.08, -0.06, 4.17], 0.05, SNOW)
+	}
 }
 
 // How far a dunk pulls the rim down at an angle round it: most at the front the player hangs on, none at the board.
@@ -232,31 +246,63 @@ function rimDip(angle, bend, toward) {
 
 // Drawn every frame rather than baked, so a dunk can bend it.
 function drawRim(bend = 0, toward = 0) {
-	line3D([BACKBOARD_X, 0, HOOP.z], [HOOP.x - HOOP.radius, 0, HOOP.z], 0.07, RIM_COLOR)
-	const point = a => [HOOP.x + Math.cos(a) * HOOP.radius, Math.sin(a) * HOOP.radius, HOOP.z - rimDip(a, bend, toward)]
-	for (let i = 0; i < 40; i++) line3D(point(i / 40 * Math.PI * 2), point((i + 1) / 40 * Math.PI * 2), 0.055, RIM_COLOR)
+	const look = hoopLook()
+	const color = look.rim
+	line3D([BACKBOARD_X, 0, HOOP.z], [HOOP.x - HOOP.radius, 0, HOOP.z], 0.07, color)
+	const ring = (radius, drop) => {
+		const point = a => [HOOP.x + Math.cos(a) * radius, Math.sin(a) * radius, HOOP.z - drop - rimDip(a, bend, toward)]
+		for (let i = 0; i < 40; i++) line3D(point(i / 40 * Math.PI * 2), point((i + 1) / 40 * Math.PI * 2), 0.055, color)
+		return point
+	}
+	const point = ring(HOOP.radius, 0)
+	if (look.double) {
+		ring(HOOP.radius, 0.13)
+		for (let i = 0; i < 12; i++) {
+			const a = i / 12 * Math.PI * 2
+			const top = point(a)
+			line3D(top, [top[0], top[1], top[2] - 0.13], 0.03, color)
+		}
+	}
 }
 
 function drawNet(bend = 0, toward = 0) {
+	const look = hoopLook()
+	const color = look.net
 	const age = state.swishAt === undefined ? 2 : state.time - state.swishAt
 	const active = age < 1.3 && !STILL
 	const stretch = active ? Math.sin(Math.min(age / 0.32, 1) * Math.PI) * 0.35 : 0
 	const sway = active ? Math.sin(age * 18) * Math.exp(-age * 4) * 0.22 : 0
+	const drop = look.double ? 0.13 : 0
+	const rows = look.chain ? 5 : 4
 	function point(row, strand) {
-		const t = row / 4
-		const angle = strand / 12 * Math.PI * 2 + (row % 2) * Math.PI / 12
-		const radius = lerp(0.57, 0.33, t) + stretch * t * 0.1
+		const t = row / rows
+		const angle = strand / 12 * Math.PI * 2 + (look.chain ? 0 : (row % 2) * Math.PI / 12)
+		const radius = lerp(0.57, look.chain ? 0.42 : 0.33, t) + stretch * t * 0.1
 		return [
 			HOOP.x + Math.cos(angle) * radius + sway * t,
 			HOOP.y + Math.sin(angle) * radius,
-			HOOP.z - 0.05 - t * (0.95 + stretch) - rimDip(angle, bend, toward) * (1 - t * 0.6),
+			HOOP.z - 0.05 - drop - t * (look.chain ? 0.9 : 0.95 + stretch) - rimDip(angle, bend, toward) * (1 - t * 0.6),
 		]
 	}
-	for (let row = 0; row < 4; row++) {
+	if (look.chain) {
+		const dark = rgb(color[0] * 0.6, color[1] * 0.6, color[2] * 0.66)
+		const lit = rgb(...color)
+		for (let strand = 0; strand < 12; strand++) {
+			const from = point(0, strand), to = point(rows, strand)
+			for (let k = 0; k <= 14; k++) {
+				const t = k / 14
+				plot(lerp(from[0], to[0], t), lerp(from[1], to[1], t), lerp(from[2], to[2], t), k % 2 ? dark : lit)
+			}
+		}
+		return
+	}
+	for (let row = 0; row < rows; row++) {
 		for (let strand = 0; strand < 12; strand++) {
 			const from = point(row, strand)
 			for (const next of [strand, strand + (row % 2 ? 1 : -1)]) {
-				line3D(from, point(row + 1, next), 0.022, NET_COLOR)
+				// A worn park net: a few cords snapped, the rest hang on.
+				if (look.torn && row >= 1 && hash(strand * 17 + next, row * 31) < 0.3 + row * 0.12) continue
+				line3D(from, point(row + 1, next), 0.022, color)
 			}
 		}
 	}
