@@ -140,7 +140,7 @@ test('a stiff rim kicks the ball back harder than a soft one', () => {
 		return ball.vz
 	}
 	assert.ok(bounce(COURTS.rooftop.rim) > bounce(RIM_BOUNCE))
-	assert.ok(bounce(RIM_BOUNCE) > bounce(COURTS.beach.rim))
+	assert.ok(bounce(RIM_BOUNCE) > bounce(COURTS.autumn.rim))
 })
 
 test('a soft rim lets more shots roll in than a stiff one', () => {
@@ -153,7 +153,8 @@ test('a soft rim lets more shots roll in than a stiff one', () => {
 		}
 		return made
 	}
-	assert.ok(makes(COURTS.beach.rim) > makes(COURTS.neighborhood.rim))
+	assert.ok(makes(COURTS.autumn.rim) > makes(COURTS.neighborhood.rim))
+	assert.ok(makes(COURTS.beach.rim) <= makes(COURTS.neighborhood.rim), 'The beach rim never gives away makes')
 	assert.ok(makes(COURTS.neighborhood.rim) > makes(COURTS.rooftop.rim))
 })
 

@@ -38,7 +38,7 @@ Built with Claude Opus 5.5 on [Pixel Plays](https://github.com/amirmushichge/pix
 | Shoot | Hold Space or the left mouse button to build power, release to shoot |
 | Cancel a shot or pause | Escape |
 
-Every court's rim plays its own way. The rooftop rim is stiff and kicks a shot that clips it away; the beach rim is soft and lets more of them roll in. Winter's cold rim is lively too, and autumn's a touch softer than the neighborhood's.
+Every court's rim plays its own way. The rooftop rim is stiff and kicks a shot that clips it away; winter's cold rim is nearly as lively, and the beach's salt-worn one a little lively too. Autumn's is a touch softer than the neighborhood's and lets the odd extra one roll in.
 
 In 10 free throws mode your spot and aim are locked, starting at the free throw line. Release inside the dark band on the meter, which wobbles slightly, so time your release. After your tenth shot, Space starts the next round a step farther back, from 5.5 m, then 6 m, then the three-point line.
 
