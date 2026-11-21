@@ -1,6 +1,6 @@
 import { THREE_POINT_DISTANCE } from './beat-the-clock.js?v=7'
 import { CHARACTERS } from './characters.js?v=2'
-import { COURTS } from './courts.js?v=15'
+import { COURTS } from './courts.js?v=16'
 import { DUNKS } from './dunks.js?v=4'
 
 // The Court Journal: quiet badges for what the player does. Nothing here touches the page. game.js feeds in what the

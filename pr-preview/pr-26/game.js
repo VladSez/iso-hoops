@@ -8,11 +8,11 @@ import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, pars
 import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
-import { COURTS } from './courts.js?v=15'
+import { COURTS } from './courts.js?v=16'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
-import { ACHIEVEMENTS, GROUPS, STREAKS, closest, nextStreak, parseProgress, progressOf, record, seed } from './achievements.js?v=2'
-import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
+import { ACHIEVEMENTS, GROUPS, STREAKS, closest, nextStreak, parseProgress, progressOf, record, seed } from './achievements.js?v=3'
+import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=8'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
 const COURT = { x: 9, y: 7 }
@@ -518,6 +518,9 @@ function poolLightMap() {
 function gradeFrame() {
 	const { mul: [mr, mg, mb], add: [ar, ag, ab] } = court.paintedForDusk && phaseId === 'evening' ? PHASES.day.grade : phase.grade
 	const light = phase.lamps ? poolLightMap() : undefined
+	const lift = phase.hoopLift
+	const contrast = hoopLook().contrast ?? 1
+	const tone = v => Math.max(0, (v - 128) * contrast + 128)
 	for (let i = 0; i < pix.length; i++) {
 		const c = pix[i]
 		if (!c) {
@@ -531,6 +534,10 @@ function gradeFrame() {
 		if (phase.hoopGlow && hoopPixels[i]) {
 			const k = phase.hoopGlow
 			pix[i] = rgb(r * (1 + 0.12 * k) + 22 * k, g * (1 + 0.06 * k) + 16 * k, b * (1 - 0.08 * k) + 4 * k)
+			continue
+		}
+		if (lift && hoopPixels[i]) {
+			pix[i] = rgb(tone(r * mr * lift + ar), tone(g * mg * lift + ag), tone(b * mb * lift + ab))
 			continue
 		}
 		const lit = light ? light[i] * phase.lamps * (court.lampScale ?? 1) : 0

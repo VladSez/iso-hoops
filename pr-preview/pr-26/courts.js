@@ -1,7 +1,7 @@
 // Palettes, ground options and sound for each playground. The props each one adds are drawn in game.js.
 // `sound` scales effect pitch, how loud the ball hits the floor, and how much the air echoes.
 // `hoop` swaps parts of the neighborhood's hoop (game.js CLASSIC_HOOP): colours, plus `planks` on the board,
-// a `torn` net, and `snow` or `leaves` along the top of the board.
+// a `torn` net, `snow` or `leaves` along the top of the board, and extra `contrast` for the hoop by day, so a pale or wooden board reads clearly.
 // `feel` is how the hoop moves (game.js CLASSIC_FEEL): the rim's `sway` after a hit (`bob`, `rock` or `jolt`) and how far and fast it goes, how far the net swings
 // after a swish and how quickly it settles, a sea `breeze` that keeps the net swaying, and a `puff` of `snow` or `leaves` knocked off a hit high on the board.
 // `rim` is how lively the rim is (physics.js RIM_BOUNCE): the neighborhood's is the softest, the rooftop's stiff enough to kick the ball away.
@@ -35,7 +35,7 @@ export const COURTS = {
 		sound: { pitch: 1, floor: 1.1, echo: 0.3 },
 		feel: { shake: 0.06, shakeHz: 20, shakeDecay: 7 },
 		rim: 0.78,
-		hoop: { board: [196, 224, 238], frame: [40, 44, 52], pole: [40, 44, 52], square: [238, 242, 246] },
+		hoop: { board: [196, 224, 238], frame: [40, 44, 52], pole: [40, 44, 52], square: [238, 242, 246], contrast: 1.25 },
 	},
 	beach: {
 		name: 'Boardwalk beach',
@@ -49,7 +49,7 @@ export const COURTS = {
 		sound: { pitch: 0.88, floor: 0.75, echo: 0 },
 		feel: { breeze: 0.05, sway: 'rock', shake: 0.14, shakeHz: 3.5, shakeDecay: 2.6 },
 		rim: 0.7,
-		hoop: { board: [255, 214, 156], planks: true, frame: [140, 104, 70], pole: [170, 180, 178], rim: [214, 124, 80], square: [250, 244, 226] },
+		hoop: { board: [255, 214, 156], planks: true, frame: [140, 104, 70], pole: [170, 180, 178], rim: [214, 124, 80], square: [250, 244, 226], contrast: 1.25 },
 	},
 	autumn: {
 		name: 'Autumn park',
