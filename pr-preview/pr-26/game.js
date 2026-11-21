@@ -1146,6 +1146,8 @@ function closeJournal() {
 // Badges wait their turn, one at a time, under the score bar. The toast never pauses play.
 const TOAST_SECONDS = 3.5
 const toastQueue = []
+// On touch screens the toast lives above the controls instead of under the score bar, where it would cover the hoop.
+if (IS_TOUCH) document.querySelector('.shoot-panel').prepend(nodes.toast)
 let toastTimer
 
 function queueToast(id) {

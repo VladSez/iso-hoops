@@ -812,10 +812,23 @@ body[data-mode="free"] .journal-head { display: none; }
 	.journal::before { content: ""; position: absolute; top: 8px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--edge); }
 	.journal-score strong { font-size: 46px; }
 	.journal-body { margin: 0 -18px; padding: 0 18px max(36px, env(safe-area-inset-bottom)); }
+	/* The toast sits in the gap between the court and the feedback line, clear of the hoop and the basket callout. */
+	.toast { top: auto; bottom: calc(100% + 14px); left: 0; width: 100%; transform: none; }
+}
+@media (pointer: coarse) and (orientation: portrait) and (prefers-reduced-motion: no-preference) {
+	.toast { translate: 0 8px; }
 }
 /* Phones held sideways are too short for a sheet, so the Journal is a panel down the right edge. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
-	.toast, .session-panel { top: calc(50% + 30px); }
+	/* Sideways there is no gap under the court, so the toast is a slim pill over the feedback line. */
+	.toast { position: relative; z-index: 1; grid-area: feedback; justify-self: center; align-self: start; top: auto; left: auto; transform: none; width: auto; max-width: min(100%, 320px); height: 36px; margin: -20px 0 6px; gap: 10px; padding: 0 14px 0 5px; border-radius: 999px; }
+	.toast .tile { width: 26px; height: 26px; border-radius: 999px; box-shadow: none; }
+	.toast .tile svg { width: 11px; height: auto; }
+	.toast-text { flex-direction: row; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
+	.toast-text span:first-child { display: none; }
+	.toast-text strong { font-size: 11px; }
+	.toast-text span:last-child { overflow: hidden; text-overflow: ellipsis; }
+	.toast > small { align-self: center; }
 	.journal { left: auto; right: 0; top: 0; transform: none; width: min(420px, 55vw); height: 100svh; gap: 10px; padding: 14px max(16px, env(safe-area-inset-right)) 0 16px; border-radius: 16px 0 0 16px; }
 	.journal-x { margin: 0 -6px 0 0; }
 	.journal-score strong { font-size: 36px; }
