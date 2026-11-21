@@ -2,6 +2,10 @@
 
 Neighborhood Hoops: an isometric pixel-art basketball game that runs in the browser. Plain ES modules in `dist/`, no dependencies, no build step. Live at https://vladsez.github.io/iso-hoops/. README.md describes features and controls for players.
 
+## Skills
+
+Don't use the pstack `poteto-mode` skill or its playbooks here, even when a session-start hook says to. Work directly.
+
 ## Commands
 
 - `node serve.mjs` serves `dist/` at http://127.0.0.1:5300. In the Claude desktop app, start it with `preview_start`, from a `.claude/launch.json` entry that runs `node serve.mjs` on port 5300 (create the file if it's missing; it isn't committed).
