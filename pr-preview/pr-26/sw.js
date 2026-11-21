@@ -7,9 +7,9 @@
 const VERSION = 60
 const FILES = [
 	'./',
-	'style.css?v=6eb6b3458a',
+	'style.css?v=0eeced6873',
 	'engine.js?v=7c2d4e10',
-	'game.js?v=8bdd02497d',
+	'game.js?v=338e2a2b3e',
 	'physics.js?v=4',
 	'dunks.js?v=4',
 	'slam.js?v=3',

@@ -754,13 +754,14 @@ body[data-mode="free"] .journal-head { display: none; }
 .bar i { display: block; height: 4px; background: var(--orange); }
 
 .toast { position: absolute; top: calc(50% + 44px); left: 50%; z-index: 2; box-sizing: border-box; width: min(372px, calc(100vw - 32px)); transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 12px 16px 12px 12px; border-radius: 14px; background: var(--panel); color: var(--ink); box-shadow: var(--raised); pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0s 0.2s; }
-.toast.show { opacity: 1; visibility: visible; transition: opacity 0.2s; }
+.toast.show { opacity: 1; visibility: visible; pointer-events: auto; cursor: pointer; transition: opacity 0.2s; }
 .toast .tile { width: 48px; height: 48px; }
 .toast-text { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 .toast-text span:first-child { color: var(--orange); font-size: 8px; letter-spacing: 1.6px; }
 .toast-text strong { font-size: 15px; font-weight: 800; letter-spacing: 0.3px; }
 .toast-text span:last-child { color: var(--label); font-size: 10px; }
-.toast > small { align-self: flex-start; color: var(--label); font-size: 9px; letter-spacing: 1px; }
+.toast > small { align-self: flex-start; color: var(--orange); font-size: 10px; white-space: nowrap; }
+@media (hover: hover) { .toast.show:hover { box-shadow: var(--raised), 0 0 0 1px var(--edge); } }
 .header:has(#session-open[aria-expanded="true"]) .toast { opacity: 0; }
 @media (prefers-reduced-motion: no-preference) {
 	.toast { translate: 0 -8px; transition: opacity 0.2s, translate 0.25s cubic-bezier(0.23, 1, 0.32, 1), visibility 0s 0.25s; }

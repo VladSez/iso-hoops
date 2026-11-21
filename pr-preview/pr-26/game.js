@@ -1165,7 +1165,7 @@ function nextToast() {
 	const group = GROUPS.find(candidate => candidate.id === achievement.group)
 	const text = el('div', 'toast-text')
 	text.append(el('span', '', `ACHIEVEMENT · ${group.label.toUpperCase()}`), el('strong', '', achievement.title), el('span', '', achievement.detail))
-	nodes.toast.replaceChildren(badgeTile(achievement, 22), text, el('small', '', `${earnedCount()} / ${ACHIEVEMENTS.length}`))
+	nodes.toast.replaceChildren(badgeTile(achievement, 22), text, el('small', '', 'Journal ▸'))
 	nodes.toast.classList.add('show')
 	toastTimer = setTimeout(() => {
 		nodes.toast.classList.remove('show')
@@ -2616,13 +2616,15 @@ function checkOption(options, value) {
 }
 
 // A mouse click on these leaves focus on the court, so Space still shoots instead of pressing them again.
-for (const button of [nodes['session-open'], nodes['session-reset'], nodes['journal-open'], nodes['journal-close']]) button.addEventListener('mousedown', event => event.preventDefault())
+for (const button of [nodes['session-open'], nodes['session-reset'], nodes['journal-open'], nodes['journal-close'], nodes.toast]) button.addEventListener('mousedown', event => event.preventDefault())
 for (const list of [nodes['panel-tabs'], nodes['journal-filter']]) list.addEventListener('mousedown', event => event.preventDefault())
 nodes['session-open'].addEventListener('click', () => setSessionOpen(nodes['session-panel'].hidden))
 nodes['tab-session'].addEventListener('click', () => setPanelTab('session'))
 nodes['tab-journal'].addEventListener('click', () => setPanelTab('journal'))
 nodes['journal-open'].addEventListener('click', event => openJournal(event.detail === 0))
 nodes['journal-close'].addEventListener('click', closeJournal)
+// A tap on the toast opens the Journal, and never reaches the court underneath, where it would aim the shot.
+nodes.toast.addEventListener('click', () => openJournal(false))
 nodes['journal-filter'].addEventListener('click', event => {
 	const tab = event.target.closest('[data-filter]')
 	if (!tab) return
