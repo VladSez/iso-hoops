@@ -2,7 +2,7 @@ import { HOOP, BALL_RADIUS, GRAVITY, BACKBOARD_X, createShot, isDead, shotDistan
 import { ROUND_SHOTS, isDone, levelOf, recordShot, startRound, wobble } from './free-throws.js?v=6'
 import { CORNER_LINE, CORNER_REACH, ROUND_SECONDS, RETURN_AFTER_MAKE, RETURN_AFTER_MISS, THREE_POINT_DISTANCE, finishRound, isTimeUp, pointsFor, recordMake, secondsLeft, startClock, startClockRound } from './beat-the-clock.js?v=7'
 import { LETTERS, SPOT_RADIUS, TIERS, isOnSpot, recordHorseShot, startHorse, tierOf } from './horse.js?v=5'
-import { RACK_COUNT, SHOT_COUNT, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, randomMoneyRack, startContest, takeBall, valueOf } from './three-point.js?v=2'
+import { RACK_COUNT, SHOT_COUNT, SHOTS, STATIONS, ballsLeft, chooseMoneyRack, hasStarted, nextShot, randomMoneyRack, startContest, takeBall, valueOf } from './three-point.js?v=2'
 import { clockResults, contestResults, courtOf, duelResults, freeThrowResults, horseResults } from './results.js?v=13'
 import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, parseRecord, recordDuelShot, recordResult, startDuel, tossCoin, turnOf } from './horse-duel.js?v=4'
 import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
@@ -11,6 +11,7 @@ import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
 import { COURTS } from './courts.js?v=14'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
+import { ACHIEVEMENTS, GROUPS, STREAKS, closest, nextStreak, parseProgress, progressOf, record, seed } from './achievements.js?v=1'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
@@ -39,6 +40,8 @@ const nodes = Object.fromEntries([
 	'results-stamp-detail', 'results-chart', 'results-stats', 'results-foot-note', 'results-again', 'results-action',
 	'results-action-detail', 'session-open', 'session-panel', 'session-summary', 'session-court', 'session-zones', 'session-reset',
 	'opponent', 'opponent-label', 'opponent-options', 'cpu-characters', 'cpu-character-name', 'coin', 'coin-call', 'coin-versus', 'call-heads', 'call-tails', 'coin-change', 'opponent-play', 'opponent-play-label', 'opponent-play-detail',
+	'panel-tabs', 'tab-session', 'tab-journal', 'tab-count', 'pane-session', 'pane-journal', 'journal-head-count', 'panel-best', 'panel-ladder', 'panel-close', 'journal-open', 'journal-open-count', 'toast',
+	'journal', 'journal-close', 'journal-total', 'journal-latest', 'journal-filter', 'journal-body',
 	'switch-warn', 'warn-top', 'warn-versus', 'warn-title', 'warn-body', 'warn-stats', 'warn-keep', 'warn-keep-label', 'warn-confirm', 'warn-confirm-label',
 ].map(id => [id, document.getElementById(id)]))
 
@@ -47,7 +50,7 @@ const state = {
 	player: { x: 0.2, y: 0 }, yaw: Math.PI, pointer: undefined,
 	keys: new Set(), stick: { x: 0, y: 0 }, phase: 'ready', chargeSource: undefined, charge: 0, power: 0,
 	ball: undefined, returnTime: undefined, time: 0, followThrough: 0,
-	attempts: 0, makes: 0, streak: 0, lastPower: 0, paused: false,
+	attempts: 0, makes: 0, lastPower: 0, paused: false,
 	// Free shooting's shots since the page opened, or since Start over, for the session court.
 	session: [],
 	feedbackTime: 0, walking: false, scoredAt: undefined, swishAt: undefined,
@@ -118,6 +121,23 @@ try {
 	cpuSetup.character = characterOf(localStorage.getItem(CPU_CHARACTER_KEY)).id
 	cpuRecord = parseRecord(localStorage.getItem(CPU_RECORD_KEY))
 } catch {}
+// The Court Journal (achievements.js). Every shot you take and every round you finish goes through record(), which returns
+// the badges it earned. The run of makes in a row is kept there too, so it carries across modes.
+const JOURNAL_KEY = 'iso-hoops:achievements'
+let journal = parseProgress(null)
+try { journal = parseProgress(localStorage.getItem(JOURNAL_KEY)) } catch {}
+journal = seed(journal, {
+	longest: state.longest, freeThrow: state.round.best, clock: state.clock.best, threePoint: state.contest.best,
+	cpuWins: Object.fromEntries(CPU_LEVELS.map(level => [level, cpuRecord[level].won])),
+})
+saveJournal()
+// The badge a make just earned, so its callout can name the step instead of saying BASKET!
+let stepUp
+
+function saveJournal() {
+	try { localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal)) } catch {}
+}
+
 const isDuel = () => state.mode === 'horse' && cpuSetup.opponent === 'cpu'
 const cpuCharacter = () => characterOf(cpuSetup.character)
 const cpuJersey = () => kitOf(cpuCharacter())
@@ -758,6 +778,7 @@ function dunkThrough(pressedAt, from) {
 
 function startDunk(plan) {
 	state.returnTime = undefined
+	state.lastDunk = plan.id
 	// With reduced motion there is no jump: the ball just drops through the hoop.
 	if (STILL) {
 		state.ball = dunkThrough(state.time, { x: state.player.x, y: state.player.y })
@@ -765,7 +786,6 @@ function startDunk(plan) {
 		playDunkSound(plan.bend)
 		return
 	}
-	state.lastDunk = plan.id
 	state.dunk = { ...plan, start: state.time, from: { x: state.player.x, y: state.player.y }, grabbed: false, letGo: false }
 	state.yaw = plan.angle + Math.PI
 	state.phase = 'dunk'
@@ -800,6 +820,8 @@ function releaseContestBall() {
 	const shot = nextShot(state.contest)
 	const ball = createShot(state.player, state.yaw, state.power, court.rim)
 	ball.value = valueOf(shot, state.contest.moneyRack)
+	ball.distance = shotDistance(state.player)
+	ball.points = pointsFor(state.player)
 	ball.shot = state.contest.taken
 	state.flying.push(ball)
 	state.contest = takeBall(state.contest)
@@ -865,6 +887,7 @@ function takeFreeThrow(made) {
 	}
 	const score = `${state.round.made}/${taken}`
 	if (isDone(state.round)) {
+		trackRound({ type: 'round', mode: 'free-throws', made: state.round.made, distance: levelOf(state.round).distance })
 		const verdict = bestBefore === 0 ? 'That’s the one to beat.' : best > bestBefore ? 'New best!' : `Best ${best}/${ROUND_SHOTS}.`
 		const next = { ...state.round, level: state.round.level + 1 }
 		const farther = levelOf(next).distance > levelOf(state.round).distance ? `, from ${levelOf(next).distance} m` : ''
@@ -885,6 +908,7 @@ function finishClock() {
 	if (best > bestBefore) {
 		try { localStorage.setItem(CLOCK_BEST_KEY, String(best)) } catch {}
 	}
+	trackRound({ type: 'round', mode: 'clock', points })
 	// Kept short so the message fits on one line on a phone.
 	let verdict = `Best ${best}.`
 	if (bestBefore === 0) verdict = 'One to beat.'
@@ -910,9 +934,11 @@ function logFreeShot(made) {
 	renderSession()
 }
 
-// Free shooting's header stats open a court of the session so far.
+// The score bar opens a panel with two tabs: this session's court (free shooting only) and the Court Journal.
+let panelTab = 'session'
+
 function renderSession() {
-	if (nodes['session-panel'].hidden) return
+	if (nodes['session-panel'].hidden || panelTab !== 'session') return
 	const { shots, zones } = courtOf(state.session)
 	const made = state.session.filter(shot => shot.made).length
 	nodes['session-summary'].textContent = state.session.length ? `${made} of ${state.session.length} · ${Math.round(made / state.session.length * 100)}%` : 'No shots yet'
@@ -920,10 +946,264 @@ function renderSession() {
 	nodes['session-zones'].replaceChildren(zoneTallies(zones))
 }
 
+function setPanelTab(tab) {
+	panelTab = tab
+	nodes['session-panel'].dataset.tab = tab
+	for (const name of ['session', 'journal']) {
+		const selected = name === tab
+		nodes[`tab-${name}`].setAttribute('aria-selected', String(selected))
+		nodes[`tab-${name}`].tabIndex = selected ? 0 : -1
+		nodes[`pane-${name}`].hidden = !selected
+	}
+	renderSession()
+	refreshJournal()
+}
+
 function setSessionOpen(open) {
 	nodes['session-panel'].hidden = !open
 	nodes['session-open'].setAttribute('aria-expanded', String(open))
-	renderSession()
+	if (open) setPanelTab(state.mode === 'free' ? 'session' : 'journal')
+}
+
+const ICON_PATHS = {
+	flame: ['0 0 8 10', 'M3 0h1v1h1v1h1v2h1v4h-1v1h-1v1H2V9H1V8H0V5h1V3h1V2h1z'],
+	net: ['0 0 8 8', 'M0 1h8v1H0zM1 2h1v2H1zM6 2h1v2H6zM3 2h2v4H3zM2 4h1v2H2zM5 4h1v2H5zM3 6h2v1H3z'],
+	board: ['0 0 8 8', 'M1 0h6v5H1zM2 1v3h4V1zM3 2h2v1H3zM2 6h4v1H2z'],
+	trophy: ['0 0 8 8', 'M1 0h6v1h1v2H7v1H6v1H5v1h1v2H2V6h1V5H2V4H1V3H0V1h1zM1 1v1h1V1zM6 1v1h1V1z'],
+	ball: ['0 0 8 8', 'M2 0h4v1h1v1h1v4h-1v1h-1v1H2V7H1V6H0V2h1V1h1z'],
+	pin: ['0 0 8 10', 'M2 0h4v1h1v1h1v3h-1v1h-1v1h-1v2h-2v-2h-1v-1h-1v-1h-1v-3h1v-1h1z'],
+}
+const ICON_BY_GROUP = { streaks: 'flame', shooting: 'net', dunks: 'trophy', modes: 'ball', courts: 'pin' }
+const iconName = achievement => (achievement.id === 'banks' ? 'board' : ICON_BY_GROUP[achievement.group])
+
+function pixelIcon(name, width) {
+	const [box, path] = ICON_PATHS[name]
+	const [, , w, h] = box.split(' ').map(Number)
+	const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+	svg.setAttribute('viewBox', box)
+	svg.setAttribute('width', String(width))
+	svg.setAttribute('height', String(Math.round(width * h / w)))
+	svg.setAttribute('shape-rendering', 'crispEdges')
+	svg.setAttribute('fill', 'currentColor')
+	svg.setAttribute('aria-hidden', 'true')
+	const shape = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+	shape.setAttribute('d', path)
+	svg.append(shape)
+	return svg
+}
+
+const streakTier = achievement => STREAKS.indexOf(achievement) + 1
+const isStarted = achievement => {
+	if (journal.earned[achievement.id] || progressOf(achievement, journal.stats).value <= 0) return false
+	return achievement.group !== 'streaks' || achievement === nextStreak(journal.stats.bestRun)
+}
+
+// Earned badges are filled (a streak deepens with each step and its flame grows), one under way has a solid edge, the rest a dotted one.
+function badgeTile(achievement, iconWidth) {
+	const earned = !!journal.earned[achievement.id]
+	const tier = achievement.group === 'streaks' ? streakTier(achievement) : 0
+	const look = earned ? (tier ? `t${tier}` : '') : isStarted(achievement) ? 'started' : 'locked'
+	const tile = el('span', `tile ${look}`.trim())
+	tile.append(pixelIcon(iconName(achievement), tier ? 10 + tier * 2 : iconWidth))
+	return tile
+}
+
+const formatValue = (achievement, value) => (achievement.unit === 'm' ? value.toFixed(1) : String(Math.floor(value)))
+function progressText(achievement) {
+	const { value, goal } = progressOf(achievement, journal.stats)
+	return `${formatValue(achievement, value)} / ${goal}${achievement.unit ? ` ${achievement.unit}` : ''}`
+}
+
+function dateText(date) {
+	const now = new Date()
+	const pad = number => String(number).padStart(2, '0')
+	if (date === `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`) return 'today'
+	const [year, month, day] = date.split('-').map(Number)
+	return new Date(year, month - 1, day).toLocaleDateString('en', { day: 'numeric', month: 'short' })
+}
+
+function bar(share) {
+	const fill = el('i')
+	fill.style.width = `${Math.round(share * 100)}%`
+	const track = el('div', 'bar')
+	track.append(fill)
+	return track
+}
+
+function ladderSteps(named) {
+	return STREAKS.map(achievement => {
+		const step = el('div', 'step')
+		step.append(badgeTile(achievement, 14))
+		if (named) step.append(el('strong', '', String(achievement.goal)), el('span', '', achievement.title))
+		else step.title = `${achievement.title}, ${achievement.goal} in a row`
+		return step
+	})
+}
+
+const earnedCount = () => Object.keys(journal.earned).length
+
+function renderJournalPanel() {
+	const total = ACHIEVEMENTS.length
+	const { bestRun } = journal.stats
+	const next = nextStreak(bestRun)
+	nodes['journal-head-count'].textContent = `${earnedCount()} / ${total} earned`
+	nodes['journal-open-count'].textContent = String(total)
+	if (!bestRun) nodes['panel-best'].textContent = 'Make a few in a row'
+	else nodes['panel-best'].textContent = next ? `Best run ${bestRun} · ${next.goal - bestRun} more for ${next.title}` : `Best run ${bestRun}`
+	nodes['panel-ladder'].replaceChildren(...ladderSteps(false))
+	const rows = closest(journal, 2).map(achievement => {
+		const row = el('div', 'close-row')
+		row.append(el('strong', '', achievement.title), bar(progressOf(achievement, journal.stats).share), el('small', '', progressText(achievement)))
+		return row
+	})
+	nodes['panel-close'].replaceChildren(...(rows.length ? rows : [el('span', 'close-empty', 'Everything else is earned.')]))
+}
+
+const journalOpen = () => !nodes.journal.hidden
+
+function refreshJournal() {
+	nodes['tab-count'].textContent = `${earnedCount()} / ${ACHIEVEMENTS.length}`
+	if (!nodes['session-panel'].hidden && panelTab === 'journal') renderJournalPanel()
+	if (journalOpen()) renderJournalCard()
+}
+
+let journalFilter = 'all'
+function buildJournalFilter() {
+	const options = [{ id: 'all', label: 'All' }, ...GROUPS]
+	nodes['journal-filter'].replaceChildren(...options.map(option => {
+		const tab = el('button', '', option.label)
+		tab.type = 'button'
+		tab.setAttribute('role', 'tab')
+		tab.dataset.filter = option.id
+		return tab
+	}))
+}
+
+function badgeRow(achievement) {
+	const date = journal.earned[achievement.id]
+	const text = el('div', 'badge-text')
+	text.append(el('strong', '', achievement.title))
+	if (date) {
+		text.append(el('span', '', `${achievement.detail} · earned ${dateText(date)}`))
+	} else if (isStarted(achievement) && achievement.goal > 1) {
+		const progress = el('div', 'badge-progress')
+		progress.append(bar(progressOf(achievement, journal.stats).share), el('span', '', progressText(achievement)))
+		text.append(progress)
+	} else {
+		text.append(el('span', '', achievement.detail))
+	}
+	const row = el('div', `badge-row${date || isStarted(achievement) ? '' : ' locked'}`)
+	row.append(badgeTile(achievement, 16), text)
+	return row
+}
+
+function renderJournalCard() {
+	const total = ACHIEVEMENTS.length
+	nodes['journal-total'].replaceChildren(String(earnedCount()), el('small', '', ` / ${total}`))
+	const latest = ACHIEVEMENTS.filter(achievement => journal.earned[achievement.id])
+		.reduce((last, achievement) => (!last || journal.earned[achievement.id] >= journal.earned[last.id] ? achievement : last), undefined)
+	nodes['journal-latest'].textContent = latest ? `earned · latest: ${latest.title}, ${dateText(journal.earned[latest.id])}` : 'earned · take a few shots to start'
+	for (const tab of nodes['journal-filter'].children) {
+		const selected = tab.dataset.filter === journalFilter
+		tab.setAttribute('aria-selected', String(selected))
+		tab.tabIndex = selected ? 0 : -1
+	}
+	const shown = GROUPS.filter(group => journalFilter === 'all' || group.id === journalFilter)
+	const sections = shown.flatMap(group => {
+		const badges = ACHIEVEMENTS.filter(achievement => achievement.group === group.id)
+		const done = badges.filter(achievement => journal.earned[achievement.id]).length
+		if (group.id === 'streaks') {
+			const card = el('div', 'journal-ladder')
+			const head = el('div', 'journal-label')
+			head.append(el('span', '', 'HOT HAND · MAKES IN A ROW'), el('span', '', `${done} / ${badges.length}`))
+			const note = el('span', 'journal-note', 'Any mode. Dunks neither count nor break a run.')
+			const steps = el('div', 'ladder')
+			steps.append(...ladderSteps(true))
+			card.append(head, steps, note)
+			return [card]
+		}
+		const head = el('div', 'journal-group')
+		head.append(el('span', '', `${group.label.toUpperCase()} · ${done} / ${badges.length}`))
+		return [head, ...badges.map(badgeRow)]
+	})
+	const scroll = nodes['journal-body'].scrollTop
+	nodes['journal-body'].replaceChildren(...sections)
+	nodes['journal-body'].scrollTop = scroll
+}
+
+function openJournal(withFocus) {
+	setSessionOpen(false)
+	nodes.journal.hidden = false
+	refreshJournal()
+	if (withFocus) nodes['journal-close'].focus()
+}
+
+function closeJournal() {
+	nodes.journal.hidden = true
+	if (nodes.journal.contains(document.activeElement)) canvas.focus({ preventScroll: true })
+}
+
+// Badges wait their turn, one at a time, under the score bar. The toast never pauses play.
+const TOAST_SECONDS = 3.5
+const toastQueue = []
+let toastTimer
+
+function queueToast(id) {
+	toastQueue.push(id)
+	if (toastTimer === undefined) nextToast()
+}
+
+function nextToast() {
+	const id = toastQueue.shift()
+	const achievement = ACHIEVEMENTS.find(candidate => candidate.id === id)
+	if (!achievement) {
+		toastTimer = undefined
+		return
+	}
+	const group = GROUPS.find(candidate => candidate.id === achievement.group)
+	const text = el('div', 'toast-text')
+	text.append(el('span', '', `ACHIEVEMENT · ${group.label.toUpperCase()}`), el('strong', '', achievement.title), el('span', '', achievement.detail))
+	nodes.toast.replaceChildren(badgeTile(achievement, 22), text, el('small', '', `${earnedCount()} / ${ACHIEVEMENTS.length}`))
+	nodes.toast.classList.add('show')
+	toastTimer = setTimeout(() => {
+		nodes.toast.classList.remove('show')
+		toastTimer = setTimeout(nextToast, 350)
+	}, TOAST_SECONDS * 1000)
+}
+
+function afterRecord(result) {
+	journal = result.progress
+	saveJournal()
+	for (const id of result.earned) queueToast(id)
+	refreshJournal()
+}
+
+// Only your own shots count: the CPU's go through the same ball, tagged `by`.
+function trackShot(ball, made) {
+	stepUp = undefined
+	if (ball.by === 'cpu') return {}
+	const result = record(journal, {
+		type: 'shot', made, swish: !ball.touched, banked: !!ball.banked, distance: ball.dunk ? 0 : ball.distance, three: !ball.dunk && ball.points === 3,
+		dunk: ball.dunk ? state.lastDunk : undefined, buzzer: state.mode === 'clock' && isTimeUp(state.clock, state.time),
+		court: courtId, phase: phaseId, autoTime: timeChoice === 'auto',
+	})
+	stepUp = STREAKS.find(step => result.earned.includes(step.id))
+	afterRecord(result)
+	return result
+}
+
+function trackRound(event) {
+	afterRecord(record(journal, event))
+}
+
+// "Basket! 18 in a row. Two more for Red hot." once a streak is within two of its next step.
+function streakLine(opener) {
+	const { run } = journal.stats
+	if (run < 2) return undefined
+	const next = nextStreak(run)
+	const left = next ? next.goal - run : 0
+	const more = left > 0 && left <= 2 ? ` ${left === 1 ? 'One' : 'Two'} more for ${next.title}.` : ''
+	return `${opener} ${run} in a row.${more}`
 }
 
 function finishContest() {
@@ -933,6 +1213,9 @@ function finishContest() {
 	if (best > bestBefore) {
 		try { localStorage.setItem(THREE_POINT_BEST_KEY, String(best)) } catch {}
 	}
+	const scored = new Set(state.log.filter(entry => entry.made).map(entry => entry.shot))
+	const allMoney = SHOTS.every((shot, index) => valueOf(shot, state.contest.moneyRack) !== 2 || scored.has(index))
+	trackRound({ type: 'round', mode: 'three-point', points, allMoney })
 	state.phase = 'ready'
 	state.reloadAt = undefined
 	// Kept short so the message fits on one line on a phone.
@@ -952,6 +1235,7 @@ const pointsText = points => `${points} ${points === 1 ? 'point' : 'points'}`
 
 const CONTEST_CALLOUTS = { 1: 'BASKET!', 2: 'MONEY BALL!', 3: 'DEEP THREE!' }
 function scoreContestBall(ball) {
+	trackShot(ball, true)
 	state.contest = recordMake(state.contest, ball.value)
 	state.log.push({ shot: ball.shot, made: true })
 	const title = ball.value === 1 && ball.banked ? 'BANK SHOT!' : CONTEST_CALLOUTS[ball.value]
@@ -966,11 +1250,15 @@ function updateContest(delta) {
 			playSound(event)
 			noteHoopHit(event, ball)
 			if (event === 'board') ball.banked = true
+			if (event === 'rim' || event === 'board') ball.touched = true
 			if (event === 'score') scoreContestBall(ball)
 		}
 		if (ball.goneAt === undefined && (ball.made || isDead(ball))) {
 			ball.goneAt = state.time + (ball.made ? 1.2 : 0.9)
-			if (!ball.made) state.log.push({ shot: ball.shot, made: false })
+			if (!ball.made) {
+				state.log.push({ shot: ball.shot, made: false })
+				trackShot(ball, false)
+			}
 		}
 	}
 	state.flying = state.flying.filter(ball => ball.goneAt === undefined || state.time < ball.goneAt)
@@ -989,6 +1277,11 @@ function updateContest(delta) {
 
 // `basket` is false for callouts that aren't a shot going in, such as the coin or a rematch, so the net stays still.
 function showCallout(title, detail, basket = true) {
+	if (basket && stepUp) {
+		title = `${stepUp.title.toUpperCase()}!`
+		detail = `${stepUp.goal} IN A ROW`
+		stepUp = undefined
+	}
 	state.scoredAt = state.time
 	if (basket) state.swishAt = state.time
 	nodes['callout-title'].textContent = title
@@ -1416,6 +1709,7 @@ function finishDuel() {
 	const recordBefore = cpuRecord
 	cpuRecord = recordResult(cpuRecord, duel.level, won)
 	try { localStorage.setItem(CPU_RECORD_KEY, JSON.stringify(cpuRecord)) } catch {}
+	trackRound({ type: 'round', mode: 'horse', won, level: duel.level, character: cpuCharacter().id, letters: duel.letters.you })
 	showRecord()
 	const name = cpuName()
 	const { won: wins, lost } = cpuRecord[duel.level]
@@ -1554,6 +1848,8 @@ function update(delta) {
 			playSound(event)
 			noteHoopHit(event, state.ball)
 			if (event === 'board') state.ball.banked = true
+			if (event === 'rim' || event === 'board') state.ball.touched = true
+			if (event === 'score') trackShot(state.ball, true)
 			if (event === 'score' && state.ball.dunk && clock) {
 				showCallout('DUNK!', '+2 PT')
 				state.clock = recordMake(state.clock, 2)
@@ -1568,8 +1864,7 @@ function update(delta) {
 				logFreeShot(true)
 				state.attempts++
 				state.makes++
-				state.streak++
-				setFeedback(state.streak > 1 ? `Dunk! ${state.streak} in a row.` : 'Dunk!', true)
+				setFeedback('Dunk!', true)
 				state.returnTime = state.time + 1.5
 				updateStats()
 				continue
@@ -1597,7 +1892,6 @@ function update(delta) {
 					logFreeShot(true)
 					state.attempts++
 					state.makes++
-					state.streak++
 					if (state.ball.distance > state.longest) {
 						const previous = state.longest
 						state.longest = state.ball.distance
@@ -1612,7 +1906,7 @@ function update(delta) {
 						}
 					} else {
 						const opener = banked ? 'Off the glass and in.' : 'Basket!'
-						setFeedback(state.streak > 1 ? `${opener} ${state.streak} in a row.` : banked ? `${opener} Basket!` : 'Basket! Nice shot.', true)
+						setFeedback(streakLine(opener) ?? (banked ? `${opener} Basket!` : 'Basket! Nice shot.'), true)
 					}
 				}
 				state.returnTime = state.time + (clock ? RETURN_AFTER_MAKE : 1.5)
@@ -1620,7 +1914,7 @@ function update(delta) {
 			}
 		}
 		if (isDead(state.ball) && state.returnTime === undefined) {
-			state.streak = 0
+			const { ended } = trackShot(state.ball, false)
 			state.returnTime = state.time + (clock ? RETURN_AFTER_MISS : 1.1)
 			if (freeThrows) {
 				takeFreeThrow(false)
@@ -1635,7 +1929,8 @@ function update(delta) {
 			} else {
 				logFreeShot(false)
 				state.attempts++
-				setFeedback('Another one. The court isn’t going anywhere.')
+				const newBest = ended?.best && ended.length >= 5
+				setFeedback(newBest ? `That run was ${ended.length}, your best yet.` : 'Another one. The court isn’t going anywhere.')
 				updateStats()
 			}
 		}
@@ -1935,6 +2230,10 @@ function resizeCanvas() {
 const MOVEMENT_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'KeyQ', 'KeyE', 'Space']
 addEventListener('keydown', event => {
 	if (nodes.help.open || !nodes['switch-warn'].hidden || event.ctrlKey || event.metaKey || event.altKey) return
+	if (event.code === 'Escape' && journalOpen()) {
+		event.preventDefault()
+		return closeJournal()
+	}
 	const interactive = event.target.closest?.('button, a, input, select, textarea')
 	if (interactive && event.target !== nodes.shoot) return
 	if (event.code === 'Escape') {
@@ -2315,13 +2614,37 @@ function checkOption(options, value) {
 }
 
 // A mouse click on these leaves focus on the court, so Space still shoots instead of pressing them again.
-for (const button of [nodes['session-open'], nodes['session-reset']]) button.addEventListener('mousedown', event => event.preventDefault())
+for (const button of [nodes['session-open'], nodes['session-reset'], nodes['journal-open'], nodes['journal-close']]) button.addEventListener('mousedown', event => event.preventDefault())
+for (const list of [nodes['panel-tabs'], nodes['journal-filter']]) list.addEventListener('mousedown', event => event.preventDefault())
 nodes['session-open'].addEventListener('click', () => setSessionOpen(nodes['session-panel'].hidden))
+nodes['tab-session'].addEventListener('click', () => setPanelTab('session'))
+nodes['tab-journal'].addEventListener('click', () => setPanelTab('journal'))
+nodes['journal-open'].addEventListener('click', event => openJournal(event.detail === 0))
+nodes['journal-close'].addEventListener('click', closeJournal)
+nodes['journal-filter'].addEventListener('click', event => {
+	const tab = event.target.closest('[data-filter]')
+	if (!tab) return
+	journalFilter = tab.dataset.filter
+	nodes['journal-body'].scrollTop = 0
+	renderJournalCard()
+})
+// Arrow keys move between the tabs of a tab list, as they do in a radio group.
+for (const list of [nodes['panel-tabs'], nodes['journal-filter']]) {
+	list.addEventListener('keydown', event => {
+		const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key]
+		if (!step) return
+		const tabs = [...list.children].filter(tab => tab.offsetParent)
+		const next = tabs[(tabs.indexOf(document.activeElement) + step + tabs.length) % tabs.length]
+		event.preventDefault()
+		next.focus()
+		next.click()
+	})
+}
+buildJournalFilter()
 nodes['session-reset'].addEventListener('click', () => {
 	state.session = []
 	state.attempts = 0
 	state.makes = 0
-	state.streak = 0
 	updateStats()
 	renderSession()
 })
@@ -2754,6 +3077,7 @@ function roundAtStake() {
 }
 
 applyMode()
+refreshJournal()
 showOpponent()
 // The page's default line is free shooting's, so a saved goal mode explains itself on load.
 if (state.mode !== 'free' && !isDuel()) setFeedback(MODE_INTROS[state.mode])
