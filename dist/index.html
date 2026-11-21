@@ -19,7 +19,7 @@
 		<meta property="og:image:height" content="630" />
 		<meta property="og:image:alt" content="Neighborhood Hoops: an isometric pixel-art basketball court with a player dribbling near the hoop." />
 		<meta name="twitter:card" content="summary_large_image" />
-		<link rel="stylesheet" href="style.css?v=33d07245bbb6" />
+		<link rel="stylesheet" href="style.css?v=6eb6b3458a" />
 	</head>
 	<body>
 		<script>
@@ -97,12 +97,29 @@
 				<div id="longest-stat"><strong id="longest">—</strong><span>LONGEST</span></div>
 				<svg class="session-chevron" aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4" /></svg>
 			</div>
-			<section id="session-panel" class="session-panel" aria-label="This session" hidden>
-				<div class="session-panel-top"><span>THIS SESSION</span><span id="session-summary"></span></div>
-				<div id="session-court" class="session-court"></div>
-				<div id="session-zones" class="session-zones"></div>
-				<div class="session-panel-foot"><span>Since you opened the court</span><button id="session-reset" type="button">Start over</button></div>
+			<section id="session-panel" class="session-panel" aria-label="Score panel" data-tab="session" hidden>
+				<div id="panel-tabs" class="tabs" role="tablist" aria-label="Panel">
+					<button id="tab-session" type="button" role="tab" aria-selected="true" aria-controls="pane-session">This session</button>
+					<button id="tab-journal" type="button" role="tab" aria-selected="false" aria-controls="pane-journal" tabindex="-1">Journal · <span id="tab-count"></span></button>
+				</div>
+				<div id="pane-session" class="panel-pane" role="tabpanel" aria-labelledby="tab-session">
+					<div class="session-panel-top"><span>THIS SESSION</span><span id="session-summary"></span></div>
+					<div id="session-court" class="session-court"></div>
+					<div id="session-zones" class="session-zones"></div>
+					<div class="session-panel-foot"><span>Since you opened the court</span><button id="session-reset" type="button">Start over</button></div>
+				</div>
+				<div id="pane-journal" class="panel-pane" role="tabpanel" aria-labelledby="tab-journal" hidden>
+					<div class="session-panel-top journal-head"><span>COURT JOURNAL</span><span id="journal-head-count"></span></div>
+					<div class="journal-label"><span>HOT HAND</span><span id="panel-best"></span></div>
+					<div id="panel-ladder" class="ladder"></div>
+					<div class="journal-close">
+						<span class="journal-label-text">CLOSE TO NEXT</span>
+						<div id="panel-close" class="close-list"></div>
+					</div>
+					<button id="journal-open" class="journal-all" type="button">All <span id="journal-open-count"></span> ▸</button>
+				</div>
 			</section>
+			<div id="toast" class="toast" role="status" aria-live="polite"></div>
 		</header>
 		<main>
 			<div id="stage"><canvas id="c" tabindex="0" aria-label="Basketball practice court. Move with WASD or arrows. Aim with the mouse or Q and E. Hold Space or the mouse button to charge, release to shoot." aria-describedby="controls"></canvas></div>
@@ -121,6 +138,12 @@
 						<button id="results-again" type="button"><span id="results-action">Play again</span><small id="results-action-detail" hidden></small></button>
 					</div>
 				</div>
+			</section>
+			<section id="journal" class="journal" role="dialog" aria-modal="false" aria-labelledby="journal-title" hidden>
+				<div class="results-top"><span id="journal-title">COURT JOURNAL · SAVED IN THIS BROWSER</span><button id="journal-close" class="journal-x" type="button" aria-label="Close journal">×</button></div>
+				<p class="journal-score"><strong id="journal-total"></strong><span id="journal-latest"></span></p>
+				<div id="journal-filter" class="tabs" role="tablist" aria-label="Filter"></div>
+				<div id="journal-body" class="journal-body" role="tabpanel"></div>
 			</section>
 			<div id="coin" hidden aria-hidden="true"><div class="coin-lift"><div class="coin-turn"><canvas class="coin-face" width="16" height="16"></canvas><canvas class="coin-face back" width="16" height="16"></canvas></div></div></div>
 			<section id="coin-call" aria-label="Coin flip" hidden>
@@ -232,7 +255,7 @@
 		</dialog>
 		<script>window.PP_SCENE = { originY: 14, shadowX: 1.05, shadowY: -0.22 }</script>
 		<script src="engine.js?v=7c2d4e10"></script>
-		<script type="module" src="game.js?v=7969fff2e3"></script>
+		<script type="module" src="game.js?v=8bdd02497d"></script>
 		<script>
 			// Saves the game for offline play. Skipped when running locally, where edits
 			// would otherwise be hidden behind the saved copies.
