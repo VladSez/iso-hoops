@@ -8,10 +8,10 @@ import { LEVELS as CPU_LEVELS, emptyRecord, firstShooter, other, parseDuel, pars
 import { aimShot, chooseSpot, makeWindow, yawTo } from './cpu.js?v=7'
 import { CHARACTERS, HAIRSTYLES, characterOf, colorOf, kitOf, paletteOf } from './characters.js?v=2'
 import { createMusicBuffer, TRACKS, trackFor, pickTrack } from './music.js?v=3'
-import { COURTS } from './courts.js?v=14'
+import { COURTS } from './courts.js?v=15'
 import { drivingDunk, dunkBall, dunkPose, planDunk } from './dunks.js?v=4'
 import { playSlam } from './slam.js?v=3'
-import { ACHIEVEMENTS, GROUPS, STREAKS, closest, nextStreak, parseProgress, progressOf, record, seed } from './achievements.js?v=1'
+import { ACHIEVEMENTS, GROUPS, STREAKS, closest, nextStreak, parseProgress, progressOf, record, seed } from './achievements.js?v=2'
 import { PHASES, PHASE_IDS, hoursOf, placeFor, resolvePhase, scheduleFor, zoneLabel } from './time-of-day.js?v=7'
 
 // The renderer's camera, rasterizer, figures and vegetation come from Pixel Plays.
@@ -239,7 +239,7 @@ const RIM_COLOR = [192, 73, 36]
 const CLASSIC_HOOP = { board: [227, 225, 206], frame: STEEL, pole: STEEL, rim: RIM_COLOR, net: NET_COLOR }
 const SNOW = [246, 249, 253]
 const hoopLook = () => ({ ...CLASSIC_HOOP, ...court.hoop })
-const CLASSIC_FEEL = { sway: 'bob', shake: 0.08, shakeHz: 9, shakeDecay: 6, netSway: 1, netSettle: 4, breeze: 0, puff: false }
+const CLASSIC_FEEL = { sway: 'bob', shake: 0.08, shakeHz: 9, shakeDecay: 6, netSway: 1, netSettle: 4, breeze: 0, puff: '' }
 const rimFeel = () => ({ ...CLASSIC_FEEL, ...court.feel })
 
 // The rim sways after a hit. `bob` dips and lifts the side the ball struck, `rock` tilts the rim across that line,
@@ -255,16 +255,25 @@ function rimShake() {
 	return { bend, angle: sway === 'rock' ? angle + Math.PI / 2 : angle }
 }
 
-function drawSnowPuff() {
+// Snow drops off the board quickly; leaves are lighter, so they flutter and take their time.
+const PUFFS = {
+	snow: { seconds: 1.2, count: [18, 36], drop: 1.6, sway: 0.06, size: i => (i < 0.5 ? 0.05 : 0.035), color: () => SNOW },
+	leaves: { seconds: 2.4, count: [4, 9], drop: 0.35, sway: 0.28, size: () => 0.09, color: i => court.leaf[i * 3 | 0] },
+}
+
+function drawPuff() {
 	if (state.puff === undefined || STILL) return
+	const look = PUFFS[state.puff.kind]
 	const age = state.time - state.puff.at
-	if (age > 1.2) return
-	for (let i = 0; i < 30; i++) {
-		if (hash(i, 3) < age / 1.2) continue
-		const y = state.puff.y + (hash(i, 1) - 0.5) * 1.4
-		const fall = age * (0.5 + hash(i, 2) * 1.2) + age * age * 2
-		const x = BACKBOARD_X + 0.1 + hash(i, 4) * 0.35 + age * 0.25
-		sphere(x, y + Math.sin(age * 5 + i) * 0.06, 5.02 - fall, hash(i, 5) < 0.5 ? 0.05 : 0.035, SNOW, 'solid')
+	if (age > look.seconds) return
+	const { seed, count, spread, drift } = state.puff
+	const r = (i, k) => hash(i, seed + k * 101)
+	for (let i = 0; i < count; i++) {
+		if (r(i, 3) < age / look.seconds) continue
+		const y = state.puff.y + (r(i, 1) - 0.5) * spread
+		const fall = age * (0.4 + r(i, 2) * 1.4) * (look.drop + 0.4) / 2 + age * age * look.drop * (1 + r(i, 6) * 0.5)
+		const x = BACKBOARD_X + 0.1 + r(i, 4) * 0.4 + age * drift
+		sphere(x, y + Math.sin(age * (3 + r(i, 7) * 4) + i) * look.sway, 5.02 - fall, look.size(r(i, 5)), look.color(r(i, 8)), 'solid')
 	}
 }
 
@@ -286,6 +295,9 @@ function drawHoop() {
 			line3D([BACKBOARD_X + 0.1, y, 4.98], [BACKBOARD_X + 0.1, y, 4.9 - hash(i, 9) * 0.12], 0.03, SNOW)
 		}
 		line3D([-8.9, -0.06, 4.17], [BACKBOARD_X - 0.08, -0.06, 4.17], 0.05, SNOW)
+	}
+	if (look.leaves) {
+		for (let i = 0; i < 11; i++) sphere(BACKBOARD_X - 0.05 + hash(i, 22) * 0.18, -1.3 + hash(i, 23) * 2.6, 4.97 + hash(i, 24) * 0.06, 0.09 + hash(i, 25) * 0.04, court.leaf[hash(i, 21) * 3 | 0], 'solid')
 	}
 }
 
@@ -745,7 +757,15 @@ function beginCharge(source) {
 
 function noteHoopHit(event, ball) {
 	if (event === 'rim') state.rimHit = { at: state.time, angle: Math.atan2(ball.y - HOOP.y, ball.x - HOOP.x) }
-	if (event === 'board' && rimFeel().puff && ball.z > 3.6) state.puff = { at: state.time, y: clamp(ball.y, -1.2, 1.2) }
+	const kind = rimFeel().puff
+	if (event === 'board' && kind && ball.z > 3.6) {
+		const [least, most] = PUFFS[kind].count
+		state.puff = {
+			kind, at: state.time, y: clamp(ball.y, -1.2, 1.2),
+			// Each puff is its own: how many come off, how wide they spread and how far they drift.
+			seed: Math.floor(Math.random() * 1000), count: least + Math.floor(Math.random() * (most - least)), spread: 0.9 + Math.random() * 0.9, drift: 0.1 + Math.random() * 0.35,
+		}
+	}
 }
 
 function releaseShot(source) {
@@ -2170,7 +2190,7 @@ function draw() {
 	applyShadows(bakedZ)
 	shadeEdges()
 	drawNet(dunk?.bend ?? shake?.bend, state.dunk?.angle ?? shake?.angle)
-	drawSnowPuff()
+	drawPuff()
 	drawAimGuide()
 	gradeFrame()
 	ctx.putImageData(image, 0, 0)

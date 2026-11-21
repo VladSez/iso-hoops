@@ -1,9 +1,9 @@
 // Palettes, ground options and sound for each playground. The props each one adds are drawn in game.js.
 // `sound` scales effect pitch, how loud the ball hits the floor, and how much the air echoes.
 // `hoop` swaps parts of the neighborhood's hoop (game.js CLASSIC_HOOP): colours, plus `planks` on the board,
-// a `torn` net and `snow` on the board.
+// a `torn` net, and `snow` or `leaves` along the top of the board.
 // `feel` is how the hoop moves (game.js CLASSIC_FEEL): the rim's `sway` after a hit (`bob`, `rock` or `jolt`) and how far and fast it goes, how far the net swings
-// after a swish and how quickly it settles, a sea `breeze` that keeps the net swaying, and a `puff` of snow off a hit high on the board.
+// after a swish and how quickly it settles, a sea `breeze` that keeps the net swaying, and a `puff` of `snow` or `leaves` knocked off a hit high on the board.
 // `rim` is how lively the rim is (physics.js RIM_BOUNCE): the neighborhood's is the softest, the rooftop's stiff enough to kick the ball away.
 // Every court follows the player's clock (time-of-day.js). `lampScale` softens lamplight on pale ground that would wash out,
 // `daylight` replaces palette entries in the morning and day, and `paintedForDusk` skips the evening grade for a palette that is already dusk.
@@ -60,9 +60,9 @@ export const COURTS = {
 		cool: [60, 40, 70], warm: [255, 214, 160],
 		fence: 'chain',
 		sound: { pitch: 0.95, floor: 0.9, echo: 0.1 },
-		feel: { netSway: 1.8, netSettle: 2.2, shake: 0.05, shakeHz: 6, shakeDecay: 4 },
+		feel: { netSway: 1.8, netSettle: 2.2, shake: 0.05, shakeHz: 6, shakeDecay: 4, puff: 'leaves' },
 		rim: 0.68,
-		hoop: { board: [146, 206, 152], frame: [52, 78, 58], pole: [52, 78, 58], square: [240, 232, 206], torn: true },
+		hoop: { board: [146, 206, 152], frame: [52, 78, 58], pole: [52, 78, 58], square: [240, 232, 206], torn: true, leaves: true },
 	},
 	winter: {
 		name: 'First snow',
@@ -73,7 +73,7 @@ export const COURTS = {
 		cool: [60, 70, 120], warm: [240, 244, 255],
 		fence: 'chain',
 		sound: { pitch: 1.12, floor: 0.6, echo: 0.18 },
-		feel: { netSway: 0.4, netSettle: 7, sway: 'jolt', shake: 0.12, puff: true },
+		feel: { netSway: 0.4, netSettle: 7, sway: 'jolt', shake: 0.12, puff: 'snow' },
 		rim: 0.75,
 		hoop: { snow: true },
 	},
