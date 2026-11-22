@@ -129,13 +129,12 @@ body { --switch-on: var(--panel); }
 #session-open:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
 .session-chevron { flex-shrink: 0; margin-left: -6px; color: var(--orange); transition: transform 0.15s; }
 #session-open[aria-expanded="true"] ~ .session-chevron { transform: rotate(180deg); }
-body[data-mode="free"] .session-stats:hover { box-shadow: var(--raised), 0 0 0 1px var(--edge); }
-/* In free shooting the scoreboard is a button, so it presses in a little when clicked. It is much wider than a button,
+.session-stats:hover { box-shadow: var(--raised), 0 0 0 1px var(--edge); }
+/* The scoreboard is a button, so it presses in a little when clicked. It is much wider than a button,
    so 99% moves its edges about as far as 97% moves a button's. `scale` leaves its centring transform alone. */
-body[data-mode="free"] .session-stats { transition: scale 160ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.15s; }
-body[data-mode="free"] .session-stats:active { scale: 0.99; }
-@media (prefers-reduced-motion: reduce) { body[data-mode="free"] .session-stats:active { scale: none; } }
-body:not([data-mode="free"]) :is(#session-open, .session-chevron, .session-panel) { display: none; }
+.session-stats { transition: scale 160ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.15s; }
+.session-stats:active { scale: 0.99; }
+@media (prefers-reduced-motion: reduce) { .session-stats:active { scale: none; } }
 .session-panel { position: absolute; top: calc(50% + 44px); left: 50%; transform: translateX(-50%); z-index: 3; box-sizing: border-box; width: min(320px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 12px; border-radius: 12px; background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--edge), 0 4px 8px color-mix(in srgb, var(--shade) 8%, transparent), 0 24px 48px -12px color-mix(in srgb, var(--shade) 24%, transparent); }
 .session-panel[hidden] { display: none; }
 /* Lifts the header, and the panel with it, over the controls below while the panel is open. */
@@ -512,7 +511,7 @@ dialog .dialog-note { font-size: 10px; }
 	.session-panel { top: calc(100% + 10px); }
 	.session-stats > div { width: 70px; }
 	/* The arrow gets its own room at the right edge, so it never sits on the last number. */
-	body[data-mode="free"] .session-stats { padding-right: 34px; }
+	.session-stats { padding-right: 34px; }
 	/* Narrow phones shrink the four columns so the scoreboard stays on screen, 8 px in from each side. */
 	body[data-mode="free"] .session-stats > div { width: min(64px, calc((100vw - 112px) / 4)); }
 	.session-chevron { position: absolute; top: 50%; right: 11px; margin: -6px 0 0; }
@@ -607,7 +606,7 @@ dialog .dialog-note { font-size: 10px; }
 	.session-stats { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); gap: 8px; padding: 4px 10px; }
 	.session-panel { top: calc(50% + 30px); max-height: calc(100vh - 80px); overflow-y: auto; }
 	.session-stats > div { width: 62px; }
-	body[data-mode="free"] .session-stats { padding-right: 34px; }
+	.session-stats { padding-right: 34px; }
 	.session-chevron { position: absolute; top: 50%; right: 11px; margin: -6px 0 0; }
 	.session-stats strong { font-size: 17px; }
 	.session-stats > div { gap: 4px; }
@@ -711,4 +710,130 @@ dialog .dialog-note { font-size: 10px; }
 	.switch { grid-template-columns: 1fr; }
 	.now-playing { gap: 6px; padding-bottom: 6px; }
 	.track-everywhere { border-top: 0; min-height: 40px; }
+}
+
+/* Court Journal: the score bar's second tab, the unlock toast and the full Journal. */
+.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; padding: 3px; border-radius: 10px; background: var(--hover); }
+.tabs button { position: relative; height: 30px; padding: 0 4px; border: 0; border-radius: 7px; background: none; color: var(--soft); font: inherit; font-size: 10px; transition: transform 0.12s; }
+.tabs button[aria-selected="true"] { background: var(--switch-on); color: var(--orange); box-shadow: 0 0 0 1px var(--edge), 0 1px 2px color-mix(in srgb, var(--shade) 8%, transparent); }
+.tabs button:not([aria-selected="true"]):active { background: color-mix(in srgb, var(--switch-on) 55%, transparent); transform: scale(0.96); }
+@media (hover: hover) { .tabs button:not([aria-selected="true"]):hover { background: color-mix(in srgb, var(--switch-on) 50%, transparent); } }
+.tabs button:focus-visible { outline: 2px solid var(--orange); outline-offset: 1px; }
+.panel-pane { display: flex; flex-direction: column; gap: 12px; }
+.panel-pane[hidden] { display: none; }
+.session-panel[data-tab="journal"] { width: min(460px, calc(100vw - 32px)); }
+body:not([data-mode="free"]) #panel-tabs { display: none; }
+body[data-mode="free"] .journal-head { display: none; }
+.journal-label { display: flex; justify-content: space-between; gap: 8px; color: var(--label); font-size: 10px; }
+.journal-label span:first-child, .journal-label-text, .journal-group { color: var(--orange); font-size: 8px; letter-spacing: 1.4px; }
+.journal-label-text { color: var(--label); }
+.journal-close { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.journal-all { white-space: nowrap; display: flex; justify-content: center; align-items: center; gap: 0.5ch; align-self: flex-end; min-height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--hover); color: var(--orange); font: inherit; font-size: 10px; box-shadow: 0 0 0 1px var(--edge); }
+.journal-all:hover { color: var(--ink); }
+
+.ladder { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.ladder .step { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; font-size: 9px; color: var(--label); text-align: center; }
+.ladder .step strong { color: var(--ink); font-size: 13px; }
+.tile { display: grid; place-items: center; flex-shrink: 0; box-sizing: border-box; border-radius: 9px; background: var(--orange); color: white; box-shadow: 2px 2px 0 var(--stamp, var(--ink)); }
+.ladder .tile { width: 100%; height: 40px; }
+.tile.t1 { background: color-mix(in srgb, var(--orange) 55%, white); }
+.tile.t2 { background: color-mix(in srgb, var(--orange) 78%, white); }
+.tile.t4 { background: color-mix(in srgb, var(--orange) 78%, var(--shade)); }
+.tile.t5 { background: color-mix(in srgb, var(--orange) 58%, var(--shade)); }
+.tile.t6 { background: color-mix(in srgb, var(--orange) 40%, var(--shade)); }
+.tile.started { border: 2px solid var(--faint); background: none; color: var(--faint); box-shadow: none; }
+.tile.locked { border: 2px dotted var(--edge); background: none; color: var(--edge); box-shadow: none; }
+.tile svg { display: block; }
+
+.close-list { display: flex; flex-direction: column; gap: 6px; }
+.close-row { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr) minmax(0, 80px); align-items: center; gap: 10px; font-size: 11px; }
+.close-row strong { overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.close-row small { color: var(--label); font-size: 11px; text-align: right; }
+.close-empty { color: var(--label); font-size: 10px; }
+.bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 4px; background: var(--orange); }
+
+.toast { position: absolute; top: calc(50% + 44px); left: 50%; z-index: 2; box-sizing: border-box; width: min(372px, calc(100vw - 32px)); transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 12px 16px 12px 12px; border-radius: 14px; background: var(--panel); color: var(--ink); box-shadow: var(--raised); pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0s 0.2s; }
+.toast.show { opacity: 1; visibility: visible; pointer-events: auto; cursor: pointer; transition: opacity 0.2s; }
+.toast .tile { width: 48px; height: 48px; }
+.toast-text { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.toast-text span:first-child { color: var(--orange); font-size: 8px; letter-spacing: 1.6px; }
+.toast-text strong { font-size: 15px; font-weight: 800; letter-spacing: 0.3px; }
+.toast-text span:last-child { color: var(--label); font-size: 10px; }
+.toast > small { align-self: flex-start; color: var(--orange); font-size: 10px; white-space: nowrap; }
+@media (hover: hover) { .toast.show:hover { box-shadow: var(--raised), 0 0 0 1px var(--edge); } }
+.header:has(#session-open[aria-expanded="true"]) .toast { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+	.toast { translate: 0 -8px; transition: opacity 0.2s, translate 0.25s cubic-bezier(0.23, 1, 0.32, 1), visibility 0s 0.25s; }
+	.toast.show { translate: 0 0; transition: opacity 0.2s, translate 0.25s cubic-bezier(0.23, 1, 0.32, 1); }
+}
+
+.journal { position: fixed; left: 50%; top: 50%; z-index: 5; box-sizing: border-box; transform: translate(-50%, -50%); display: flex; flex-direction: column; gap: 16px; width: min(600px, calc(100vw - 32px)); height: min(600px, calc(100svh - 48px)); padding: 24px 28px 0; border-radius: 16px; overflow: hidden; color: var(--ink); background: linear-gradient(var(--panel), color-mix(in srgb, var(--panel) 97%, var(--shade))); box-shadow: var(--raised), 0 24px 48px -16px color-mix(in srgb, var(--shade) 28%, transparent); }
+.journal[hidden] { display: none; }
+.journal .results-top { align-items: center; }
+.journal-x { display: grid; place-items: center; width: 32px; height: 32px; margin: -8px -10px -8px 0; padding: 0; border: 0; border-radius: 50%; background: var(--hover); color: var(--ink); font-size: 14px; box-shadow: 0 0 0 1px var(--line); }
+.journal-x:hover { color: var(--orange); }
+.journal-score { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0; }
+.journal-score strong { color: var(--orange); font-size: 60px; line-height: 0.9; font-weight: 800; letter-spacing: -1px; text-shadow: 3px 3px 0 var(--stamp, var(--ink)); }
+.journal-score small { font-size: 28px; text-shadow: 2px 2px 0 var(--stamp, var(--ink)); }
+.journal-score span { color: var(--label); font-size: 12px; }
+.journal-body { display: flex; flex-direction: column; flex: 1; gap: 10px; min-height: 0; margin: 0 -28px; padding: 0 28px 36px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; -webkit-mask-image: linear-gradient(#000 calc(100% - 32px), transparent); mask-image: linear-gradient(#000 calc(100% - 32px), transparent); }
+.journal-body > * { flex-shrink: 0; }
+.journal-note { color: var(--label); font-size: 10px; }
+.journal-group { display: flex; justify-content: space-between; margin-top: 6px; }
+.journal-ladder { display: flex; flex-direction: column; gap: 10px; padding: 14px 12px 12px; border-radius: 10px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--line); }
+.journal-ladder .ladder .tile { height: 44px; }
+.badge-row { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line); }
+.badge-row .tile { width: 36px; height: 36px; border-radius: 8px; }
+.badge-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.badge-text strong { font-size: 12px; }
+.badge-text span, .badge-text .badge-progress { color: var(--label); font-size: 10px; }
+.badge-row.locked strong, .badge-row.locked span { color: var(--muted); }
+.badge-progress { display: flex; align-items: center; gap: 8px; }
+.badge-progress .bar { flex: 1; }
+.badge-text:has(.badge-progress) { gap: 5px; }
+
+@media (max-width: 750px) {
+	.close-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 5px; }
+	.close-row .bar { grid-row: 2; grid-column: 1 / -1; }
+	.close-row small { grid-row: 1; grid-column: 2; }
+	.ladder { gap: 6px; }
+	.ladder .step span { font-size: 8px; }
+	.tabs button { font-size: 9px; }
+	.toast, .session-panel { top: calc(100% + 10px); }
+}
+@media (pointer: coarse) {
+	.tabs button { height: 38px; }
+	.journal-all { min-height: 44px; font-size: 11px; }
+	.journal-x { width: 44px; height: 44px; margin: -10px -6px -10px 0; }
+}
+/* Phones held upright: the Journal slides up as a sheet from the bottom edge. */
+@media (pointer: coarse) and (orientation: portrait) {
+	.journal { left: 0; top: auto; bottom: 0; transform: none; width: 100%; height: min(86svh, 720px); gap: 12px; padding: 22px 18px 0; border-radius: 18px 18px 0 0; }
+	.journal::before { content: ""; position: absolute; top: 8px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--edge); }
+	.journal-score strong { font-size: 46px; }
+	.journal-body { margin: 0 -18px; padding: 0 18px max(36px, env(safe-area-inset-bottom)); }
+	/* The toast sits in the gap between the court and the feedback line, clear of the hoop and the basket callout. */
+	.toast { top: auto; bottom: calc(100% + 14px); left: 0; width: 100%; transform: none; }
+}
+@media (pointer: coarse) and (orientation: portrait) and (prefers-reduced-motion: no-preference) {
+	.toast { translate: 0 8px; }
+}
+/* Phones held sideways are too short for a sheet, so the Journal is a panel down the right edge. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+	/* Sideways there is no gap under the court, so the toast is a slim pill over the feedback line. */
+	.toast { position: relative; z-index: 1; grid-area: feedback; justify-self: center; align-self: start; top: auto; left: auto; transform: none; width: auto; max-width: min(100%, 320px); height: 36px; margin: -20px 0 6px; gap: 10px; padding: 0 14px 0 5px; border-radius: 999px; }
+	.toast .tile { width: 26px; height: 26px; border-radius: 999px; box-shadow: none; }
+	.toast .tile svg { width: 11px; height: auto; }
+	.toast-text { flex-direction: row; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
+	.toast-text span:first-child { display: none; }
+	.toast-text strong { font-size: 11px; }
+	.toast-text span:last-child { overflow: hidden; text-overflow: ellipsis; }
+	.toast > small { align-self: center; }
+	.journal { left: auto; right: 0; top: 0; transform: none; width: min(420px, 55vw); height: 100svh; gap: 10px; padding: 14px max(16px, env(safe-area-inset-right)) 0 16px; border-radius: 16px 0 0 16px; }
+	.journal-x { margin: 0 -6px 0 0; }
+	.journal-score strong { font-size: 36px; }
+	.journal-score small { font-size: 18px; }
+	.journal-body { margin: 0 calc(-1 * max(16px, env(safe-area-inset-right))) 0 -16px; padding: 0 max(16px, env(safe-area-inset-right)) 28px 16px; }
+	.session-panel[data-tab="journal"] { width: min(370px, calc(100vw - 32px)); }
 }
